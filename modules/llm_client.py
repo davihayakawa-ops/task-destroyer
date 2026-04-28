@@ -24,7 +24,11 @@ SYSTEM_PROMPT = """あなたはShopifyの商品ページ制作、広告制作、
 
 class LLMClient:
     def __init__(self):
-        api_key = get_api_key()
+        try:
+            import streamlit as st
+            api_key = st.secrets.get("ANTHROPIC_API_KEY") or os.getenv("ANTHROPIC_API_KEY")
+        except:
+            api_key = os.getenv("ANTHROPIC_API_KEY")
         if not api_key:
             self._available = False
             self._client = None
