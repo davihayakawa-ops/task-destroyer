@@ -7,19 +7,7 @@ try:
     import streamlit as st
     _st_available = True
 except ImportError:
-    try:
-    import streamlit as st
-    _st_available = True
-except ImportError:
     _st_available = False
-
-def get_api_key():
-    if _st_available:
-        try:
-            return st.secrets.get("ANTHROPIC_API_KEY") or os.getenv("ANTHROPIC_API_KEY")
-        except:
-            pass
-    return os.getenv("ANTHROPIC_API_KEY")
 
 SYSTEM_PROMPT = """あなたはShopifyの商品ページ制作、広告制作、画像・動画生成プロンプト作成を専門とする
 マーケティングAIアシスタントです。日本市場向けに特化し、自然な日本語で高品質なコンテンツを生成します。
@@ -28,10 +16,13 @@ SYSTEM_PROMPT = """あなたはShopifyの商品ページ制作、広告制作、
 
 class LLMClient:
     def __init__(self):
-        try:
-            import streamlit as st
-            api_key = st.secrets.get("ANTHROPIC_API_KEY") or os.getenv("ANTHROPIC_API_KEY")
-        except:
+        api_key = None
+        if _st_available:
+            try:
+                api_key = st.secrets.get("ANTHROPIC_API_KEY")
+            except Exception:
+                pass
+        if not api_key:
             api_key = os.getenv("ANTHROPIC_API_KEY")
         if not api_key:
             self._available = False
@@ -42,12 +33,12 @@ class LLMClient:
         self.model = os.getenv("LLM_MODEL", "claude-sonnet-4-6")
 
     @property
-    def is_available(self) -> bool:
+    def is_available(self):
         return self._available
 
-    def generate(self, prompt: str, system: str = "", max_tokens: int = 4096) -> str:
+    def generate(self, prompt, system="", max_tokens=4096):
         if not self._available:
-            return "[APIキーが設定されていません。.envファイルにANTHROPIC_API_KEYを設定してください]"
+            return "[APIキーが設定されていません]"
         sys_prompt = system if system else SYSTEM_PROMPT
         response = self._client.messages.create(
             model=self.model,
@@ -57,5 +48,5 @@ class LLMClient:
         )
         return response.content[0].text
 
-    def generate_structured(self, prompt: str, system: str = "", max_tokens: int = 8192) -> str:
+    def generate_structured(self, prompt, system="", max_tokens=8192):
         return self.generate(prompt, system, max_tokens)
