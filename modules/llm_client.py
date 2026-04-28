@@ -1,5 +1,6 @@
 import os
 import streamlit as st
+import anthropic
 from anthropic import Anthropic
 from dotenv import load_dotenv
 
@@ -34,13 +35,21 @@ class LLMClient:
         if not self._available:
             return "[APIキーが設定されていません。Streamlit Cloud の Settings > Secrets に ANTHROPIC_API_KEY を設定してください]"
         sys_prompt = system if system else SYSTEM_PROMPT
-        response = self._client.messages.create(
-            model=self.model,
-            max_tokens=max_tokens,
-            system=sys_prompt,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return response.content[0].text
+        try:
+            response = self._client.messages.create(
+                model=self.model,
+                max_tokens=max_tokens,
+                system=sys_prompt,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            return response.content[0].text
+        except anthropic.AuthenticationError:
+            self._available = False
+            return "[APIキー認証エラー：Streamlit Cloud の Settings > Secrets で ANTHROPIC_API_KEY を確認してください]"
+        except anthropic.RateLimitError:
+            return "[レート制限エラー：しばらく待ってから再試行してください]"
+        except anthropic.APIError as e:
+            return f"[Anthropic APIエラー：{e}]"
 
     def generate_structured(self, prompt: str, system: str = "", max_tokens: int = 8192) -> str:
         return self.generate(prompt, system, max_tokens)
