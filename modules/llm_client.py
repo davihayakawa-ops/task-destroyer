@@ -1,18 +1,30 @@
 import os
 from anthropic import Anthropic
 from dotenv import load_dotenv
-
 load_dotenv()
+
+try:
+    import streamlit as st
+    _st_available = True
+except ImportError:
+    _st_available = False
+
+def get_api_key():
+    if _st_available:
+        try:
+            return st.secrets.get("ANTHROPIC_API_KEY") or os.getenv("ANTHROPIC_API_KEY")
+        except:
+            pass
+    return os.getenv("ANTHROPIC_API_KEY")
 
 SYSTEM_PROMPT = """あなたはShopifyの商品ページ制作、広告制作、画像・動画生成プロンプト作成を専門とする
 マーケティングAIアシスタントです。日本市場向けに特化し、自然な日本語で高品質なコンテンツを生成します。
 ポルトガル語の入力も理解し、日本市場向けの自然な日本語に変換できます。
 誇大表現、医療的断定表現、薬機法・景表法リスクのある表現は使用しません。"""
 
-
 class LLMClient:
     def __init__(self):
-        api_key = os.getenv("ANTHROPIC_API_KEY")
+        api_key = get_api_key()
         if not api_key:
             self._available = False
             self._client = None
@@ -28,7 +40,6 @@ class LLMClient:
     def generate(self, prompt: str, system: str = "", max_tokens: int = 4096) -> str:
         if not self._available:
             return "[APIキーが設定されていません。.envファイルにANTHROPIC_API_KEYを設定してください]"
-
         sys_prompt = system if system else SYSTEM_PROMPT
         response = self._client.messages.create(
             model=self.model,
@@ -39,5 +50,4 @@ class LLMClient:
         return response.content[0].text
 
     def generate_structured(self, prompt: str, system: str = "", max_tokens: int = 8192) -> str:
-        """Large structured content generation with extended token limit."""
         return self.generate(prompt, system, max_tokens)
