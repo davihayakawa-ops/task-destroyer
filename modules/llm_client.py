@@ -1,5 +1,5 @@
 import os
-from typing import Optional
+import streamlit as st
 from anthropic import Anthropic
 from dotenv import load_dotenv
 
@@ -11,51 +11,28 @@ SYSTEM_PROMPT = """あなたはShopifyの商品ページ制作、広告制作、
 誇大表現、医療的断定表現、薬機法・景表法リスクのある表現は使用しません。"""
 
 
-def _read_api_key() -> Optional[str]:
-    """
-    st.secrets (Streamlit Cloud) を優先し、なければ os.getenv にフォールバック。
-    @st.cache_resource でキャッシュされた LLMClient が secrets 未ロード状態で
-    初期化された場合でも、generate() 呼び出し時に再取得できるよう独立関数にする。
-    """
-    try:
-        import streamlit as st
-        key = st.secrets.get("ANTHROPIC_API_KEY")
-        if key:
-            return str(key).strip()
-    except Exception:
-        pass
-    key = os.getenv("ANTHROPIC_API_KEY", "")
-    return key.strip() if key else None
-
-
 class LLMClient:
     def __init__(self):
-        self.model = os.getenv("LLM_MODEL", "claude-sonnet-4-6")
-        self._client: Optional[Anthropic] = None
-        self._try_init()
+        try:
+            api_key = st.secrets["ANTHROPIC_API_KEY"]
+        except Exception:
+            api_key = os.getenv("ANTHROPIC_API_KEY", "")
 
-    def _try_init(self) -> bool:
-        """キーが取得できればクライアントを初期化して True を返す。"""
-        if self._client is not None:
-            return True
-        api_key = _read_api_key()
+        self.model = os.getenv("LLM_MODEL", "claude-sonnet-4-6")
         if api_key:
+            self._available = True
             self._client = Anthropic(api_key=api_key)
-            return True
-        return False
+        else:
+            self._available = False
+            self._client = None
 
     @property
     def is_available(self) -> bool:
-        return self._try_init()
+        return self._available
 
     def generate(self, prompt: str, system: str = "", max_tokens: int = 4096) -> str:
-        # @st.cache_resource でキャッシュ済みのインスタンスでも
-        # ここで再試行することで secrets 遅延ロード問題を回避する
-        if not self._try_init():
-            return (
-                "[APIキーが設定されていません。"
-                "Streamlit Cloud の Settings > Secrets に ANTHROPIC_API_KEY を設定してください]"
-            )
+        if not self._available:
+            return "[APIキーが設定されていません。Streamlit Cloud の Settings > Secrets に ANTHROPIC_API_KEY を設定してください]"
         sys_prompt = system if system else SYSTEM_PROMPT
         response = self._client.messages.create(
             model=self.model,
