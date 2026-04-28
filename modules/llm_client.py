@@ -7,6 +7,10 @@ try:
     import streamlit as st
     _st_available = True
 except ImportError:
+    try:
+    import streamlit as st
+    _st_available = True
+except ImportError:
     _st_available = False
 
 def get_api_key():
