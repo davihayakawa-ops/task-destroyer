@@ -33,8 +33,8 @@ def load_i18n(lang: str) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def t(key_path: str) -> str:
-    """Get translation string by dot-separated key path."""
+def t(key_path: str):
+    """Get translation value (str or list) by dot-separated key path."""
     i18n = st.session_state.get("i18n", {})
     keys = key_path.split(".")
     val = i18n
@@ -43,7 +43,20 @@ def t(key_path: str) -> str:
             val = val.get(k, key_path)
         else:
             return key_path
-    return val if isinstance(val, str) else key_path
+    return val if isinstance(val, (str, list)) else key_path
+
+
+def resolve_option_index(saved: str, opts: list, opts_other: list) -> int:
+    """Return the index of saved in opts, falling back to opts_other for cross-language mapping."""
+    if not saved:
+        return 0
+    for i, o in enumerate(opts):
+        if o == saved:
+            return i
+    for i, o in enumerate(opts_other):
+        if o == saved:
+            return min(i, len(opts) - 1)
+    return len(opts) - 1  # default: last item (free input or last option)
 
 
 # ── Page config ───────────────────────────────────────────────────────────────
@@ -538,183 +551,212 @@ def page_product_input():
                 unsafe_allow_html=True)
 
     info = st.session_state.get("product_info", {})
+    lang = st.session_state.get("lang", "ja")
+    other_lang = "pt" if lang == "ja" else "ja"
+    other_i18n = load_i18n(other_lang)
 
-    PRICE_OPTIONS = [
-        "〜1,000円", "1,000円〜3,000円", "3,000円〜5,000円",
-        "5,000円〜10,000円", "10,000円〜20,000円", "20,000円〜50,000円",
-        "50,000円以上", "自由入力",
-    ]
-    TARGET_OPTIONS = [
-        "一般消費者向け", "女性向け", "男性向け", "美容に関心がある人",
-        "健康・セルフケアに関心がある人", "インテリアに関心がある人",
-        "ギフト購入者", "忙しい社会人", "20〜40代の会社員",
-        "子育て世代", "シニア層", "自由入力",
-    ]
-    AGE_OPTIONS = [
-        "指定なし", "10代", "20代", "30代", "40代", "50代", "60代以上",
-        "20〜30代", "30〜40代", "40〜50代", "20〜40代", "30〜50代", "自由入力",
-    ]
-    TONE_OPTIONS = [
-        "上品", "高級感", "信頼感", "やさしい", "親しみやすい", "清潔感",
-        "シンプル", "ミニマル", "女性らしい", "男性向け", "スタイリッシュ",
-        "ナチュラル", "落ち着いた雰囲気", "広告感強め", "自由入力",
-    ]
-    CATEGORY_OPTIONS = [
-        "美容・スキンケア", "健康・セルフケア", "インテリア・寝具", "時計・アクセサリー",
-        "ガジェット・電子機器", "アパレル・ファッション", "ギフト・プレゼント",
-        "ペット用品", "食品・飲料", "その他",
-    ]
-    GENDER_OPTIONS = ["指定なし", "女性向け", "男性向け", "ユニセックス"]
+    def _other(key: str, default=None):
+        """Retrieve a value from the other-language i18n dict."""
+        parts = key.split(".")
+        val = other_i18n
+        for p in parts:
+            val = val.get(p, default) if isinstance(val, dict) else default
+        return val
 
-    # Resolve initial indices from saved values
-    ex_price = info.get("price", "")
-    price_idx = PRICE_OPTIONS.index(ex_price) if ex_price in PRICE_OPTIONS else (
-        PRICE_OPTIONS.index("自由入力") if ex_price else 0)
+    # ── Load localised option lists ───────────────────────────────────
+    categories   = t("product_input.categories")    or []
+    price_opts   = t("product_input.price_options") or []
+    target_opts  = t("product_input.target_options") or []
+    gender_opts  = t("product_input.gender_options") or []
+    age_opts     = t("product_input.age_options")    or []
+    tone_opts    = t("product_input.brand_tone_options") or []
+    free_input   = t("product_input.free_input")
 
-    ex_target = info.get("target", "")
-    target_idx = TARGET_OPTIONS.index(ex_target) if ex_target in TARGET_OPTIONS else (
-        TARGET_OPTIONS.index("自由入力") if ex_target else 0)
+    # Other-language option lists for cross-language index resolution
+    categories_o  = _other("product_input.categories", [])
+    price_opts_o  = _other("product_input.price_options", [])
+    target_opts_o = _other("product_input.target_options", [])
+    gender_opts_o = _other("product_input.gender_options", [])
+    age_opts_o    = _other("product_input.age_options", [])
+    tone_opts_o   = _other("product_input.brand_tone_options", [])
+    free_input_o  = _other("product_input.free_input", "")
 
-    ex_age = info.get("age", "")
-    age_idx = AGE_OPTIONS.index(ex_age) if ex_age in AGE_OPTIONS else (
-        AGE_OPTIONS.index("自由入力") if ex_age else 0)
-
-    ex_cat = info.get("category", "")
-    cat_idx = CATEGORY_OPTIONS.index(ex_cat) if ex_cat in CATEGORY_OPTIONS else 0
-
-    ex_gender = info.get("gender", "指定なし")
-    gender_idx = GENDER_OPTIONS.index(ex_gender) if ex_gender in GENDER_OPTIONS else 0
-
-    # Resolve brand_tone multiselect defaults
+    # ── Resolve saved brand_tone parts to multiselect defaults ────────
     ex_tone = info.get("brand_tone", "")
-    ex_tone_parts = [s.strip() for s in ex_tone.replace(",", "、").split("、") if s.strip()]
-    known_tones = [s for s in ex_tone_parts if s in TONE_OPTIONS]
-    custom_tone_default = "、".join([s for s in ex_tone_parts if s not in TONE_OPTIONS])
-    if custom_tone_default and "自由入力" not in known_tones:
-        known_tones.append("自由入力")
+    ex_tone_parts = [s.strip() for s in ex_tone.split("、") if s.strip()]
+    known_tone_idxs = set()
+    custom_tone_parts = []
+    for part in ex_tone_parts:
+        found = False
+        for i, opt in enumerate(tone_opts[:-1]):   # exclude free_input (last)
+            if opt == part:
+                known_tone_idxs.add(i)
+                found = True
+                break
+        if not found:
+            for i, opt in enumerate(tone_opts_o[:-1]):
+                if opt == part:
+                    known_tone_idxs.add(i)
+                    found = True
+                    break
+        if not found:
+            custom_tone_parts.append(part)
+
+    known_tones_default = [tone_opts[i] for i in sorted(known_tone_idxs)
+                           if i < len(tone_opts) - 1]
+    if custom_tone_parts:
+        known_tones_default.append(free_input)
+    custom_tone_default = "、".join(custom_tone_parts)
 
     # ── 基本情報 ──────────────────────────────────────────────────────
     st.markdown(
-        '<div class="cs-card-title"><span class="icon">📦</span> 基本情報</div>',
+        f'<div class="cs-card-title"><span class="icon">📦</span> '
+        f'{t("product_input.section_basic")}</div>',
         unsafe_allow_html=True,
     )
     col1, col2 = st.columns(2)
     with col1:
-        name = st.text_input("商品名 *", value=info.get("name", ""),
-                              placeholder="例：プレミアムアイクリーム")
-        category = st.selectbox("商品カテゴリ", CATEGORY_OPTIONS, index=cat_idx)
+        name = st.text_input(
+            t("product_input.name_required"),
+            value=info.get("name", ""),
+            placeholder=t("product_input.name_placeholder"),
+        )
+        cat_idx = resolve_option_index(info.get("category", ""), categories, categories_o)
+        category = st.selectbox(t("product_input.category"), categories, index=cat_idx)
     with col2:
-        product_url = st.text_input("商品URL", value=info.get("product_url", ""),
-                                    placeholder="https://...")
+        product_url = st.text_input(
+            t("product_input.product_url"),
+            value=info.get("product_url", ""),
+            placeholder=t("product_input.url_placeholder"),
+        )
 
-    price_mode = st.selectbox("商品価格", PRICE_OPTIONS, index=price_idx)
+    ex_price = info.get("price", "")
+    price_idx = resolve_option_index(ex_price, price_opts, price_opts_o)
+    price_mode = st.selectbox(t("product_input.price"), price_opts, index=price_idx)
     price = price_mode
-    if price_mode == "自由入力":
-        price = st.text_input("価格を入力",
-                              value=ex_price if ex_price not in PRICE_OPTIONS else "",
-                              placeholder="例：3,980円（税込）")
+    if price_mode == free_input:
+        is_preset_price = ex_price in price_opts or ex_price in price_opts_o
+        price = st.text_input(
+            t("product_input.price_custom_label"),
+            value="" if is_preset_price else ex_price,
+            placeholder=t("product_input.price_custom_placeholder"),
+        )
 
     st.markdown("---")
 
     # ── ターゲット設定 ────────────────────────────────────────────────
     st.markdown(
-        '<div class="cs-card-title"><span class="icon">👥</span> ターゲット設定</div>',
+        f'<div class="cs-card-title"><span class="icon">👥</span> '
+        f'{t("product_input.section_target")}</div>',
         unsafe_allow_html=True,
     )
-    target_mode = st.selectbox("ターゲット", TARGET_OPTIONS, index=target_idx)
+    ex_target = info.get("target", "")
+    target_idx = resolve_option_index(ex_target, target_opts, target_opts_o)
+    target_mode = st.selectbox(t("product_input.target"), target_opts, index=target_idx)
     target = target_mode
-    if target_mode == "自由入力":
-        target = st.text_input("ターゲットを入力",
-                               value=ex_target if ex_target not in TARGET_OPTIONS else "",
-                               placeholder="例：肌荒れに悩む30〜40代の女性")
+    if target_mode == free_input:
+        is_preset_target = ex_target in target_opts or ex_target in target_opts_o
+        target = st.text_input(
+            t("product_input.target_custom_label"),
+            value="" if is_preset_target else ex_target,
+            placeholder=t("product_input.target_custom_placeholder"),
+        )
 
     col1, col2 = st.columns(2)
     with col1:
-        gender = st.selectbox("性別", GENDER_OPTIONS, index=gender_idx)
+        gender_idx = resolve_option_index(info.get("gender", ""), gender_opts, gender_opts_o)
+        gender = st.selectbox(t("product_input.gender"), gender_opts, index=gender_idx)
     with col2:
-        age_mode = st.selectbox("年齢層", AGE_OPTIONS, index=age_idx)
+        ex_age = info.get("age", "")
+        age_idx = resolve_option_index(ex_age, age_opts, age_opts_o)
+        age_mode = st.selectbox(t("product_input.age"), age_opts, index=age_idx)
         age = age_mode
-        if age_mode == "自由入力":
-            age = st.text_input("年齢層を入力",
-                                value=ex_age if ex_age not in AGE_OPTIONS else "",
-                                placeholder="例：35〜55歳")
+        if age_mode == free_input:
+            is_preset_age = ex_age in age_opts or ex_age in age_opts_o
+            age = st.text_input(
+                t("product_input.age_custom_label"),
+                value="" if is_preset_age else ex_age,
+                placeholder=t("product_input.age_custom_placeholder"),
+            )
 
     st.markdown("---")
 
     # ── 商品内容 ──────────────────────────────────────────────────────
     st.markdown(
-        '<div class="cs-card-title"><span class="icon">📝</span> 商品内容</div>',
+        f'<div class="cs-card-title"><span class="icon">📝</span> '
+        f'{t("product_input.section_content")}</div>',
         unsafe_allow_html=True,
     )
     description = st.text_area(
-        "商品説明（任意）",
+        t("product_input.description_label"),
         value=info.get("description", ""),
         height=150,
-        placeholder="例：3年間の研究開発から生まれた、敏感肌向けのアイクリームです。...",
+        placeholder=t("product_input.description_placeholder"),
     )
 
     col1, col2 = st.columns(2)
     with col1:
         features = st.text_area(
-            "商品の特徴・強み（任意）",
+            t("product_input.features_label"),
             value=info.get("features", ""),
             height=110,
-            placeholder="例：軽い、使いやすい、洗える、持ち運びやすい、高級感がある など",
+            placeholder=t("product_input.features_placeholder"),
         )
         use_scenes = st.text_area(
-            "使用シーン（任意）",
+            t("product_input.use_scenes_label"),
             value=info.get("use_scenes", ""),
             height=110,
-            placeholder="例：自宅でのリラックスタイム、仕事終わり、寝る前、プレゼント など",
+            placeholder=t("product_input.use_scenes_placeholder"),
         )
     with col2:
         weaknesses = st.text_area(
-            "商品の弱み（任意）",
+            t("product_input.weaknesses_label"),
             value=info.get("weaknesses", ""),
             height=110,
-            placeholder="例：価格が高め、説明が必要、効果を実感するまで時間がかかる など",
+            placeholder=t("product_input.weaknesses_placeholder"),
         )
         competitor_urls = st.text_area(
-            "競合URL（任意）",
+            t("product_input.competitor_url_label"),
             value=info.get("competitor_urls", ""),
             height=110,
-            placeholder="https://...",
+            placeholder=t("product_input.competitor_url_placeholder"),
         )
 
     st.markdown("---")
 
     # ── 表現・トーン設定 ──────────────────────────────────────────────
     st.markdown(
-        '<div class="cs-card-title"><span class="icon">🎨</span> 表現・トーン設定</div>',
+        f'<div class="cs-card-title"><span class="icon">🎨</span> '
+        f'{t("product_input.section_tone")}</div>',
         unsafe_allow_html=True,
     )
     brand_tone_selected = st.multiselect(
-        "希望するブランドトーン（複数選択可）",
-        TONE_OPTIONS,
-        default=known_tones,
+        t("product_input.brand_tone_multi_label"),
+        tone_opts,
+        default=known_tones_default,
     )
     brand_tone_custom_val = ""
-    if "自由入力" in brand_tone_selected:
+    if free_input in brand_tone_selected:
         brand_tone_custom_val = st.text_input(
-            "ブランドトーンを入力",
+            t("product_input.brand_tone_custom_label"),
             value=custom_tone_default,
-            placeholder="例：和風、モダン、ラグジュアリー",
+            placeholder=t("product_input.brand_tone_custom_placeholder"),
         )
 
     col1, col2 = st.columns(2)
     with col1:
         prohibited = st.text_area(
-            "禁止表現（任意）",
+            t("product_input.prohibited_label"),
             value=info.get("prohibited", ""),
             height=100,
-            placeholder="例：治る、必ず効果がある、100%改善、医学的に証明 など",
+            placeholder=t("product_input.prohibited_placeholder"),
         )
     with col2:
         notes = st.text_area(
-            "その他・備考（任意）",
+            t("product_input.notes_label"),
             value=info.get("notes", ""),
             height=100,
-            placeholder="担当者への連絡事項など",
+            placeholder=t("product_input.notes_placeholder"),
         )
 
     st.markdown("---")
@@ -730,7 +772,7 @@ def page_product_input():
     if st.button("💾 " + t("product_input.save_btn"), type="primary", use_container_width=True):
         product_id = ensure_product_id()
 
-        tones = [tone for tone in brand_tone_selected if tone != "自由入力"]
+        tones = [tone for tone in brand_tone_selected if tone not in (free_input, free_input_o)]
         if brand_tone_custom_val.strip():
             tones.append(brand_tone_custom_val.strip())
         brand_tone = "、".join(tones)
