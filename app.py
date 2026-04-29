@@ -27,7 +27,6 @@ from modules.mode_registry import list_modes, get_mode
 
 # ── i18n ─────────────────────────────────────────────────────────────────────
 
-@st.cache_data
 def load_i18n(lang: str) -> dict:
     path = ROOT / "i18n" / f"{lang}.json"
     return json.loads(path.read_text(encoding="utf-8"))
@@ -39,11 +38,20 @@ def t(key_path: str):
     keys = key_path.split(".")
     val = i18n
     for k in keys:
-        if isinstance(val, dict):
-            val = val.get(k, key_path)
-        else:
+        if not isinstance(val, dict):
             return key_path
-    return val if isinstance(val, (str, list)) else key_path
+        val = val.get(k)
+        if val is None:
+            return key_path
+    if isinstance(val, (str, list)):
+        return val
+    return key_path
+
+
+def tl(key_path: str) -> list:
+    """Get a translation list. Returns [] if the key is missing or not a list."""
+    val = t(key_path)
+    return val if isinstance(val, list) else []
 
 
 def resolve_option_index(saved: str, opts: list, opts_other: list) -> int:
@@ -563,22 +571,31 @@ def page_product_input():
             val = val.get(p, default) if isinstance(val, dict) else default
         return val
 
-    # ── Load localised option lists ───────────────────────────────────
-    categories   = t("product_input.categories")    or []
-    price_opts   = t("product_input.price_options") or []
-    target_opts  = t("product_input.target_options") or []
-    gender_opts  = t("product_input.gender_options") or []
-    age_opts     = t("product_input.age_options")    or []
-    tone_opts    = t("product_input.brand_tone_options") or []
-    free_input   = t("product_input.free_input")
+    # ── Load localised option lists (tl() always returns a list) ─────
+    categories   = tl("product_input.categories")
+    price_opts   = tl("product_input.price_options")
+    target_opts  = tl("product_input.target_options")
+    gender_opts  = tl("product_input.gender_options")
+    age_opts     = tl("product_input.age_options")
+    tone_opts    = tl("product_input.brand_tone_options")
+    free_input   = t("product_input.free_input") or "自由入力"
+
+    def _other_list(key: str) -> list:
+        parts = key.split(".")
+        val = other_i18n
+        for p in parts:
+            val = val.get(p) if isinstance(val, dict) else None
+            if val is None:
+                return []
+        return val if isinstance(val, list) else []
 
     # Other-language option lists for cross-language index resolution
-    categories_o  = _other("product_input.categories", [])
-    price_opts_o  = _other("product_input.price_options", [])
-    target_opts_o = _other("product_input.target_options", [])
-    gender_opts_o = _other("product_input.gender_options", [])
-    age_opts_o    = _other("product_input.age_options", [])
-    tone_opts_o   = _other("product_input.brand_tone_options", [])
+    categories_o  = _other_list("product_input.categories")
+    price_opts_o  = _other_list("product_input.price_options")
+    target_opts_o = _other_list("product_input.target_options")
+    gender_opts_o = _other_list("product_input.gender_options")
+    age_opts_o    = _other_list("product_input.age_options")
+    tone_opts_o   = _other_list("product_input.brand_tone_options")
     free_input_o  = _other("product_input.free_input", "")
 
     # ── Resolve saved brand_tone parts to multiselect defaults ────────
@@ -625,7 +642,7 @@ def page_product_input():
         category = st.selectbox(t("product_input.category"), categories, index=cat_idx)
     with col2:
         product_url = st.text_input(
-            t("product_input.product_url"),
+            t("product_input.url_optional"),
             value=info.get("product_url", ""),
             placeholder=t("product_input.url_placeholder"),
         )
@@ -688,7 +705,7 @@ def page_product_input():
         unsafe_allow_html=True,
     )
     description = st.text_area(
-        t("product_input.description_label"),
+        t("product_input.description"),
         value=info.get("description", ""),
         height=150,
         placeholder=t("product_input.description_placeholder"),
@@ -697,26 +714,26 @@ def page_product_input():
     col1, col2 = st.columns(2)
     with col1:
         features = st.text_area(
-            t("product_input.features_label"),
+            t("product_input.features"),
             value=info.get("features", ""),
             height=110,
             placeholder=t("product_input.features_placeholder"),
         )
         use_scenes = st.text_area(
-            t("product_input.use_scenes_label"),
+            t("product_input.usage_scene"),
             value=info.get("use_scenes", ""),
             height=110,
             placeholder=t("product_input.use_scenes_placeholder"),
         )
     with col2:
         weaknesses = st.text_area(
-            t("product_input.weaknesses_label"),
+            t("product_input.weaknesses"),
             value=info.get("weaknesses", ""),
             height=110,
             placeholder=t("product_input.weaknesses_placeholder"),
         )
         competitor_urls = st.text_area(
-            t("product_input.competitor_url_label"),
+            t("product_input.competitor_urls"),
             value=info.get("competitor_urls", ""),
             height=110,
             placeholder=t("product_input.competitor_url_placeholder"),
@@ -746,14 +763,14 @@ def page_product_input():
     col1, col2 = st.columns(2)
     with col1:
         prohibited = st.text_area(
-            t("product_input.prohibited_label"),
+            t("product_input.forbidden_expressions"),
             value=info.get("prohibited", ""),
             height=100,
             placeholder=t("product_input.prohibited_placeholder"),
         )
     with col2:
         notes = st.text_area(
-            t("product_input.notes_label"),
+            t("product_input.notes"),
             value=info.get("notes", ""),
             height=100,
             placeholder=t("product_input.notes_placeholder"),
@@ -769,7 +786,7 @@ def page_product_input():
         reviewer = st.text_input(t("product_input.reviewer"),
                                  value=st.session_state.get("reviewer", ""))
 
-    if st.button("💾 " + t("product_input.save_btn"), type="primary", use_container_width=True):
+    if st.button("💾 " + t("product_input.save_button"), type="primary", use_container_width=True):
         product_id = ensure_product_id()
 
         tones = [tone for tone in brand_tone_selected if tone not in (free_input, free_input_o)]
