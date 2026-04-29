@@ -1746,7 +1746,6 @@ def page_saved_data():
         else:
             for p in products:
                 pid = p["id"]
-                has_approved = svc["storage"].has_approved_content(pid)
                 header = f"📦 {p.get('name', '—')}  ({p.get('category', '')})"
 
                 with st.expander(header):
@@ -1779,6 +1778,10 @@ def page_saved_data():
 
                     # Confirmation dialog
                     if st.session_state.get("confirm_delete_id") == pid:
+                        try:
+                            has_approved = svc["storage"].has_approved_content(pid)
+                        except Exception:
+                            has_approved = False
                         st.markdown("---")
                         st.markdown(f"**⚠️ {t('saved_data.confirm_delete_title')}**")
                         st.markdown(t("saved_data.confirm_delete_msg"))
