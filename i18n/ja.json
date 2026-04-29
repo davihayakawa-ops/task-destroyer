@@ -72,8 +72,11 @@
     "reference_text": "参考にしたい文章",
     "notes": "備考",
     "notes_placeholder": "担当者への連絡事項など",
-    "assignee": "担当者名",
+    "assignee": "担当者",
     "reviewer": "最終確認者",
+    "person_options": ["選択なし", "Davi", "Sara", "自由入力"],
+    "assignee_custom_label": "担当者名を入力",
+    "reviewer_custom_label": "確認者名を入力",
     "save_btn": "入力内容を保存",
     "save_button": "入力内容を保存",
     "next_core_button": "Core生成へ進む",
@@ -242,6 +245,20 @@
     "title": "チェック",
     "run_btn": "チェック実行",
     "checking_msg": "チェック中..."
+  },
+  "saved_data": {
+    "search_placeholder": "商品名で検索...",
+    "load_btn": "読み込む",
+    "delete_btn": "削除",
+    "confirm_delete_title": "削除の確認",
+    "confirm_delete_msg": "このプロジェクトを削除しますか？この操作は元に戻せません。",
+    "delete_reason_label": "削除理由（任意）",
+    "delete_confirm_btn": "削除する",
+    "delete_cancel_btn": "キャンセル",
+    "approved_warning": "このプロジェクトには承認済みコンテンツが含まれています。削除しても問題ないか確認してください。",
+    "deleted_msg": "プロジェクトを削除しました",
+    "products_tab": "商品プロジェクト",
+    "cores_tab": "Coreライブラリ"
   },
   "common": {
     "no_core_warning": "先にCoreを生成または取り込んでください",

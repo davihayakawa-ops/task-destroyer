@@ -74,6 +74,9 @@
     "notes_placeholder": "Informações para o responsável, etc.",
     "assignee": "Responsável",
     "reviewer": "Revisor final",
+    "person_options": ["Sem seleção", "Davi", "Sara", "Entrada livre"],
+    "assignee_custom_label": "Digite o nome do responsável",
+    "reviewer_custom_label": "Digite o nome do revisor",
     "save_btn": "Salvar informações",
     "save_button": "Salvar informações",
     "next_core_button": "Ir para geração do Core",
@@ -242,6 +245,20 @@
     "title": "Verificação",
     "run_btn": "Executar verificação",
     "checking_msg": "Verificando..."
+  },
+  "saved_data": {
+    "search_placeholder": "Buscar por nome do produto...",
+    "load_btn": "Carregar",
+    "delete_btn": "Excluir",
+    "confirm_delete_title": "Confirmar exclusão",
+    "confirm_delete_msg": "Deseja excluir este projeto? Esta ação não pode ser desfeita.",
+    "delete_reason_label": "Motivo da exclusão (opcional)",
+    "delete_confirm_btn": "Excluir",
+    "delete_cancel_btn": "Cancelar",
+    "approved_warning": "Este projeto contém conteúdo aprovado. Confirme antes de excluir.",
+    "deleted_msg": "Projeto excluído com sucesso",
+    "products_tab": "Projetos de produto",
+    "cores_tab": "Biblioteca de Cores"
   },
   "common": {
     "no_core_warning": "Por favor, gere ou importe um Core primeiro",

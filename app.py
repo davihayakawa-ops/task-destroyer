@@ -778,13 +778,43 @@ def page_product_input():
 
     st.markdown("---")
 
+    person_opts = tl("product_input.person_options")
+    person_opts_o = _other_list("product_input.person_options")
+    free_person = person_opts[-1] if person_opts else "自由入力"
+    free_person_o = person_opts_o[-1] if person_opts_o else ""
+
     col_a, col_b = st.columns(2)
     with col_a:
-        assignee = st.text_input(t("product_input.assignee"),
-                                 value=st.session_state.get("assignee", ""))
+        ex_assignee = st.session_state.get("assignee", "")
+        assignee_idx = resolve_option_index(ex_assignee, person_opts, person_opts_o)
+        assignee_mode = st.selectbox(t("product_input.assignee"), person_opts, index=assignee_idx,
+                                     key="assignee_sel")
+        assignee = assignee_mode
+        if assignee_mode == free_person:
+            is_preset_a = ex_assignee in person_opts or ex_assignee in person_opts_o
+            assignee = st.text_input(
+                t("product_input.assignee_custom_label"),
+                value="" if is_preset_a else ex_assignee,
+            )
     with col_b:
-        reviewer = st.text_input(t("product_input.reviewer"),
-                                 value=st.session_state.get("reviewer", ""))
+        ex_reviewer = st.session_state.get("reviewer", "")
+        reviewer_idx = resolve_option_index(ex_reviewer, person_opts, person_opts_o)
+        reviewer_mode = st.selectbox(t("product_input.reviewer"), person_opts, index=reviewer_idx,
+                                     key="reviewer_sel")
+        reviewer = reviewer_mode
+        if reviewer_mode == free_person:
+            is_preset_r = ex_reviewer in person_opts or ex_reviewer in person_opts_o
+            reviewer = st.text_input(
+                t("product_input.reviewer_custom_label"),
+                value="" if is_preset_r else ex_reviewer,
+            )
+
+    # Normalize "選択なし" / "Sem seleção" to empty string
+    sentinel_vals = set(person_opts[:1]) | set(person_opts_o[:1])
+    if assignee in sentinel_vals:
+        assignee = ""
+    if reviewer in sentinel_vals:
+        reviewer = ""
 
     if st.button("💾 " + t("product_input.save_button"), type="primary", use_container_width=True):
         product_id = ensure_product_id()
@@ -802,6 +832,8 @@ def page_product_input():
             "prohibited": prohibited, "description": description,
             "use_scenes": use_scenes, "competitor_urls": competitor_urls,
             "notes": notes,
+            "assignee": assignee,
+            "final_reviewer": reviewer,
         }
         st.session_state["product_info"] = new_info
         st.session_state["assignee"] = assignee
@@ -1692,39 +1724,108 @@ def page_saved_data():
     st.markdown('<div class="section-header">💾 ' + t("nav.saved_data") + '</div>',
                 unsafe_allow_html=True)
 
-    tab1, tab2 = st.tabs(["💼 商品プロジェクト", "📚 Coreライブラリ"])
+    tab1, tab2 = st.tabs([
+        "💼 " + t("saved_data.products_tab"),
+        "📚 " + t("saved_data.cores_tab"),
+    ])
 
     with tab1:
         products = svc["storage"].list_products()
+
+        # Search filter
+        search = st.text_input("🔍", placeholder=t("saved_data.search_placeholder"),
+                               label_visibility="collapsed")
+        if search:
+            products = [p for p in products
+                        if search.lower() in p.get("name", "").lower()]
+
         if not products:
-            st.markdown("保存済み商品がありません")
+            st.markdown('<div class="cs-info">💡 ' +
+                        (t("saved_data.search_placeholder") if not search else "該当なし") +
+                        '</div>', unsafe_allow_html=True)
         else:
             for p in products:
-                with st.expander(f"📦 {p.get('name', '不明')} ({p.get('category', '')})"):
-                    st.markdown(f"**価格:** {p.get('price', '-')}")
-                    st.markdown(f"**ターゲット:** {p.get('target', '-')}")
-                    st.markdown(f"**更新日:** {p.get('updated_at', '-')}")
-                    if st.button("このプロジェクトを読み込む", key=f"load_{p['id']}"):
-                        st.session_state["product_id"] = p["id"]
-                        st.session_state["product_info"] = {k: v for k, v in p.items() if k != "id"}
-                        # Load latest core
-                        core_entry = svc["storage"].load_latest_core(p["id"])
-                        if core_entry:
-                            st.session_state["core_text"] = core_entry["core"].get("text", "")
-                            st.session_state["core_status"] = core_entry.get("status", "ai_generated")
-                        st.success(f"'{p.get('name')}' を読み込みました")
-                        st.rerun()
+                pid = p["id"]
+                has_approved = svc["storage"].has_approved_content(pid)
+                header = f"📦 {p.get('name', '—')}  ({p.get('category', '')})"
+
+                with st.expander(header):
+                    col_info, col_actions = st.columns([3, 1])
+                    with col_info:
+                        st.markdown(f"**{t('status.last_updated')}:** {p.get('updated_at', '-')}")
+                        st.markdown(f"**価格:** {p.get('price', '-')}")
+                        st.markdown(f"**ターゲット:** {p.get('target', '-')}")
+                        if p.get("assignee"):
+                            st.markdown(f"**{t('product_input.assignee')}:** {p.get('assignee', '-')}")
+                    with col_actions:
+                        if st.button("📂 " + t("saved_data.load_btn"), key=f"load_{pid}",
+                                     use_container_width=True):
+                            st.session_state["product_id"] = pid
+                            st.session_state["product_info"] = {k: v for k, v in p.items() if k != "id"}
+                            st.session_state["assignee"] = p.get("assignee", "")
+                            st.session_state["reviewer"] = p.get("final_reviewer", "")
+                            core_entry = svc["storage"].load_latest_core(pid)
+                            if core_entry:
+                                st.session_state["core_text"] = core_entry["core"].get("text", "")
+                                st.session_state["core_status"] = core_entry.get("status", "ai_generated")
+                            st.success(f"'{p.get('name')}' を読み込みました")
+                            st.rerun()
+
+                        if st.button("🗑️ " + t("saved_data.delete_btn"), key=f"del_{pid}",
+                                     use_container_width=True):
+                            st.session_state["confirm_delete_id"] = pid
+                            st.session_state["confirm_delete_name"] = p.get("name", pid)
+                            st.rerun()
+
+                    # Confirmation dialog
+                    if st.session_state.get("confirm_delete_id") == pid:
+                        st.markdown("---")
+                        st.markdown(f"**⚠️ {t('saved_data.confirm_delete_title')}**")
+                        st.markdown(t("saved_data.confirm_delete_msg"))
+                        if has_approved:
+                            st.markdown(
+                                f'<div class="cs-warning">⚠️ {t("saved_data.approved_warning")}</div>',
+                                unsafe_allow_html=True,
+                            )
+                        delete_reason = st.text_input(
+                            t("saved_data.delete_reason_label"),
+                            key=f"del_reason_{pid}",
+                        )
+                        dcol1, dcol2 = st.columns(2)
+                        with dcol1:
+                            if st.button("🗑️ " + t("saved_data.delete_confirm_btn"),
+                                         key=f"do_del_{pid}", type="primary",
+                                         use_container_width=True):
+                                deleted_by = st.session_state.get("assignee", "")
+                                svc["storage"].delete_project(pid, deleted_by, delete_reason)
+                                # Clear session if current project deleted
+                                if st.session_state.get("product_id") == pid:
+                                    st.session_state["product_id"] = ""
+                                    st.session_state["product_info"] = {}
+                                    st.session_state["core_text"] = ""
+                                st.session_state.pop("confirm_delete_id", None)
+                                st.session_state.pop("confirm_delete_name", None)
+                                st.success(t("saved_data.deleted_msg"))
+                                st.rerun()
+                        with dcol2:
+                            if st.button("✖ " + t("saved_data.delete_cancel_btn"),
+                                         key=f"cancel_del_{pid}", use_container_width=True):
+                                st.session_state.pop("confirm_delete_id", None)
+                                st.session_state.pop("confirm_delete_name", None)
+                                st.rerun()
 
     with tab2:
         pid = ensure_product_id()
         cores = svc["storage"].list_cores(pid)
         if not cores:
-            st.markdown("保存済みCoreがありません")
+            st.markdown('<div class="cs-info">💡 保存済みCoreがありません。</div>',
+                        unsafe_allow_html=True)
         else:
             for c in reversed(cores):
                 with st.expander(f"📝 {c['version_label']} — {c.get('status', '')} ({c['created_at']})"):
                     core_text = c["core"].get("text", "")
-                    st.text_area("Core内容", value=core_text[:1000] + "..." if len(core_text) > 1000 else core_text,
+                    st.text_area("Core内容",
+                                 value=core_text[:1000] + "..." if len(core_text) > 1000 else core_text,
                                  height=200, key=f"saved_core_{c['id']}", disabled=True)
                     if st.button("このCoreを使用", key=f"use_core_{c['id']}"):
                         st.session_state["core_text"] = core_text

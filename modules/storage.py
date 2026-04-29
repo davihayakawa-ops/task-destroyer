@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
@@ -24,6 +25,7 @@ class Storage:
         _ensure_dir(DATA_DIR / "core_library")
         _ensure_dir(DATA_DIR / "approvals")
         _ensure_dir(DATA_DIR / "activity_logs")
+        _ensure_dir(DATA_DIR / "delete_logs")
 
     # ── Product Info ──────────────────────────────────────────────────────────
 
@@ -150,3 +152,48 @@ class Storage:
             except Exception:
                 pass
         return entries
+
+    # ── Delete ────────────────────────────────────────────────────────────────
+
+    def has_approved_content(self, product_id: str) -> bool:
+        for p in (DATA_DIR / "approvals").glob(f"{product_id}_*.json"):
+            try:
+                data = json.loads(p.read_text())
+                if data.get("status") in ("approved", "ready", "published"):
+                    return True
+            except Exception:
+                pass
+        return False
+
+    def delete_project(self, product_id: str, deleted_by: str = "", reason: str = "") -> list:
+        deleted = []
+        project_file = DATA_DIR / "projects" / f"{product_id}.json"
+        if project_file.exists():
+            deleted.append(str(project_file))
+            project_file.unlink()
+        for p in list((DATA_DIR / "projects").glob(f"{product_id}_*.json")):
+            deleted.append(str(p))
+            p.unlink()
+        for p in list((DATA_DIR / "core_library").glob(f"{product_id}_*.json")):
+            deleted.append(str(p))
+            p.unlink()
+        for p in list((DATA_DIR / "approvals").glob(f"{product_id}_*.json")):
+            deleted.append(str(p))
+            p.unlink()
+        log_file = DATA_DIR / "activity_logs" / f"{product_id}.jsonl"
+        if log_file.exists():
+            deleted.append(str(log_file))
+            log_file.unlink()
+        self.save_delete_log(product_id, deleted_by, reason, deleted)
+        return deleted
+
+    def save_delete_log(self, product_id: str, deleted_by: str, reason: str, files: list):
+        entry = {
+            "product_id": product_id,
+            "deleted_by": deleted_by,
+            "reason": reason,
+            "files": files,
+            "deleted_at": _now(),
+        }
+        path = DATA_DIR / "delete_logs" / f"{product_id}_{str(uuid.uuid4())[:8]}.json"
+        path.write_text(json.dumps(entry, ensure_ascii=False, indent=2))
