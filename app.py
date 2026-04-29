@@ -1779,7 +1779,11 @@ def page_saved_data():
                     # Confirmation dialog
                     if st.session_state.get("confirm_delete_id") == pid:
                         try:
-                            has_approved = svc["storage"].has_approved_content(pid)
+                            storage = svc["storage"]
+                            if not hasattr(storage, "has_approved_content"):
+                                from modules.storage import Storage as _Storage
+                                storage = _Storage()
+                            has_approved = storage.has_approved_content(pid)
                         except Exception:
                             has_approved = False
                         st.markdown("---")
@@ -1800,16 +1804,28 @@ def page_saved_data():
                                          key=f"do_del_{pid}", type="primary",
                                          use_container_width=True):
                                 deleted_by = st.session_state.get("assignee", "")
-                                svc["storage"].delete_project(pid, deleted_by, delete_reason)
-                                # Clear session if current project deleted
-                                if st.session_state.get("product_id") == pid:
-                                    st.session_state["product_id"] = ""
-                                    st.session_state["product_info"] = {}
-                                    st.session_state["core_text"] = ""
-                                st.session_state.pop("confirm_delete_id", None)
-                                st.session_state.pop("confirm_delete_name", None)
-                                st.success(t("saved_data.deleted_msg"))
-                                st.rerun()
+                                try:
+                                    storage = svc["storage"]
+                                    if not hasattr(storage, "delete_project"):
+                                        from modules.storage import Storage as _Storage
+                                        storage = _Storage()
+                                    storage.delete_project(pid, deleted_by, delete_reason)
+                                    delete_ok = True
+                                    delete_err = ""
+                                except Exception as e:
+                                    delete_ok = False
+                                    delete_err = str(e)
+                                if delete_ok:
+                                    if st.session_state.get("product_id") == pid:
+                                        st.session_state["product_id"] = ""
+                                        st.session_state["product_info"] = {}
+                                        st.session_state["core_text"] = ""
+                                    st.session_state.pop("confirm_delete_id", None)
+                                    st.session_state.pop("confirm_delete_name", None)
+                                    st.success(t("saved_data.deleted_msg"))
+                                    st.rerun()
+                                else:
+                                    st.error(f"削除に失敗しました: {delete_err}")
                         with dcol2:
                             if st.button("✖ " + t("saved_data.delete_cancel_btn"),
                                          key=f"cancel_del_{pid}", use_container_width=True):
