@@ -539,44 +539,202 @@ def page_product_input():
 
     info = st.session_state.get("product_info", {})
 
-    with st.form("product_form"):
-        col1, col2 = st.columns(2)
-        with col1:
-            name = st.text_input(t("product_input.name"), value=info.get("name", ""))
-            category = st.selectbox(
-                t("product_input.category"),
-                ["美容・スキンケア", "健康・セルフケア", "インテリア・寝具", "時計・アクセサリー",
-                 "ガジェット・電子機器", "アパレル・ファッション", "ギフト・プレゼント",
-                 "ペット用品", "食品・飲料", "その他"],
-                index=0 if not info.get("category") else None,
-            )
-            price = st.text_input(t("product_input.price"), value=info.get("price", ""))
-            target = st.text_input(t("product_input.target"), value=info.get("target", ""))
-            gender = st.selectbox(t("product_input.gender"), ["指定なし", "女性向け", "男性向け", "ユニセックス"])
-            age = st.text_input(t("product_input.age"), value=info.get("age", ""))
+    PRICE_OPTIONS = [
+        "〜1,000円", "1,000円〜3,000円", "3,000円〜5,000円",
+        "5,000円〜10,000円", "10,000円〜20,000円", "20,000円〜50,000円",
+        "50,000円以上", "自由入力",
+    ]
+    TARGET_OPTIONS = [
+        "一般消費者向け", "女性向け", "男性向け", "美容に関心がある人",
+        "健康・セルフケアに関心がある人", "インテリアに関心がある人",
+        "ギフト購入者", "忙しい社会人", "20〜40代の会社員",
+        "子育て世代", "シニア層", "自由入力",
+    ]
+    AGE_OPTIONS = [
+        "指定なし", "10代", "20代", "30代", "40代", "50代", "60代以上",
+        "20〜30代", "30〜40代", "40〜50代", "20〜40代", "30〜50代", "自由入力",
+    ]
+    TONE_OPTIONS = [
+        "上品", "高級感", "信頼感", "やさしい", "親しみやすい", "清潔感",
+        "シンプル", "ミニマル", "女性らしい", "男性向け", "スタイリッシュ",
+        "ナチュラル", "落ち着いた雰囲気", "広告感強め", "自由入力",
+    ]
+    CATEGORY_OPTIONS = [
+        "美容・スキンケア", "健康・セルフケア", "インテリア・寝具", "時計・アクセサリー",
+        "ガジェット・電子機器", "アパレル・ファッション", "ギフト・プレゼント",
+        "ペット用品", "食品・飲料", "その他",
+    ]
+    GENDER_OPTIONS = ["指定なし", "女性向け", "男性向け", "ユニセックス"]
 
-        with col2:
-            product_url = st.text_input(t("product_input.product_url"), value=info.get("product_url", ""))
-            features = st.text_area(t("product_input.features"), value=info.get("features", ""), height=100)
-            weaknesses = st.text_area(t("product_input.weaknesses"), value=info.get("weaknesses", ""), height=80)
-            brand_tone = st.text_input(t("product_input.brand_tone"), value=info.get("brand_tone", ""))
-            prohibited = st.text_input(t("product_input.prohibited_expressions"), value=info.get("prohibited", ""))
+    # Resolve initial indices from saved values
+    ex_price = info.get("price", "")
+    price_idx = PRICE_OPTIONS.index(ex_price) if ex_price in PRICE_OPTIONS else (
+        PRICE_OPTIONS.index("自由入力") if ex_price else 0)
 
-        description = st.text_area(t("product_input.description"), value=info.get("description", ""), height=120)
-        use_scenes = st.text_area(t("product_input.use_scenes"), value=info.get("use_scenes", ""), height=80)
-        competitor_urls = st.text_area(t("product_input.competitor_urls"), value=info.get("competitor_urls", ""), height=80)
-        notes = st.text_area(t("product_input.notes"), value=info.get("notes", ""), height=60)
+    ex_target = info.get("target", "")
+    target_idx = TARGET_OPTIONS.index(ex_target) if ex_target in TARGET_OPTIONS else (
+        TARGET_OPTIONS.index("自由入力") if ex_target else 0)
 
-        col_a, col_b = st.columns(2)
-        with col_a:
-            assignee = st.text_input(t("product_input.assignee"), value=st.session_state.get("assignee", ""))
-        with col_b:
-            reviewer = st.text_input(t("product_input.reviewer"), value=st.session_state.get("reviewer", ""))
+    ex_age = info.get("age", "")
+    age_idx = AGE_OPTIONS.index(ex_age) if ex_age in AGE_OPTIONS else (
+        AGE_OPTIONS.index("自由入力") if ex_age else 0)
 
-        submitted = st.form_submit_button(t("product_input.save_btn"), type="primary", use_container_width=True)
+    ex_cat = info.get("category", "")
+    cat_idx = CATEGORY_OPTIONS.index(ex_cat) if ex_cat in CATEGORY_OPTIONS else 0
 
-    if submitted:
+    ex_gender = info.get("gender", "指定なし")
+    gender_idx = GENDER_OPTIONS.index(ex_gender) if ex_gender in GENDER_OPTIONS else 0
+
+    # Resolve brand_tone multiselect defaults
+    ex_tone = info.get("brand_tone", "")
+    ex_tone_parts = [s.strip() for s in ex_tone.replace(",", "、").split("、") if s.strip()]
+    known_tones = [s for s in ex_tone_parts if s in TONE_OPTIONS]
+    custom_tone_default = "、".join([s for s in ex_tone_parts if s not in TONE_OPTIONS])
+    if custom_tone_default and "自由入力" not in known_tones:
+        known_tones.append("自由入力")
+
+    # ── 基本情報 ──────────────────────────────────────────────────────
+    st.markdown(
+        '<div class="cs-card-title"><span class="icon">📦</span> 基本情報</div>',
+        unsafe_allow_html=True,
+    )
+    col1, col2 = st.columns(2)
+    with col1:
+        name = st.text_input("商品名 *", value=info.get("name", ""),
+                              placeholder="例：プレミアムアイクリーム")
+        category = st.selectbox("商品カテゴリ", CATEGORY_OPTIONS, index=cat_idx)
+    with col2:
+        product_url = st.text_input("商品URL", value=info.get("product_url", ""),
+                                    placeholder="https://...")
+
+    price_mode = st.selectbox("商品価格", PRICE_OPTIONS, index=price_idx)
+    price = price_mode
+    if price_mode == "自由入力":
+        price = st.text_input("価格を入力",
+                              value=ex_price if ex_price not in PRICE_OPTIONS else "",
+                              placeholder="例：3,980円（税込）")
+
+    st.markdown("---")
+
+    # ── ターゲット設定 ────────────────────────────────────────────────
+    st.markdown(
+        '<div class="cs-card-title"><span class="icon">👥</span> ターゲット設定</div>',
+        unsafe_allow_html=True,
+    )
+    target_mode = st.selectbox("ターゲット", TARGET_OPTIONS, index=target_idx)
+    target = target_mode
+    if target_mode == "自由入力":
+        target = st.text_input("ターゲットを入力",
+                               value=ex_target if ex_target not in TARGET_OPTIONS else "",
+                               placeholder="例：肌荒れに悩む30〜40代の女性")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        gender = st.selectbox("性別", GENDER_OPTIONS, index=gender_idx)
+    with col2:
+        age_mode = st.selectbox("年齢層", AGE_OPTIONS, index=age_idx)
+        age = age_mode
+        if age_mode == "自由入力":
+            age = st.text_input("年齢層を入力",
+                                value=ex_age if ex_age not in AGE_OPTIONS else "",
+                                placeholder="例：35〜55歳")
+
+    st.markdown("---")
+
+    # ── 商品内容 ──────────────────────────────────────────────────────
+    st.markdown(
+        '<div class="cs-card-title"><span class="icon">📝</span> 商品内容</div>',
+        unsafe_allow_html=True,
+    )
+    description = st.text_area(
+        "商品説明（任意）",
+        value=info.get("description", ""),
+        height=150,
+        placeholder="例：3年間の研究開発から生まれた、敏感肌向けのアイクリームです。...",
+    )
+
+    col1, col2 = st.columns(2)
+    with col1:
+        features = st.text_area(
+            "商品の特徴・強み（任意）",
+            value=info.get("features", ""),
+            height=110,
+            placeholder="例：軽い、使いやすい、洗える、持ち運びやすい、高級感がある など",
+        )
+        use_scenes = st.text_area(
+            "使用シーン（任意）",
+            value=info.get("use_scenes", ""),
+            height=110,
+            placeholder="例：自宅でのリラックスタイム、仕事終わり、寝る前、プレゼント など",
+        )
+    with col2:
+        weaknesses = st.text_area(
+            "商品の弱み（任意）",
+            value=info.get("weaknesses", ""),
+            height=110,
+            placeholder="例：価格が高め、説明が必要、効果を実感するまで時間がかかる など",
+        )
+        competitor_urls = st.text_area(
+            "競合URL（任意）",
+            value=info.get("competitor_urls", ""),
+            height=110,
+            placeholder="https://...",
+        )
+
+    st.markdown("---")
+
+    # ── 表現・トーン設定 ──────────────────────────────────────────────
+    st.markdown(
+        '<div class="cs-card-title"><span class="icon">🎨</span> 表現・トーン設定</div>',
+        unsafe_allow_html=True,
+    )
+    brand_tone_selected = st.multiselect(
+        "希望するブランドトーン（複数選択可）",
+        TONE_OPTIONS,
+        default=known_tones,
+    )
+    brand_tone_custom_val = ""
+    if "自由入力" in brand_tone_selected:
+        brand_tone_custom_val = st.text_input(
+            "ブランドトーンを入力",
+            value=custom_tone_default,
+            placeholder="例：和風、モダン、ラグジュアリー",
+        )
+
+    col1, col2 = st.columns(2)
+    with col1:
+        prohibited = st.text_area(
+            "禁止表現（任意）",
+            value=info.get("prohibited", ""),
+            height=100,
+            placeholder="例：治る、必ず効果がある、100%改善、医学的に証明 など",
+        )
+    with col2:
+        notes = st.text_area(
+            "その他・備考（任意）",
+            value=info.get("notes", ""),
+            height=100,
+            placeholder="担当者への連絡事項など",
+        )
+
+    st.markdown("---")
+
+    col_a, col_b = st.columns(2)
+    with col_a:
+        assignee = st.text_input(t("product_input.assignee"),
+                                 value=st.session_state.get("assignee", ""))
+    with col_b:
+        reviewer = st.text_input(t("product_input.reviewer"),
+                                 value=st.session_state.get("reviewer", ""))
+
+    if st.button("💾 " + t("product_input.save_btn"), type="primary", use_container_width=True):
         product_id = ensure_product_id()
+
+        tones = [tone for tone in brand_tone_selected if tone != "自由入力"]
+        if brand_tone_custom_val.strip():
+            tones.append(brand_tone_custom_val.strip())
+        brand_tone = "、".join(tones)
+
         new_info = {
             "name": name, "category": category, "price": price,
             "target": target, "gender": gender, "age": age,
