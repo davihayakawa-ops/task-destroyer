@@ -164,6 +164,57 @@ BGM方向性：
 - 購買意欲を高めつつ押しつけがましくならないようにすること
 """
 
+CUSTOM_LIQUID_PROMPT = """
+あなたはShopifyのカスタムLiquidコード制作の専門家です。
+以下のCoreと商品情報をもとに、ShopifyのテーマエディターにあるCustom Liquidブロックにそのまま貼り付けて使える、完成したHTMLとCSSのコードを生成してください。
+
+【Core】
+{core}
+
+【商品情報】
+商品名: {product_name}
+カテゴリ: {category}
+価格: {price}
+商品説明: {description}
+特徴・強み: {features}
+ターゲット: {target}
+使用シーン: {use_scenes}
+
+【生成ルール】
+- <html> <head> <body> タグは不要（Custom Liquidブロックに直接貼るため）
+- JavaScriptは使わない
+- 外部CSS・外部ライブラリは使わない
+- CSSは <style> タグ内にすべてまとめる
+- Shopifyの他テーマに影響しないよう、全CSSクラス名には必ず「td-」プレフィックスを付ける
+- スマホ・PC両対応のレスポンシブデザインにする（max-width: 768px でメディアクエリを入れる）
+- 上品で読みやすい、商品ページに合うデザインにする
+- 薬機法・景表法リスクのある表現（「治る」「必ず」「確実に」「医学的に証明」等）は絶対に使わない
+- 日本語は自然で丁寧な表現にする
+
+【含めるセクション】
+1. キャッチコピー（大きな見出し）
+2. 商品説明文（読みやすいテキスト）
+3. ベネフィット（アイコン的なカードで3〜5個）
+4. こんな方におすすめ（箇条書きまたはカード）
+5. 使用シーン（テキストで2〜3個）
+6. 商品の特徴（カードまたはリスト）
+7. FAQ（<details><summary>タグを使ったアコーディオン形式、5個）
+8. 注意事項（小さいテキスト）
+9. CTAエリア（購入を促す一言 ＋ 区切り線）
+
+【デザイン方針】
+- 背景色: #faf8f4（温かみのあるオフホワイト）
+- テキスト色: #2b2b2b
+- アクセントカラー: #3d6b4f（落ち着いたグリーン）
+- 角丸: 14px〜18px
+- 余白はゆったりとる
+- カードには薄いボーダー (#eee) と白背景
+
+【出力形式】
+コードのみを出力してください。説明文・コメント・マークダウン記法（```）は不要です。
+<style> から始まり、最後の </section> または </div> で終わる完結したコードとして出力してください。
+"""
+
 SNS_PROMPT = """
 あなたはSNSマーケティングの専門家です。
 以下のCoreをベースに、各SNS向けのコンテンツを生成してください。
@@ -230,3 +281,16 @@ class GeneratorEngine:
     def generate_sns_content(self, core: str, product_name: str) -> str:
         prompt = SNS_PROMPT.format(core=core, product_name=product_name)
         return self.llm.generate_structured(prompt)
+
+    def generate_custom_liquid(self, core: str, product_info: dict) -> str:
+        prompt = CUSTOM_LIQUID_PROMPT.format(
+            core=core,
+            product_name=product_info.get("name", ""),
+            category=product_info.get("category", ""),
+            price=product_info.get("price", ""),
+            description=product_info.get("description", ""),
+            features=product_info.get("features", ""),
+            target=product_info.get("target", ""),
+            use_scenes=product_info.get("use_scenes", ""),
+        )
+        return self.llm.generate_structured(prompt, max_tokens=8192)

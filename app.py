@@ -901,9 +901,157 @@ def render_generated_page(page_key: str, title: str, generate_fn, icon: str = "�
 
 
 def page_product_page():
-    def gen(core, info):
-        return svc["generator"].generate_product_page(core, info)
-    render_generated_page("product_page", t("product_page.title"), gen, "📄")
+    st.markdown('<div class="section-header">📄 ' + t("product_page.title") + '</div>',
+                unsafe_allow_html=True)
+
+    if not st.session_state.get("core_text"):
+        st.markdown('<div class="cs-warning">⚠️ ' + t("common.no_core_warning") + '</div>',
+                    unsafe_allow_html=True)
+        if st.button("✨ Core生成画面へ"):
+            st.session_state["page"] = "core_generation"
+            st.rerun()
+        return
+
+    core = st.session_state["core_text"]
+    product_info = st.session_state.get("product_info", {})
+    product_name = product_info.get("name", "product")
+    pid = ensure_product_id()
+
+    tab_text, tab_liquid = st.tabs(["📝 商品ページ文章", "🛒 Shopify Custom Liquid"])
+
+    # ── Tab 1: 商品ページ文章 ────────────────────────────────────────────
+    with tab_text:
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            if st.button("✨ " + t("product_page.generate_btn"), type="primary",
+                         use_container_width=True, key="gen_product_text"):
+                with st.spinner(t("product_page.generating_msg")):
+                    result = svc["generator"].generate_product_page(core, product_info)
+                    st.session_state["generated"]["product_page"] = result
+                    svc["storage"].save_generated(pid, "product_page", {"text": result})
+                    svc["approval"].mark_ai_generated(pid, "product_page")
+                    svc["storage"].log_activity(pid, "商品ページ文章生成", "", st.session_state.get("assignee", ""))
+                    st.rerun()
+        with col2:
+            if st.session_state["generated"].get("product_page"):
+                if st.button("⏳ 確認待ちにする", use_container_width=True, key="pend_product_text"):
+                    svc["approval"].set_pending(pid, "product_page", st.session_state.get("assignee", ""))
+                    st.success("確認待ちにしました")
+
+        approval = svc["approval"].get_status(pid, "product_page")
+        st.markdown(f'<div style="margin-bottom:12px;">{status_badge(approval["status"])}</div>',
+                    unsafe_allow_html=True)
+
+        if st.session_state["generated"].get("product_page"):
+            content = st.session_state["generated"]["product_page"]
+            edited = st.text_area("編集可能テキスト", value=content, height=500, key="edit_product_page")
+            col_s, col_d = st.columns(2)
+            with col_s:
+                if st.button("💾 保存", type="primary", key="save_product_page", use_container_width=True):
+                    st.session_state["generated"]["product_page"] = edited
+                    svc["storage"].save_generated(pid, "product_page", {"text": edited, "status": "edited"})
+                    st.success(t("common.saved"))
+            with col_d:
+                st.download_button("⬇️ .txt ダウンロード",
+                    data=edited.encode("utf-8"),
+                    file_name=f"product_page_{product_name}.txt",
+                    mime="text/plain", key="dl_product_text", use_container_width=True)
+        else:
+            st.markdown('<div class="cs-info">💡 生成ボタンを押してください。</div>', unsafe_allow_html=True)
+
+    # ── Tab 2: Shopify Custom Liquid ──────────────────────────────────────
+    with tab_liquid:
+        st.markdown(
+            '<div class="cs-info">💡 生成されたコードをShopifyテーマエディター → '
+            '<strong>Custom Liquid</strong> ブロックにそのまま貼り付けてください。</div>',
+            unsafe_allow_html=True,
+        )
+        st.markdown("")
+
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            if st.button("🛒 Custom Liquidコードを生成", type="primary",
+                         use_container_width=True, key="gen_custom_liquid"):
+                with st.spinner("Custom Liquidコードを生成中..."):
+                    result = svc["generator"].generate_custom_liquid(core, product_info)
+                    st.session_state["generated"]["shopify_custom_liquid"] = result
+                    svc["storage"].save_generated(pid, "shopify_custom_liquid", {"text": result})
+                    svc["approval"].mark_ai_generated(pid, "shopify_custom_liquid")
+                    svc["storage"].log_activity(pid, "Custom Liquid生成", "", st.session_state.get("assignee", ""))
+                    st.rerun()
+        with col2:
+            if st.session_state["generated"].get("shopify_custom_liquid"):
+                if st.button("⏳ 確認待ちにする", use_container_width=True, key="pend_liquid"):
+                    svc["approval"].set_pending(pid, "shopify_custom_liquid", st.session_state.get("assignee", ""))
+                    st.success("確認待ちにしました")
+
+        if st.session_state["generated"].get("shopify_custom_liquid"):
+            approval_liq = svc["approval"].get_status(pid, "shopify_custom_liquid")
+            st.markdown(f'<div style="margin-bottom:12px;">{status_badge(approval_liq["status"])}</div>',
+                        unsafe_allow_html=True)
+
+            liquid_code = st.session_state["generated"]["shopify_custom_liquid"]
+
+            # Editable textarea
+            edited_liquid = st.text_area(
+                "Custom Liquidコード（編集可能）",
+                value=liquid_code,
+                height=600,
+                key="edit_custom_liquid",
+            )
+
+            # Action buttons row
+            col_s, col_txt, col_html, col_pend = st.columns(4)
+
+            with col_s:
+                if st.button("💾 保存", type="primary", key="save_liquid", use_container_width=True):
+                    st.session_state["generated"]["shopify_custom_liquid"] = edited_liquid
+                    svc["storage"].save_generated(pid, "shopify_custom_liquid",
+                                                  {"text": edited_liquid, "status": "edited"})
+                    st.success(t("common.saved"))
+
+            with col_txt:
+                st.download_button(
+                    "⬇️ .txt",
+                    data=edited_liquid.encode("utf-8"),
+                    file_name=f"custom_liquid_{product_name}.txt",
+                    mime="text/plain",
+                    key="dl_liquid_txt",
+                    use_container_width=True,
+                )
+
+            with col_html:
+                st.download_button(
+                    "⬇️ .html",
+                    data=edited_liquid.encode("utf-8"),
+                    file_name=f"custom_liquid_{product_name}.html",
+                    mime="text/html",
+                    key="dl_liquid_html",
+                    use_container_width=True,
+                )
+
+            with col_pend:
+                if st.button("📋 コードをコピー用に表示", key="copy_liquid", use_container_width=True):
+                    st.session_state["show_liquid_copy"] = True
+
+            # Copy display
+            if st.session_state.get("show_liquid_copy"):
+                st.markdown("**👇 下のコードを全選択してコピーしてください (Cmd+A → Cmd+C)**")
+                st.code(edited_liquid, language="html")
+
+            # Preview hint
+            st.markdown("---")
+            st.markdown(
+                '<div class="cs-info">'
+                '📌 <strong>貼り付け手順：</strong> Shopify管理画面 → オンラインストア → テーマ → '
+                'カスタマイズ → 商品ページ → セクション追加 → <strong>Custom Liquid</strong> → '
+                '上のコードをペースト → 保存'
+                '</div>',
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown('<div class="cs-info">💡 「Custom Liquidコードを生成」ボタンを押してください。</div>',
+                        unsafe_allow_html=True)
 
 
 def page_image_prompt():
