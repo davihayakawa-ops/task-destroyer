@@ -44,9 +44,14 @@ class Storage:
     def list_products(self) -> list[dict]:
         result = []
         for p in sorted((DATA_DIR / "projects").glob("*.json")):
+            # Generated content files have underscores in their stem;
+            # product files are plain product_id (8 hex chars, no underscore).
+            if "_" in p.stem:
+                continue
             try:
                 data = json.loads(p.read_text())
-                result.append({"id": p.stem, **data})
+                if isinstance(data, dict):
+                    result.append({"id": p.stem, **data})
             except Exception:
                 pass
         return result
@@ -165,29 +170,59 @@ class Storage:
                 pass
         return False
 
-    def delete_project(self, product_id: str, deleted_by: str = "", reason: str = "") -> list:
+    def delete_project(self, product_id: str, deleted_by: str = "", reason: str = "") -> dict:
         deleted = []
         project_file = DATA_DIR / "projects" / f"{product_id}.json"
-        if project_file.exists():
+
+        if not project_file.exists():
+            return {
+                "success": False,
+                "message": f"削除対象が見つかりません: {product_id}.json",
+                "deleted_paths": [],
+            }
+
+        try:
             deleted.append(str(project_file))
             project_file.unlink()
-        for p in list((DATA_DIR / "projects").glob(f"{product_id}_*.json")):
-            deleted.append(str(p))
-            p.unlink()
-        for p in list((DATA_DIR / "core_library").glob(f"{product_id}_*.json")):
-            deleted.append(str(p))
-            p.unlink()
-        for p in list((DATA_DIR / "approvals").glob(f"{product_id}_*.json")):
-            deleted.append(str(p))
-            p.unlink()
-        log_file = DATA_DIR / "activity_logs" / f"{product_id}.jsonl"
-        if log_file.exists():
-            deleted.append(str(log_file))
-            log_file.unlink()
-        self.save_delete_log(product_id, deleted_by, reason, deleted)
-        return deleted
+
+            for p in list((DATA_DIR / "projects").glob(f"{product_id}_*.json")):
+                deleted.append(str(p))
+                p.unlink()
+
+            for p in list((DATA_DIR / "core_library").glob(f"{product_id}_*.json")):
+                deleted.append(str(p))
+                p.unlink()
+
+            for p in list((DATA_DIR / "approvals").glob(f"{product_id}_*.json")):
+                deleted.append(str(p))
+                p.unlink()
+
+            log_file = DATA_DIR / "activity_logs" / f"{product_id}.jsonl"
+            if log_file.exists():
+                deleted.append(str(log_file))
+                log_file.unlink()
+
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"削除中にエラーが発生しました: {e}",
+                "deleted_paths": deleted,
+            }
+
+        # Log the deletion — must not raise so it never blocks a successful delete
+        try:
+            self.save_delete_log(product_id, deleted_by, reason, deleted)
+        except Exception:
+            pass
+
+        return {
+            "success": True,
+            "message": "削除しました",
+            "deleted_paths": deleted,
+        }
 
     def save_delete_log(self, product_id: str, deleted_by: str, reason: str, files: list):
+        _ensure_dir(DATA_DIR / "delete_logs")
         entry = {
             "product_id": product_id,
             "deleted_by": deleted_by,
