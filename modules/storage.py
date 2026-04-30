@@ -125,6 +125,29 @@ class Storage:
         except Exception:
             return None
 
+    def load_all_generated(self, product_id: str) -> dict:
+        """Load the latest generated text for every content_type saved for this product.
+        Returns {content_type: text_string}."""
+        # Collect unique content_types from file names {pid}_{ct}_{id}.json
+        content_types = set()
+        for p in (DATA_DIR / "projects").glob(f"{product_id}_*.json"):
+            parts = p.stem.split("_")
+            if len(parts) >= 3:
+                ct = "_".join(parts[1:-1])  # everything between pid and trailing id
+                if ct:
+                    content_types.add(ct)
+
+        result = {}
+        for ct in content_types:
+            entry = self.load_generated(product_id, ct)
+            if not entry:
+                continue
+            content = entry.get("content", {})
+            text = content.get("text", "") if isinstance(content, dict) else str(content)
+            if text:
+                result[ct] = text
+        return result
+
     # ── Approval ──────────────────────────────────────────────────────────────
 
     def update_approval(self, product_id: str, content_type: str, status: str, comment: str = "") -> bool:

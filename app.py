@@ -571,6 +571,36 @@ def page_product_input():
     st.markdown('<div class="section-header">📦 ' + t("product_input.title") + '</div>',
                 unsafe_allow_html=True)
 
+    # ── Phase 3: Project continuity UI ──────────────────────────────────────────
+    # If no current project is active, show recent projects to continue
+    if not st.session_state.get("product_id"):
+        try:
+            _recent = [p for p in svc["storage"].list_products()
+                       if not _is_empty_project_entry(p)][:5]
+        except Exception:
+            _recent = []
+        if _recent:
+            st.markdown(
+                '<div class="cs-info" style="margin-bottom:8px;">'
+                '💡 <strong>以前のプロジェクトを継続しますか？</strong>'
+                '&nbsp;選択すると保存済み内容（Core・生成コンテンツ含む）が復元されます。'
+                '</div>',
+                unsafe_allow_html=True,
+            )
+            _btn_cols = st.columns(min(len(_recent), 3))
+            for i, _rp in enumerate(_recent[:3]):
+                with _btn_cols[i]:
+                    _rp_label = (_rp.get("name") or "—")[:20]
+                    if st.button(f"📂 {_rp_label}", key=f"pi_resume_{_rp['id']}",
+                                 use_container_width=True):
+                        _load_project_session(_rp["id"], _rp)
+                        st.success(f"'{_rp.get('name')}' を読み込みました")
+                        st.rerun()
+            st.markdown(
+                '<div style="font-size:.75rem;color:#4b5563;margin:4px 0 12px;">— または下記に新しい商品情報を入力して新規保存 —</div>',
+                unsafe_allow_html=True,
+            )
+
     info = st.session_state.get("product_info", {})
     lang = st.session_state.get("lang", "ja")
     other_lang = "pt" if lang == "ja" else "ja"
@@ -838,6 +868,31 @@ def page_product_input():
             )
         else:
             product_id = ensure_product_id()
+
+            # ── Phase 3: duplicate name warning ──────────────────────────────
+            if name.strip():
+                try:
+                    _dup = [ep for ep in svc["storage"].list_products()
+                            if ep.get("name","").strip().lower() == name.strip().lower()
+                            and ep["id"] != product_id
+                            and not _is_empty_project_entry(ep)]
+                except Exception:
+                    _dup = []
+                if _dup:
+                    st.warning(
+                        f"「{name}」という商品名のプロジェクトが既に {len(_dup)} 件あります。\n"
+                        "このまま保存すると新しいプロジェクトとして登録されます。"
+                    )
+                    for _dp in _dup[:2]:
+                        _dp_col1, _dp_col2 = st.columns([3, 1])
+                        with _dp_col1:
+                            st.caption(f"📦 {_dp.get('name')} — 更新日: {_dp.get('updated_at','-')}")
+                        with _dp_col2:
+                            if st.button("このプロジェクトを使う", key=f"use_existing_{_dp['id']}",
+                                         use_container_width=True):
+                                _load_project_session(_dp["id"], _dp)
+                                st.success(f"'{_dp.get('name')}' を読み込みました")
+                                st.rerun()
 
             tones = [tone for tone in brand_tone_selected if tone not in (free_input, free_input_o)]
             if brand_tone_custom_val.strip():
@@ -2241,6 +2296,40 @@ def page_export_center():
 
 # ── Page: Saved Data ──────────────────────────────────────────────────────────
 
+def _load_project_session(pid: str, p: dict):
+    """Restore a full project into session state.
+    Loads product_info, assignee, core, AND all previously generated content.
+    Call this whenever a user loads/switches to an existing project."""
+    # Clear stale state from previous project
+    st.session_state["generated"] = {}
+    st.session_state["core_text"] = ""
+    st.session_state["core_status"] = "draft"
+    st.session_state["external_core_text"] = ""
+
+    # Project identity
+    st.session_state["product_id"] = pid
+    st.session_state["product_info"] = {k: v for k, v in p.items()
+                                        if k not in ("id", "file_path")}
+    st.session_state["assignee"] = p.get("assignee", "")
+    st.session_state["reviewer"] = p.get("final_reviewer", "")
+
+    # Core
+    try:
+        core_entry = svc["storage"].load_latest_core(pid)
+        if core_entry:
+            st.session_state["core_text"]   = core_entry["core"].get("text", "")
+            st.session_state["core_status"] = core_entry.get("status", "ai_generated")
+    except Exception:
+        pass
+
+    # All generated content (Phase 3: previously missing)
+    try:
+        all_gen = svc["storage"].load_all_generated(pid)
+        st.session_state["generated"].update(all_gen)
+    except Exception:
+        pass
+
+
 def _is_empty_project_entry(p: dict) -> bool:
     """Return True if the project has no meaningful content (name/url/description all empty)."""
     name = str(p.get("name") or "").strip()
@@ -2337,15 +2426,7 @@ def page_saved_data():
                         if not is_empty:
                             if st.button("📂 " + t("saved_data.load_btn"), key=f"load_{pid}",
                                          use_container_width=True):
-                                st.session_state["product_id"] = pid
-                                st.session_state["product_info"] = {k: v for k, v in p.items()
-                                                                     if k not in ("id", "file_path")}
-                                st.session_state["assignee"] = p.get("assignee", "")
-                                st.session_state["reviewer"] = p.get("final_reviewer", "")
-                                core_entry = svc["storage"].load_latest_core(pid)
-                                if core_entry:
-                                    st.session_state["core_text"] = core_entry["core"].get("text", "")
-                                    st.session_state["core_status"] = core_entry.get("status", "ai_generated")
+                                _load_project_session(pid, p)
                                 st.success(f"'{p.get('name')}' を読み込みました")
                                 st.rerun()
 
@@ -3022,16 +3103,7 @@ def page_new_dashboard():
                     )
                 with tc4:
                     if st.button("📂 読込", key=f"nd_load_{ppid}", use_container_width=True):
-                        st.session_state["product_id"] = ppid
-                        st.session_state["product_info"] = {
-                            k: v for k, v in p.items() if k not in ("id","file_path")
-                        }
-                        st.session_state["assignee"] = p.get("assignee","")
-                        st.session_state["reviewer"] = p.get("final_reviewer","")
-                        _core_entry = svc["storage"].load_latest_core(ppid)
-                        if _core_entry:
-                            st.session_state["core_text"] = _core_entry["core"].get("text","")
-                            st.session_state["core_status"] = _core_entry.get("status","ai_generated")
+                        _load_project_session(ppid, p)
                         st.success(f"'{pname}' を読み込みました")
                         st.rerun()
                 with tc5:
