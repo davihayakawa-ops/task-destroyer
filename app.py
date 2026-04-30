@@ -1208,99 +1208,290 @@ def page_product_page():
         else:
             st.markdown('<div class="cs-info">💡 生成ボタンを押してください。</div>', unsafe_allow_html=True)
 
-    # ── Tab 2: Shopify Custom Liquid ──────────────────────────────────────
+    # ── Tab 2: Shopify Custom Liquid (section-based) ─────────────────────
     with tab_liquid:
-        st.markdown(
-            '<div class="cs-info">💡 生成されたコードをShopifyテーマエディター → '
-            '<strong>Custom Liquid</strong> ブロックにそのまま貼り付けてください。</div>',
-            unsafe_allow_html=True,
-        )
+
+        # ── Section metadata ──────────────────────────────────────────────
+        SECTIONS = [
+            {
+                "key": "shopify_common_css",
+                "label": "00 共通CSS",
+                "icon": "🎨",
+                "num": "00",
+                "instruction": (
+                    "他のセクションより先に設置してください。<br>"
+                    "Shopify管理画面 → オンラインストア → テーマ → カスタマイズ → "
+                    "商品ページ → セクション追加 → <strong>Custom Liquid</strong> に貼り付け"
+                ),
+            },
+            {
+                "key": "shopify_hero_section_code",
+                "label": "01 ファーストビュー",
+                "icon": "🌟",
+                "num": "01",
+                "instruction": "商品ページの最上部に設置してください。",
+            },
+            {
+                "key": "shopify_about_section_code",
+                "label": "02 商品について",
+                "icon": "📦",
+                "num": "02",
+                "instruction": "ファーストビューの次に設置。画像セクションを間に挟んでも OK。",
+            },
+            {
+                "key": "shopify_problem_section_code",
+                "label": "03 悩み・共感",
+                "icon": "💭",
+                "num": "03",
+                "instruction": "商品についての後に設置。画像・動画セクションと組み合わせ可。",
+            },
+            {
+                "key": "shopify_features_section_code",
+                "label": "04 特徴カード",
+                "icon": "✨",
+                "num": "04",
+                "instruction": "特徴を強調したい位置に設置してください。",
+            },
+            {
+                "key": "shopify_usage_scene_section_code",
+                "label": "05 使用シーン",
+                "icon": "🏠",
+                "num": "05",
+                "instruction": "使用イメージが伝わる位置に設置。画像スライダーの前後がおすすめ。",
+            },
+            {
+                "key": "shopify_comparison_section_code",
+                "label": "06 比較表",
+                "icon": "📊",
+                "num": "06",
+                "instruction": "他との違いを訴求したい位置に設置してください。",
+            },
+            {
+                "key": "shopify_faq_section_code",
+                "label": "07 FAQ",
+                "icon": "❓",
+                "num": "07",
+                "instruction": "CTAの直前に設置するのがおすすめです。",
+            },
+            {
+                "key": "shopify_cta_section_code",
+                "label": "08 CTA",
+                "icon": "🛒",
+                "num": "08",
+                "instruction": "ページの最下部に設置してください。",
+            },
+        ]
+
+        ALL_SECTION_KEYS = [s["key"] for s in SECTIONS]
+
+        def _html_preview(title: str, code: str) -> str:
+            return (
+                "<!DOCTYPE html>\n<html lang=\"ja\">\n<head>\n"
+                "<meta charset=\"UTF-8\">\n"
+                "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n"
+                f"<title>Preview: {title}</title>\n"
+                "<body style=\"margin:0;padding:0;background:#faf8f4;\">\n"
+                f"{code}\n</body>\n</html>"
+            )
+
+        def _combined_html(sections_data: dict) -> str:
+            parts = []
+            for s in SECTIONS:
+                code = sections_data.get(s["key"], "")
+                if code:
+                    parts.append(f"<!-- {s['label']} -->\n{code}")
+            return "\n\n".join(parts)
+
+        # ── Check what's already generated ───────────────────────────────
+        gen = st.session_state["generated"]
+        sections_ready = any(gen.get(s["key"]) for s in SECTIONS)
+
+        # ── Output type selector ──────────────────────────────────────────
+        output_options = [
+            "セクション別コード（全セクション）",
+            "00 共通CSS",
+            "01 ファーストビュー",
+            "02 商品について",
+            "03 悩み・共感",
+            "04 特徴カード",
+            "05 使用シーン",
+            "06 比較表",
+            "07 FAQ",
+            "08 CTA",
+            "ページ全体コード（旧形式）",
+        ]
+        output_type = st.selectbox("📋 表示するセクションを選択", output_options,
+                                   key="liquid_output_type")
+
         st.markdown("")
 
-        col1, col2 = st.columns([2, 1])
-        with col1:
-            if st.button("🛒 Custom Liquidコードを生成", type="primary",
+        # ── Generate buttons ──────────────────────────────────────────────
+        gen_col1, gen_col2 = st.columns([3, 2])
+        with gen_col1:
+            if st.button("✨ セクション別コードを生成", type="primary",
+                         use_container_width=True, key="gen_sections"):
+                with st.spinner("セクション別コードを生成中（しばらくお待ちください）..."):
+                    result = svc["generator"].generate_shopify_sections(core, product_info)
+                    for s in SECTIONS:
+                        code = result.get(s["key"], "")
+                        if code:
+                            gen[s["key"]] = code
+                            svc["storage"].save_generated(pid, s["key"], {"text": code})
+                    st.session_state["generated"] = gen
+                    svc["approval"].mark_ai_generated(pid, "shopify_sections")
+                    svc["storage"].log_activity(pid, "Shopifyセクション生成", "",
+                                                st.session_state.get("assignee", ""))
+                    st.rerun()
+
+        with gen_col2:
+            if st.button("🛒 ページ全体コードを生成（旧形式）",
                          use_container_width=True, key="gen_custom_liquid"):
                 with st.spinner("Custom Liquidコードを生成中..."):
                     result = svc["generator"].generate_custom_liquid(core, product_info)
-                    st.session_state["generated"]["shopify_custom_liquid"] = result
+                    gen["shopify_custom_liquid"] = result
+                    st.session_state["generated"] = gen
                     svc["storage"].save_generated(pid, "shopify_custom_liquid", {"text": result})
                     svc["approval"].mark_ai_generated(pid, "shopify_custom_liquid")
-                    svc["storage"].log_activity(pid, "Custom Liquid生成", "", st.session_state.get("assignee", ""))
+                    svc["storage"].log_activity(pid, "Custom Liquid生成（全体）", "",
+                                                st.session_state.get("assignee", ""))
                     st.rerun()
-        with col2:
-            if st.session_state["generated"].get("shopify_custom_liquid"):
-                if st.button("⏳ 確認待ちにする", use_container_width=True, key="pend_liquid"):
-                    svc["approval"].set_pending(pid, "shopify_custom_liquid", st.session_state.get("assignee", ""))
-                    st.success("確認待ちにしました")
 
-        if st.session_state["generated"].get("shopify_custom_liquid"):
-            approval_liq = svc["approval"].get_status(pid, "shopify_custom_liquid")
-            st.markdown(f'<div style="margin-bottom:12px;">{status_badge(approval_liq["status"])}</div>',
-                        unsafe_allow_html=True)
-
-            liquid_code = st.session_state["generated"]["shopify_custom_liquid"]
-
-            # Editable textarea
-            edited_liquid = st.text_area(
-                "Custom Liquidコード（編集可能）",
-                value=liquid_code,
-                height=600,
-                key="edit_custom_liquid",
-            )
-
-            # Action buttons row
-            col_s, col_txt, col_html, col_pend = st.columns(4)
-
-            with col_s:
-                if st.button("💾 保存", type="primary", key="save_liquid", use_container_width=True):
-                    st.session_state["generated"]["shopify_custom_liquid"] = edited_liquid
-                    svc["storage"].save_generated(pid, "shopify_custom_liquid",
-                                                  {"text": edited_liquid, "status": "edited"})
-                    st.success(t("common.saved"))
-
-            with col_txt:
-                st.download_button(
-                    "⬇️ .txt",
-                    data=edited_liquid.encode("utf-8"),
-                    file_name=f"custom_liquid_{product_name}.txt",
-                    mime="text/plain",
-                    key="dl_liquid_txt",
-                    use_container_width=True,
-                )
-
-            with col_html:
-                st.download_button(
-                    "⬇️ .html",
-                    data=edited_liquid.encode("utf-8"),
-                    file_name=f"custom_liquid_{product_name}.html",
-                    mime="text/html",
-                    key="dl_liquid_html",
-                    use_container_width=True,
-                )
-
-            with col_pend:
-                if st.button("📋 コードをコピー用に表示", key="copy_liquid", use_container_width=True):
-                    st.session_state["show_liquid_copy"] = True
-
-            # Copy display
-            if st.session_state.get("show_liquid_copy"):
-                st.markdown("**👇 下のコードを全選択してコピーしてください (Cmd+A → Cmd+C)**")
-                st.code(edited_liquid, language="html")
-
-            # Preview hint
-            st.markdown("---")
+        if not sections_ready and not gen.get("shopify_custom_liquid"):
             st.markdown(
-                '<div class="cs-info">'
-                '📌 <strong>貼り付け手順：</strong> Shopify管理画面 → オンラインストア → テーマ → '
-                'カスタマイズ → 商品ページ → セクション追加 → <strong>Custom Liquid</strong> → '
-                '上のコードをペースト → 保存'
+                '<div class="cs-info">💡 上のボタンを押してコードを生成してください。<br>'
+                '「セクション別コードを生成」を選ぶと、各セクションを個別にShopifyへ貼り付けできます。'
                 '</div>',
                 unsafe_allow_html=True,
             )
+
+        # ── Section: ページ全体コード（旧形式）──────────────────────────
+        if output_type == "ページ全体コード（旧形式）" and gen.get("shopify_custom_liquid"):
+            liquid_code = gen["shopify_custom_liquid"]
+            st.markdown("---")
+            st.markdown(
+                '<div class="cs-info">📌 Shopify管理画面 → オンラインストア → テーマ → '
+                'カスタマイズ → 商品ページ → セクション追加 → <strong>Custom Liquid</strong> に貼り付け</div>',
+                unsafe_allow_html=True,
+            )
+            st.code(liquid_code, language="html")
+            dl_col1, dl_col2 = st.columns(2)
+            with dl_col1:
+                st.download_button("⬇️ .txt",
+                    data=liquid_code.encode("utf-8"),
+                    file_name=f"shopify_full_{product_name}.txt",
+                    mime="text/plain", key="dl_full_txt", use_container_width=True)
+            with dl_col2:
+                st.download_button("⬇️ .html 確認用",
+                    data=_html_preview("Full Page", liquid_code).encode("utf-8"),
+                    file_name=f"shopify_full_{product_name}.html",
+                    mime="text/html", key="dl_full_html", use_container_width=True)
+
+        # ── Section: セクション別（全表示）───────────────────────────────
+        elif output_type == "セクション別コード（全セクション）":
+            if not sections_ready:
+                st.markdown(
+                    '<div class="cs-warning">⚠️ 「セクション別コードを生成」ボタンを押してください。</div>',
+                    unsafe_allow_html=True,
+                )
+            else:
+                # Combined download at top
+                combined = _combined_html(gen)
+                combined_col1, combined_col2 = st.columns(2)
+                with combined_col1:
+                    st.download_button("⬇️ 全セクション .txt（一括）",
+                        data=combined.encode("utf-8"),
+                        file_name=f"shopify_all_sections_{product_name}.txt",
+                        mime="text/plain", key="dl_all_txt", use_container_width=True)
+                with combined_col2:
+                    st.download_button("⬇️ 全セクション .html（プレビュー確認用）",
+                        data=_html_preview("All Sections", combined).encode("utf-8"),
+                        file_name=f"shopify_all_sections_{product_name}.html",
+                        mime="text/html", key="dl_all_html", use_container_width=True)
+                st.markdown("---")
+
+                for s in SECTIONS:
+                    code = gen.get(s["key"], "")
+                    with st.expander(f'{s["icon"]} {s["label"]}', expanded=False):
+                        st.markdown(
+                            f'<div class="cs-info">📌 {s["instruction"]}</div>',
+                            unsafe_allow_html=True,
+                        )
+                        if code:
+                            st.code(code, language="html")
+                            dl1, dl2 = st.columns(2)
+                            with dl1:
+                                st.download_button(
+                                    "⬇️ .txt",
+                                    data=code.encode("utf-8"),
+                                    file_name=f"shopify_{s['num']}_{product_name}.txt",
+                                    mime="text/plain",
+                                    key=f"dl_txt_{s['key']}",
+                                    use_container_width=True,
+                                )
+                            with dl2:
+                                st.download_button(
+                                    "⬇️ .html 確認用",
+                                    data=_html_preview(s["label"], code).encode("utf-8"),
+                                    file_name=f"shopify_{s['num']}_{product_name}.html",
+                                    mime="text/html",
+                                    key=f"dl_html_{s['key']}",
+                                    use_container_width=True,
+                                )
+                        else:
+                            st.markdown('<div class="cs-warning">⚠️ このセクションは未生成です。</div>',
+                                        unsafe_allow_html=True)
+
+        # ── Section: 個別セクション表示 ──────────────────────────────────
         else:
-            st.markdown('<div class="cs-info">💡 「Custom Liquidコードを生成」ボタンを押してください。</div>',
-                        unsafe_allow_html=True)
+            # Map selectbox value to section info
+            section_map = {s["label"]: s for s in SECTIONS}
+            # Also try matching by number prefix "00 共通CSS" → label
+            label_lookup = {
+                "00 共通CSS":          SECTIONS[0],
+                "01 ファーストビュー": SECTIONS[1],
+                "02 商品について":     SECTIONS[2],
+                "03 悩み・共感":       SECTIONS[3],
+                "04 特徴カード":       SECTIONS[4],
+                "05 使用シーン":       SECTIONS[5],
+                "06 比較表":           SECTIONS[6],
+                "07 FAQ":              SECTIONS[7],
+                "08 CTA":              SECTIONS[8],
+            }
+            sec = label_lookup.get(output_type)
+            if sec:
+                code = gen.get(sec["key"], "")
+                st.markdown("---")
+                st.markdown(
+                    f'<div class="cs-info">📌 {sec["instruction"]}</div>',
+                    unsafe_allow_html=True,
+                )
+                if code:
+                    st.code(code, language="html")
+                    dl1, dl2 = st.columns(2)
+                    with dl1:
+                        st.download_button(
+                            "⬇️ .txt",
+                            data=code.encode("utf-8"),
+                            file_name=f"shopify_{sec['num']}_{product_name}.txt",
+                            mime="text/plain",
+                            key=f"dl_single_txt_{sec['key']}",
+                            use_container_width=True,
+                        )
+                    with dl2:
+                        st.download_button(
+                            "⬇️ .html 確認用",
+                            data=_html_preview(sec["label"], code).encode("utf-8"),
+                            file_name=f"shopify_{sec['num']}_{product_name}.html",
+                            mime="text/html",
+                            key=f"dl_single_html_{sec['key']}",
+                            use_container_width=True,
+                        )
+                else:
+                    st.markdown(
+                        '<div class="cs-warning">⚠️ このセクションはまだ生成されていません。'
+                        '「セクション別コードを生成」ボタンを押してください。</div>',
+                        unsafe_allow_html=True,
+                    )
 
 
 def page_image_prompt():

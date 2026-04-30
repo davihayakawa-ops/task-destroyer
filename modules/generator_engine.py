@@ -1,3 +1,4 @@
+import re
 from .llm_client import LLMClient
 
 PRODUCT_PAGE_PROMPT = """
@@ -259,6 +260,104 @@ SNS_PROMPT = """
 """
 
 
+SHOPIFY_SECTIONS_PROMPT = """
+あなたはShopifyのカスタムLiquid制作の専門家です。
+以下のCoreと商品情報をもとに、Shopify商品ページ用のセクション別HTMLコードを生成してください。
+
+【Core】
+{core}
+
+【商品情報】
+商品名: {product_name}
+カテゴリ: {category}
+価格: {price}
+商品説明: {description}
+特徴・強み: {features}
+ターゲット: {target}
+使用シーン: {use_scenes}
+
+【共通ルール】
+- <html> <head> <body> タグは不要（Custom Liquidブロックに直接貼るため）
+- JavaScriptは使わない
+- 外部CSS・外部ライブラリは使わない
+- 全CSSクラス名には必ず「td-」プレフィックスを付ける
+- スマホ・PC両対応レスポンシブ（@media (max-width: 768px)）
+- 薬機法・景表法リスクのある表現は使わない（「治る」「必ず」「確実に」「医学的に証明」等）
+- 日本語は自然で丁寧な表現にする
+- コードのみ出力。マークダウン(```)や説明文は不要
+
+【フォントサイズ基準】
+- 大見出し: font-size: clamp(28px, 4vw, 48px);
+- セクション見出し: font-size: clamp(24px, 3vw, 36px);
+- 小見出し: font-size: clamp(18px, 2vw, 24px);
+- 本文: font-size: clamp(16px, 1.4vw, 18px); line-height: 1.8;
+- FAQ: font-size: clamp(16px, 1.4vw, 18px);
+
+【レイアウト基準】
+- 通常セクション: max-width: 1100px; margin: 0 auto; padding: 80px 24px;
+- テキスト中心: max-width: 960px;
+- カード: PC 2〜3列 → スマホ 1列（CSS Grid）
+- セクション間に余白を確保し、Shopify標準の画像・動画セクションを差し込みやすくする
+
+【デザイン方針】
+- 背景: #faf8f4（オフホワイト）
+- テキスト: #2b2b2b
+- アクセント: #3d6b4f（落ち着いたグリーン）
+- カード背景: #ffffff、border: 1px solid #e8e4de、border-radius: 16px
+- 各セクションは単体で動作（<style>タグを含む）
+
+以下のマーカー形式で各セクションを出力してください。各マーカー行はそのまま出力すること。
+
+<<<SECTION_00_COMMON_CSS>>>
+CSS変数・リセット・共通クラス（.td-section, .td-container, .td-badge等）。<style>タグで囲む。
+<<<END_SECTION>>>
+
+<<<SECTION_01_HERO>>>
+ファーストビュー：カテゴリバッジ＋キャッチコピー(H1)＋サブコピー＋ベネフィット3点＋信頼バッジ。<style>タグ＋<section>タグ。
+<<<END_SECTION>>>
+
+<<<SECTION_02_ABOUT>>>
+商品について：商品概要・誰のための商品か・使用シーン。<style>タグ＋<section>タグ。
+<<<END_SECTION>>>
+
+<<<SECTION_03_PROBLEM>>>
+悩み・共感：ターゲットの悩みリスト＋なぜこの商品が解決策になるか。<style>タグ＋<section>タグ。
+<<<END_SECTION>>>
+
+<<<SECTION_04_FEATURES>>>
+特徴カード：3〜6個のカード形式（絵文字アイコン＋見出し＋説明）。<style>タグ＋<section>タグ。
+<<<END_SECTION>>>
+
+<<<SECTION_05_SCENES>>>
+使用シーン：商品に合わせた2〜4シーン（シーン名＋説明）。<style>タグ＋<section>タグ。
+<<<END_SECTION>>>
+
+<<<SECTION_06_COMPARISON>>>
+比較表：通常のケアとこの商品の比較を<table>で。<style>タグ＋<section>タグ。
+<<<END_SECTION>>>
+
+<<<SECTION_07_FAQ>>>
+FAQ：<details><summary>の開閉式、5〜7項目。<style>タグ＋<section>タグ。
+<<<END_SECTION>>>
+
+<<<SECTION_08_CTA>>>
+CTA：自然な購入促進＋安心感＋プライバシー配慮。煽りすぎない。<style>タグ＋<section>タグ。
+<<<END_SECTION>>>
+"""
+
+SHOPIFY_SECTION_KEYS = [
+    ("shopify_common_css",              "SECTION_00_COMMON_CSS"),
+    ("shopify_hero_section_code",       "SECTION_01_HERO"),
+    ("shopify_about_section_code",      "SECTION_02_ABOUT"),
+    ("shopify_problem_section_code",    "SECTION_03_PROBLEM"),
+    ("shopify_features_section_code",   "SECTION_04_FEATURES"),
+    ("shopify_usage_scene_section_code","SECTION_05_SCENES"),
+    ("shopify_comparison_section_code", "SECTION_06_COMPARISON"),
+    ("shopify_faq_section_code",        "SECTION_07_FAQ"),
+    ("shopify_cta_section_code",        "SECTION_08_CTA"),
+]
+
+
 class GeneratorEngine:
     def __init__(self, llm: LLMClient):
         self.llm = llm
@@ -294,3 +393,22 @@ class GeneratorEngine:
             use_scenes=product_info.get("use_scenes", ""),
         )
         return self.llm.generate_structured(prompt, max_tokens=8192)
+
+    def generate_shopify_sections(self, core: str, product_info: dict) -> dict:
+        prompt = SHOPIFY_SECTIONS_PROMPT.format(
+            core=core,
+            product_name=product_info.get("name", ""),
+            category=product_info.get("category", ""),
+            price=product_info.get("price", ""),
+            description=product_info.get("description", ""),
+            features=product_info.get("features", ""),
+            target=product_info.get("target", ""),
+            use_scenes=product_info.get("use_scenes", ""),
+        )
+        raw = self.llm.generate_structured(prompt, max_tokens=16000)
+        sections = {"_raw": raw}
+        for store_key, marker in SHOPIFY_SECTION_KEYS:
+            pattern = rf"<<<{marker}>>>(.*?)<<<END_SECTION>>>"
+            m = re.search(pattern, raw, re.DOTALL)
+            sections[store_key] = m.group(1).strip() if m else ""
+        return sections
