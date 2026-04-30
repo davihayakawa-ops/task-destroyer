@@ -260,26 +260,19 @@ SNS_PROMPT = """
 """
 
 
-_SHOPIFY_RULES = """
-【共通ルール】
-- <html> <head> <body> タグは不要（Custom Liquidブロックに直接貼るため）
-- JavaScriptは使わない / 外部CSS・外部ライブラリは使わない
-- 全CSSクラス名には必ず「td-」プレフィックスを付ける
-- @media (max-width: 767px) でスマホ対応
-- 薬機法・景表法リスクのある表現は使わない（「治る」「必ず」「確実に」「医学的に証明」等）
+_SHOPIFY_RULES = """【共通ルール】
+- <html><head><body>タグ不要 / JavaScriptなし / 外部CSS・ライブラリなし
+- 全CSSクラス名は必ず「td-」プレフィックス
+- @media(max-width:767px) でスマホ対応
+- 薬機法・景表法リスク表現禁止（「治る」「必ず」「確実に」「医学的に証明」等）
 - コードのみ出力。マークダウン(```)や説明文は不要
-
-【フォントサイズ】大見出し:clamp(28px,4vw,48px) / セクション見出し:clamp(24px,3vw,36px) / 小見出し:clamp(18px,2vw,24px) / 本文:clamp(16px,1.4vw,18px);line-height:1.8
-
+【フォント】大見出し:clamp(28px,4vw,48px) / セクション見出し:clamp(24px,3vw,36px) / 小見出し:clamp(18px,2vw,24px) / 本文:clamp(16px,1.4vw,18px);line-height:1.8
 【レイアウト】max-width:1100px;margin:0 auto;padding:80px 24px → スマホ:padding:48px 16px
-
 【デザイン】背景:#faf8f4 / テキスト:#2b2b2b / アクセント:#3d6b4f / カード:#fff;border:1px solid #e8e4de;border-radius:16px
-各セクションは<style>タグを含む単体で動作するコードにする。
-"""
+各セクションは<style>タグを含む単体で動作するコードにする。"""
 
-SHOPIFY_SECTIONS_PROMPT_A = """
-あなたはShopifyのカスタムLiquid制作の専門家です。
-以下のCoreと商品情報をもとに、セクション別HTMLコード（00〜04）を生成してください。
+_SECTION_BASE_PROMPT = """あなたはShopifyのカスタムLiquid制作の専門家です。
+1つのセクションのHTMLコードのみを生成してください。
 {rules}
 【Core】
 {core}
@@ -289,85 +282,175 @@ SHOPIFY_SECTIONS_PROMPT_A = """
 説明:{description}
 特徴:{features} / ターゲット:{target} / 使用シーン:{use_scenes}
 
-マーカー形式で出力してください（マーカー行はそのまま出力すること）：
+以下のマーカーで囲んで出力してください（マーカー行はそのまま出力）：
 
-<<<SECTION_00_COMMON_CSS>>>
-:root CSS変数（色・フォント・radius等）＋ .td-section / .td-container / .td-badge の基本クラス。<style>タグのみ。
-<<<END_SECTION>>>
+<<<{marker}>>>
+{instructions}
+<<<END_SECTION>>>"""
 
-<<<SECTION_01_HERO>>>
-ファーストビュー：カテゴリバッジ＋キャッチコピー(H1)＋サブコピー＋ベネフィット3点＋信頼バッジ。<style>＋<section>。
-<<<END_SECTION>>>
-
-<<<SECTION_02_ABOUT>>>
-商品について：商品概要・誰のための商品か・使用シーン。<style>＋<section>。
-<<<END_SECTION>>>
-
-<<<SECTION_03_PROBLEM>>>
-悩み・共感：ターゲットの悩みリスト＋なぜこの商品が解決策になるか。<style>＋<section>。
-<<<END_SECTION>>>
-
-<<<SECTION_04_FEATURES>>>
-特徴カード：3〜5個のカード形式（絵文字＋見出し＋説明）。CSS Grid 3列→スマホ1列。<style>＋<section>。
-<<<END_SECTION>>>
-"""
-
-SHOPIFY_SECTIONS_PROMPT_B = """
-あなたはShopifyのカスタムLiquid制作の専門家です。
-以下のCoreと商品情報をもとに、セクション別HTMLコード（05〜08）を生成してください。
-{rules}
-【Core】
-{core}
-
-【商品情報】
-商品名:{product_name} / カテゴリ:{category} / 価格:{price}
-説明:{description}
-特徴:{features} / ターゲット:{target} / 使用シーン:{use_scenes}
-
-マーカー形式で出力してください（マーカー行はそのまま出力すること）：
-
-<<<SECTION_05_SCENES>>>
-使用シーン：「自宅でのリラックスタイム」「夜の習慣に」「日常に組み込みやすい」「プライバシーを保ちながら続けたい方に」の視点で2〜4シーン。<style>＋<section>。
-<<<END_SECTION>>>
-
-<<<SECTION_06_COMPARISON>>>
-比較表：「通院・薬に頼る場合」vs「この商品」で手軽さ・継続性・プライバシー・コストを比較。<table>形式。効果を断定しない表現。<style>＋<section>。
-<<<END_SECTION>>>
-
-<<<SECTION_07_FAQ>>>
-FAQ（details/summary開閉式、5〜7項目）：
-- 初めてでも使えますか？
-- どのタイミングで使うのがおすすめですか？
-- 周りに知られずに購入できますか？
-- 継続しやすいですか？
-- 使用前に確認することはありますか？
-<style>＋<section>。
-<<<END_SECTION>>>
-
-<<<SECTION_08_CTA>>>
-CTA：煽らず自然な購入後押し。「自分のペースで始められる」ニュアンス。安心感・プライバシー配慮を含む。<style>＋<section>。
-<<<END_SECTION>>>
-"""
-
-SHOPIFY_SECTION_KEYS = [
-    ("shopify_common_css",              "SECTION_00_COMMON_CSS"),
-    ("shopify_hero_section_code",       "SECTION_01_HERO"),
-    ("shopify_about_section_code",      "SECTION_02_ABOUT"),
-    ("shopify_problem_section_code",    "SECTION_03_PROBLEM"),
-    ("shopify_features_section_code",   "SECTION_04_FEATURES"),
-    ("shopify_usage_scene_section_code","SECTION_05_SCENES"),
-    ("shopify_comparison_section_code", "SECTION_06_COMPARISON"),
-    ("shopify_faq_section_code",        "SECTION_07_FAQ"),
-    ("shopify_cta_section_code",        "SECTION_08_CTA"),
+SHOPIFY_SECTION_CONFIGS = [
+    (
+        "shopify_common_css",
+        "SECTION_00_COMMON_CSS",
+        ":root CSS変数（--td-bg:#faf8f4 / --td-text:#2b2b2b / --td-accent:#3d6b4f / --td-radius:16px）"
+        "＋ .td-section / .td-container / .td-badge の基本クラス定義。<style>タグのみ。<section>タグは含めない。",
+    ),
+    (
+        "shopify_hero_section_code",
+        "SECTION_01_HERO",
+        "ファーストビュー：カテゴリバッジ＋キャッチコピー(H1)＋サブコピー＋ベネフィット3点（チェックマーク付きカード）＋信頼バッジ。<style>＋<section>。",
+    ),
+    (
+        "shopify_about_section_code",
+        "SECTION_02_ABOUT",
+        "商品について：商品概要テキスト＋「誰のための商品か」＋「どんな場面で使えるか」を3カラムカードで紹介。<style>＋<section>。",
+    ),
+    (
+        "shopify_problem_section_code",
+        "SECTION_03_PROBLEM",
+        "悩み・共感：ターゲットの悩みリスト（絵文字付き4〜5項目）＋この商品が解決策になる理由（緑背景のハイライトボックス）。<style>＋<section>。",
+    ),
+    (
+        "shopify_features_section_code",
+        "SECTION_04_FEATURES",
+        "特徴カード：3〜5個のカード形式（大きな絵文字＋太字見出し＋説明文）。CSS Grid 3列→スマホ1列。<style>＋<section>。",
+    ),
+    (
+        "shopify_usage_scene_section_code",
+        "SECTION_05_SCENES",
+        "使用シーン：自宅・夜の習慣・日常習慣・プレゼント等の視点で2〜4シーン。各シーンにアイコン＋見出し＋説明。2列グリッド。<style>＋<section>。",
+    ),
+    (
+        "shopify_comparison_section_code",
+        "SECTION_06_COMPARISON",
+        "比較表：「従来の方法」vs「この商品」で手軽さ・継続性・プライバシー・コストを<table>形式で比較。効果を断定しない表現。<style>＋<section>。",
+    ),
+    (
+        "shopify_faq_section_code",
+        "SECTION_07_FAQ",
+        "FAQ（details/summary開閉式、5〜7項目）：初めてでも使えるか・タイミング・プライバシー・継続性・注意事項など。<style>＋<section>。",
+    ),
+    (
+        "shopify_cta_section_code",
+        "SECTION_08_CTA",
+        "CTA：煽らず自然な購入後押し。「自分のペースで始められる」ニュアンス。安心感・プライバシー配慮を含む。緑背景で目立たせる。<style>＋<section>。",
+    ),
 ]
 
 
-def _parse_sections(raw: str, keys: list) -> dict:
-    result = {}
-    for store_key, marker in keys:
-        m = re.search(rf"<<<{marker}>>>(.*?)<<<END_SECTION>>>", raw, re.DOTALL)
-        result[store_key] = m.group(1).strip() if m else ""
-    return result
+def _fallback_css() -> str:
+    return """<style>
+:root{--td-bg:#faf8f4;--td-text:#2b2b2b;--td-accent:#3d6b4f;--td-card:#fff;--td-border:#e8e4de;--td-radius:16px;--td-font-lg:clamp(28px,4vw,48px);--td-font-md:clamp(24px,3vw,36px);--td-font-sm:clamp(18px,2vw,24px);--td-font-body:clamp(16px,1.4vw,18px)}
+.td-section{background:var(--td-bg);padding:80px 24px}
+.td-container{max-width:1100px;margin:0 auto}
+.td-badge{display:inline-block;background:var(--td-accent);color:#fff;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:600;letter-spacing:.05em}
+@media(max-width:767px){.td-section{padding:48px 16px}}
+</style>"""
+
+
+def _fallback_hero(product_name: str) -> str:
+    return f"""<style>
+.td-hero{{background:linear-gradient(135deg,#faf8f4 0%,#f0ece4 100%);padding:80px 24px;text-align:center}}
+.td-hero .td-container{{max-width:1100px;margin:0 auto}}
+.td-hero .td-badge{{margin-bottom:24px;display:inline-block}}
+.td-hero h1{{font-size:clamp(28px,4vw,52px);color:#2b2b2b;font-weight:700;line-height:1.3;margin-bottom:16px}}
+.td-hero-sub{{font-size:clamp(16px,1.6vw,20px);color:#5a5a5a;line-height:1.8;margin-bottom:48px}}
+.td-hero-benefits{{display:flex;justify-content:center;gap:20px;flex-wrap:wrap;margin-bottom:40px}}
+.td-hero-benefit{{background:#fff;border:1px solid #e8e4de;border-radius:12px;padding:14px 22px;font-size:clamp(15px,1.3vw,17px);color:#3d6b4f;font-weight:600}}
+.td-hero-trust{{font-size:13px;color:#aaa}}
+@media(max-width:767px){{.td-hero{{padding:48px 16px}}.td-hero-benefits{{flex-direction:column;align-items:center}}.td-hero-benefit{{width:100%;text-align:center}}}}
+</style>
+<section class="td-hero">
+  <div class="td-container">
+    <span class="td-badge">こだわりのアイテム</span>
+    <h1>{product_name}</h1>
+    <p class="td-hero-sub">毎日の生活に、ちょっとした豊かさを。<br>自分のペースで、無理なく続けられる一品です。</p>
+    <div class="td-hero-benefits">
+      <div class="td-hero-benefit">✓ 自宅で手軽に使える</div>
+      <div class="td-hero-benefit">✓ 日常習慣に馴染む設計</div>
+      <div class="td-hero-benefit">✓ 丁寧な梱包でお届け</div>
+    </div>
+    <p class="td-hero-trust">※個人差があります</p>
+  </div>
+</section>"""
+
+
+def _fallback_about(product_name: str) -> str:
+    return f"""<style>
+.td-about{{background:#faf8f4;padding:80px 24px}}
+.td-about .td-container{{max-width:960px;margin:0 auto;text-align:center}}
+.td-about h2{{font-size:clamp(24px,3vw,36px);color:#2b2b2b;margin-bottom:16px}}
+.td-about-lead{{font-size:clamp(16px,1.5vw,20px);color:#5a5a5a;line-height:1.9;margin-bottom:40px}}
+.td-about-points{{display:flex;gap:20px;justify-content:center;flex-wrap:wrap}}
+.td-about-point{{background:#fff;border:1px solid #e8e4de;border-radius:14px;padding:24px 28px;max-width:280px;text-align:left}}
+.td-about-point h3{{font-size:clamp(16px,1.4vw,18px);color:#3d6b4f;margin-bottom:8px;font-weight:700}}
+.td-about-point p{{font-size:clamp(15px,1.3vw,16px);color:#5a5a5a;line-height:1.8;margin:0}}
+@media(max-width:767px){{.td-about{{padding:48px 16px}}.td-about-points{{flex-direction:column;align-items:center}}.td-about-point{{max-width:100%;width:100%}}}}
+</style>
+<section class="td-about">
+  <div class="td-container">
+    <h2>{product_name}について</h2>
+    <p class="td-about-lead">毎日の生活に取り入れやすい設計で、様々な場面でご活用いただけます。</p>
+    <div class="td-about-points">
+      <div class="td-about-point"><h3>🌿 こんな方に</h3><p>生活の質を少し高めたい方、忙しい日々の中でも自分をケアしたい方に。</p></div>
+      <div class="td-about-point"><h3>🏠 使える場面</h3><p>自宅でのリラックスタイムや、毎日のルーティンに無理なく組み込めます。</p></div>
+      <div class="td-about-point"><h3>✨ 選ばれる理由</h3><p>使いやすさと品質を両立。はじめての方でも安心してお使いいただけます。</p></div>
+    </div>
+  </div>
+</section>"""
+
+
+def _fallback_problem(product_name: str) -> str:
+    return f"""<style>
+.td-problem{{background:#f3f0eb;padding:80px 24px}}
+.td-problem .td-container{{max-width:960px;margin:0 auto}}
+.td-problem h2{{font-size:clamp(24px,3vw,36px);color:#2b2b2b;text-align:center;margin-bottom:48px}}
+.td-problem-list{{list-style:none;padding:0;margin:0 0 40px;display:grid;gap:12px}}
+.td-problem-list li{{background:#fff;border-left:4px solid #e0d8cf;border-radius:8px;padding:16px 20px;font-size:clamp(16px,1.4vw,18px);color:#5a5a5a;line-height:1.7}}
+.td-problem-solution{{background:#3d6b4f;color:#fff;border-radius:16px;padding:32px 36px;text-align:center}}
+.td-problem-solution h3{{font-size:clamp(20px,2.2vw,26px);margin-bottom:12px}}
+.td-problem-solution p{{font-size:clamp(16px,1.4vw,18px);line-height:1.8;opacity:.9;margin:0}}
+@media(max-width:767px){{.td-problem{{padding:48px 16px}}.td-problem-solution{{padding:24px 20px}}}}
+</style>
+<section class="td-problem">
+  <div class="td-container">
+    <h2>こんなお悩みはありませんか？</h2>
+    <ul class="td-problem-list">
+      <li>😔 なかなか自分に合う方法が見つからない</li>
+      <li>😔 続けたいけど手間がかかって挫折してしまう</li>
+      <li>😔 プライバシーが気になって試しにくい</li>
+      <li>😔 コストが気になって踏み出せない</li>
+    </ul>
+    <div class="td-problem-solution">
+      <h3>そんな方に、{product_name}</h3>
+      <p>自宅で、自分のペースで。無理なく始められて、続けやすい設計です。</p>
+    </div>
+  </div>
+</section>"""
+
+
+def _fallback_features(product_name: str) -> str:
+    return f"""<style>
+.td-features{{background:#faf8f4;padding:80px 24px}}
+.td-features .td-container{{max-width:1100px;margin:0 auto}}
+.td-features h2{{font-size:clamp(24px,3vw,36px);color:#2b2b2b;text-align:center;margin-bottom:48px}}
+.td-features-grid{{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}}
+.td-feature-card{{background:#fff;border:1px solid #e8e4de;border-radius:16px;padding:32px 24px;text-align:center}}
+.td-feat-icon{{font-size:2.5rem;margin-bottom:16px}}
+.td-feature-card h3{{font-size:clamp(17px,1.6vw,20px);color:#3d6b4f;margin-bottom:10px;font-weight:700}}
+.td-feature-card p{{font-size:clamp(15px,1.3vw,16px);color:#5a5a5a;line-height:1.8;margin:0}}
+@media(max-width:767px){{.td-features{{padding:48px 16px}}.td-features-grid{{grid-template-columns:1fr}}}}
+</style>
+<section class="td-features">
+  <div class="td-container">
+    <h2>{product_name}の特徴</h2>
+    <div class="td-features-grid">
+      <div class="td-feature-card"><div class="td-feat-icon">🏠</div><h3>自宅で使える</h3><p>特別な設備は不要。日常の中で手軽に取り入れられます。</p></div>
+      <div class="td-feature-card"><div class="td-feat-icon">🔄</div><h3>続けやすい設計</h3><p>毎日の習慣に無理なく組み込める使いやすさにこだわっています。</p></div>
+      <div class="td-feature-card"><div class="td-feat-icon">✨</div><h3>品質へのこだわり</h3><p>素材と製造工程にこだわり、安心してお使いいただける品質です。</p></div>
+    </div>
+  </div>
+</section>"""
 
 
 def _fallback_scenes(product_name: str) -> str:
@@ -505,11 +588,26 @@ class GeneratorEngine:
         )
         return self.llm.generate_structured(prompt, max_tokens=8192)
 
+    def _generate_one_section(
+        self, key: str, marker: str, instructions: str, args: dict, fallback_fn
+    ) -> str:
+        prompt = _SECTION_BASE_PROMPT.format(
+            marker=marker, instructions=instructions, **args
+        )
+        try:
+            raw = self.llm.generate_structured(prompt, max_tokens=4096)
+            m = re.search(rf"<<<{marker}>>>(.*?)<<<END_SECTION>>>", raw, re.DOTALL)
+            code = m.group(1).strip() if m else raw.strip()
+            return code if code else fallback_fn()
+        except Exception:
+            return fallback_fn()
+
     def generate_shopify_sections(self, core: str, product_info: dict) -> dict:
+        product_name = product_info.get("name", "")
         args = dict(
             rules=_SHOPIFY_RULES,
             core=core,
-            product_name=product_info.get("name", ""),
+            product_name=product_name,
             category=product_info.get("category", ""),
             price=product_info.get("price", ""),
             description=product_info.get("description", ""),
@@ -517,28 +615,20 @@ class GeneratorEngine:
             target=product_info.get("target", ""),
             use_scenes=product_info.get("use_scenes", ""),
         )
-        keys_a = SHOPIFY_SECTION_KEYS[:5]   # 00–04
-        keys_b = SHOPIFY_SECTION_KEYS[5:]   # 05–08
-
-        raw_a = self.llm.generate_structured(
-            SHOPIFY_SECTIONS_PROMPT_A.format(**args), max_tokens=8192
-        )
-        raw_b = self.llm.generate_structured(
-            SHOPIFY_SECTIONS_PROMPT_B.format(**args), max_tokens=8192
-        )
-
-        sections = {**_parse_sections(raw_a, keys_a), **_parse_sections(raw_b, keys_b)}
-        sections["_raw_a"] = raw_a
-        sections["_raw_b"] = raw_b
-
-        product_name = product_info.get("name", "")
-        if not sections.get("shopify_usage_scene_section_code"):
-            sections["shopify_usage_scene_section_code"] = _fallback_scenes(product_name)
-        if not sections.get("shopify_comparison_section_code"):
-            sections["shopify_comparison_section_code"] = _fallback_comparison(product_name)
-        if not sections.get("shopify_faq_section_code"):
-            sections["shopify_faq_section_code"] = _fallback_faq(product_name)
-        if not sections.get("shopify_cta_section_code"):
-            sections["shopify_cta_section_code"] = _fallback_cta(product_name)
-
+        fallbacks = {
+            "shopify_common_css":               _fallback_css,
+            "shopify_hero_section_code":        lambda: _fallback_hero(product_name),
+            "shopify_about_section_code":       lambda: _fallback_about(product_name),
+            "shopify_problem_section_code":     lambda: _fallback_problem(product_name),
+            "shopify_features_section_code":    lambda: _fallback_features(product_name),
+            "shopify_usage_scene_section_code": lambda: _fallback_scenes(product_name),
+            "shopify_comparison_section_code":  lambda: _fallback_comparison(product_name),
+            "shopify_faq_section_code":         lambda: _fallback_faq(product_name),
+            "shopify_cta_section_code":         lambda: _fallback_cta(product_name),
+        }
+        sections = {}
+        for key, marker, instructions in SHOPIFY_SECTION_CONFIGS:
+            sections[key] = self._generate_one_section(
+                key, marker, instructions, args, fallbacks[key]
+            )
         return sections

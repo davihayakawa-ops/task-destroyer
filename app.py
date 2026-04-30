@@ -1330,7 +1330,7 @@ def page_product_page():
         with gen_col1:
             if st.button("✨ セクション別コードを生成", type="primary",
                          use_container_width=True, key="gen_sections"):
-                with st.spinner("セクション別コードを生成中（しばらくお待ちください）..."):
+                with st.spinner("セクション別コードを生成中（9セクション × 個別生成。2〜3分かかります）..."):
                     try:
                         generator = svc["generator"]
                         if not hasattr(generator, "generate_shopify_sections"):
@@ -1339,8 +1339,8 @@ def page_product_page():
                         result = generator.generate_shopify_sections(core, product_info)
                         for s in SECTIONS:
                             code = result.get(s["key"], "")
+                            gen[s["key"]] = code  # 空でも必ずセット（フォールバック済み）
                             if code:
-                                gen[s["key"]] = code
                                 svc["storage"].save_generated(pid, s["key"], {"text": code})
                         st.session_state["generated"] = gen
                         svc["approval"].mark_ai_generated(pid, "shopify_sections")
@@ -1445,8 +1445,15 @@ def page_product_page():
                                     use_container_width=True,
                                 )
                         else:
-                            st.markdown('<div class="cs-warning">⚠️ このセクションは未生成です。</div>',
+                            st.markdown('<div class="cs-warning">⚠️ このセクションは未生成です。「セクション別コードを生成」を押してください。</div>',
                                         unsafe_allow_html=True)
+                            with st.expander("🔍 デバッグ情報", expanded=False):
+                                present = [k for k in ALL_SECTION_KEYS if gen.get(k)]
+                                missing = [k for k in ALL_SECTION_KEYS if not gen.get(k)]
+                                st.write(f"探したキー: `{s['key']}`")
+                                st.write(f"キーが存在するか: `{s['key'] in gen}`")
+                                st.write("生成済みキー:", present)
+                                st.write("未生成キー:", missing)
 
         # ── Section: 個別セクション表示 ──────────────────────────────────
         else:
@@ -1499,6 +1506,13 @@ def page_product_page():
                         '「セクション別コードを生成」ボタンを押してください。</div>',
                         unsafe_allow_html=True,
                     )
+                    with st.expander("🔍 デバッグ情報", expanded=False):
+                        present = [k for k in ALL_SECTION_KEYS if gen.get(k)]
+                        missing = [k for k in ALL_SECTION_KEYS if not gen.get(k)]
+                        st.write(f"探したキー: `{sec['key']}`")
+                        st.write(f"キーが存在するか: `{sec['key'] in gen}`")
+                        st.write("生成済みキー:", present)
+                        st.write("未生成キー:", missing)
 
 
 def page_image_prompt():
