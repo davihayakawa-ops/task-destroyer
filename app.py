@@ -2,6 +2,8 @@ import streamlit as st
 import json
 import os
 import uuid
+import zipfile
+import io
 from pathlib import Path
 from datetime import datetime
 from dotenv import load_dotenv
@@ -488,6 +490,7 @@ def render_sidebar():
             ("output",            "📤  " + t("nav.output")),
             ("saved_data",        "💾  " + t("nav.saved_data")),
             ("export_center",     "⚡  " + t("nav.export_center")),
+            ("instruction_sheet", "📋  " + t("nav.instruction_sheet")),
         ]
 
         for page_id, label in nav_items:
@@ -2066,6 +2069,235 @@ def page_output():
                     unsafe_allow_html=True)
 
 
+# ── Page: Instruction Sheet ───────────────────────────────────────────────────
+
+_INS_CSS = """
+<style>
+/* ════════════════════════════════════════════════════════════════
+   INSTRUCTION SHEET  — ins- prefix
+   ════════════════════════════════════════════════════════════════ */
+.ins-card {
+    background:#111827; border:1px solid #1f2937;
+    border-radius:12px; padding:20px 24px; margin-bottom:16px;
+}
+.ins-card-title {
+    font-size:0.72rem; font-weight:700; color:#4b5563;
+    text-transform:uppercase; letter-spacing:.1em; margin-bottom:14px;
+}
+.ins-row { display:flex; gap:8px; margin-bottom:8px; align-items:baseline; }
+.ins-key {
+    font-size:0.78rem; color:#6b7280; min-width:100px; flex-shrink:0;
+}
+.ins-val { font-size:0.85rem; color:#e8e8e8; line-height:1.5; }
+.ins-core-block {
+    background:#0d1117; border-radius:8px; padding:14px;
+    font-size:0.8rem; color:#9ca3af; white-space:pre-wrap;
+    line-height:1.7; max-height:220px; overflow:hidden;
+}
+.ins-tbl { width:100%; border-collapse:collapse; }
+.ins-tbl th {
+    background:#0a0a0a; color:#4b5563; font-size:0.7rem;
+    font-weight:700; text-transform:uppercase; letter-spacing:.07em;
+    padding:8px 12px; text-align:left; border-bottom:1px solid #1f2937;
+}
+.ins-tbl td {
+    padding:9px 12px; border-bottom:1px solid #161616;
+    font-size:0.82rem; color:#d1d5db; vertical-align:middle;
+}
+.ins-tbl td:first-child { font-weight:600; color:#e8e8e8; }
+.ins-check { color:#22c55e; }
+.ins-dash  { color:#374151; }
+.ins-notes {
+    font-size:0.85rem; color:#9ca3af; line-height:1.7;
+    background:#0d1117; border-radius:8px; padding:12px 14px;
+}
+</style>
+"""
+
+
+def page_instruction_sheet():
+    st.markdown(_INS_CSS, unsafe_allow_html=True)
+
+    is_ja = st.session_state.get("lang", "ja") == "ja"
+    title = "制作指示書" if is_ja else "Ficha de Produção"
+    st.markdown(f'<div class="section-header">📋 {title}</div>', unsafe_allow_html=True)
+
+    pid          = ensure_product_id()
+    product_info = st.session_state.get("product_info", {})
+    product_name = product_info.get("name") or ("未設定" if is_ja else "Não definido")
+    gen          = st.session_state.get("generated", {})
+    core_text    = st.session_state.get("core_text", "")
+
+    _SHOPIFY_KEYS = [
+        "shopify_common_css", "shopify_hero_section_code", "shopify_about_section_code",
+        "shopify_problem_section_code", "shopify_features_section_code",
+        "shopify_usage_scene_section_code", "shopify_comparison_section_code",
+        "shopify_faq_section_code", "shopify_cta_section_code",
+    ]
+
+    content_specs = [
+        ("core",             "Core / 核"    if is_ja else "Core"),
+        ("product_page",     "商品ページ"   if is_ja else "Página do Produto"),
+        ("shopify_sections", "Shopify HTML"),
+        ("image_prompt",     "画像プロンプト" if is_ja else "Prompts de Imagem"),
+        ("video_script",     "動画台本"     if is_ja else "Roteiro de Vídeo"),
+        ("ads_sns",          "広告・SNS"    if is_ja else "Anúncios/SNS"),
+    ]
+
+    # ── Download button (top) ─────────────────────────────────────────────────
+    def _build_md() -> str:
+        lines = [f"# 制作指示書 — {product_name}", ""]
+        lines += ["## プロジェクト情報", ""]
+        for key, label in [
+            ("name",         "商品名"),
+            ("category",     "カテゴリ"),
+            ("price",        "価格"),
+            ("target",       "ターゲット"),
+            ("assignee",     "担当者"),
+            ("final_reviewer","確認者"),
+        ]:
+            val = product_info.get(key, "")
+            if val:
+                lines.append(f"- **{label}**: {val}")
+        lines += ["", "## Core サマリー", ""]
+        lines.append(core_text[:1000] if core_text else "（未生成）")
+        lines += ["", "## コンテンツ状況", ""]
+        lines.append("| コンテンツ | 生成 | 承認ステータス |")
+        lines.append("|-----------|------|--------------|")
+        for ct, label in content_specs:
+            if ct == "core":
+                has_content = bool(core_text)
+            elif ct == "shopify_sections":
+                has_content = any(gen.get(k) for k in _SHOPIFY_KEYS)
+            else:
+                has_content = bool(gen.get(ct))
+            appr = svc["approval"].get_status(pid, ct)
+            status_lbl = STATUS_LABEL_JA.get(appr["status"], appr["status"])
+            lines.append(f"| {label} | {'✓' if has_content else '—'} | {status_lbl} |")
+        notes = product_info.get("notes", "")
+        if notes:
+            lines += ["", "## 備考", "", notes]
+        lines += ["", f"---", f"*生成日時: {datetime.now().strftime('%Y-%m-%d %H:%M')}*"]
+        return "\n".join(lines)
+
+    dl_col, _ = st.columns([2, 6])
+    with dl_col:
+        md_bytes = _build_md().encode("utf-8")
+        st.download_button(
+            "⬇️ Markdownでダウンロード" if is_ja else "⬇️ Baixar como Markdown",
+            data=md_bytes,
+            file_name=f"instruction_{product_name}.md",
+            mime="text/markdown",
+            use_container_width=True,
+        )
+
+    # ── Project info card ─────────────────────────────────────────────────────
+    info_title = "プロジェクト情報" if is_ja else "Informações do Projeto"
+    rows_html = ""
+    for key, label in [
+        ("name",          "商品名"      if is_ja else "Produto"),
+        ("category",      "カテゴリ"    if is_ja else "Categoria"),
+        ("price",         "価格"        if is_ja else "Preço"),
+        ("target",        "ターゲット"  if is_ja else "Público-alvo"),
+        ("description",   "説明"        if is_ja else "Descrição"),
+        ("assignee",      "担当者"      if is_ja else "Responsável"),
+        ("final_reviewer","確認者"      if is_ja else "Revisor"),
+        ("updated_at",    "最終更新"    if is_ja else "Atualizado"),
+    ]:
+        val = product_info.get(key, "")
+        if not val:
+            continue
+        rows_html += (
+            f'<div class="ins-row">'
+            f'<div class="ins-key">{label}</div>'
+            f'<div class="ins-val">{val}</div>'
+            f'</div>'
+        )
+
+    st.markdown(
+        f'<div class="ins-card">'
+        f'<div class="ins-card-title">📦 {info_title}</div>'
+        f'{rows_html}'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+    # ── Core snapshot card ────────────────────────────────────────────────────
+    core_appr  = svc["approval"].get_status(pid, "core")
+    core_badge = status_badge(core_appr["status"])
+    core_title = "Core スナップショット" if is_ja else "Snapshot do Core"
+    core_preview = (core_text[:600] + ("…" if len(core_text) > 600 else "")) if core_text else (
+        "（Coreはまだ生成されていません）" if is_ja else "（Core ainda não gerado）"
+    )
+    st.markdown(
+        f'<div class="ins-card">'
+        f'<div class="ins-card-title">🧠 {core_title} &nbsp; {core_badge}</div>'
+        f'<div class="ins-core-block">{core_preview}</div>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+    # ── Content status table ──────────────────────────────────────────────────
+    tbl_title = "コンテンツ状況" if is_ja else "Status dos Conteúdos"
+    th_name   = "コンテンツ"    if is_ja else "Conteúdo"
+    th_gen    = "生成"          if is_ja else "Gerado"
+    th_status = "承認ステータス" if is_ja else "Aprovação"
+    th_upd    = "最終更新"      if is_ja else "Atualizado"
+
+    rows = ""
+    for ct, label in content_specs:
+        if ct == "core":
+            has_content = bool(core_text)
+        elif ct == "shopify_sections":
+            has_content = any(gen.get(k) for k in _SHOPIFY_KEYS)
+        else:
+            has_content = bool(gen.get(ct))
+
+        appr     = svc["approval"].get_status(pid, ct)
+        badge    = status_badge(appr["status"])
+        upd_at   = appr.get("updated_at", "")
+        gen_icon = f'<span class="ins-check">✓</span>' if has_content else f'<span class="ins-dash">—</span>'
+        rows += (
+            f"<tr>"
+            f"<td>{label}</td>"
+            f"<td style='text-align:center'>{gen_icon}</td>"
+            f"<td>{badge}</td>"
+            f"<td style='font-size:0.72rem;color:#4b5563'>{upd_at}</td>"
+            f"</tr>"
+        )
+
+    st.markdown(
+        f'<div class="ins-card">'
+        f'<div class="ins-card-title">📊 {tbl_title}</div>'
+        f'<table class="ins-tbl">'
+        f'<thead><tr><th>{th_name}</th><th>{th_gen}</th><th>{th_status}</th><th>{th_upd}</th></tr></thead>'
+        f'<tbody>{rows}</tbody>'
+        f'</table>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+    # ── Notes card ────────────────────────────────────────────────────────────
+    notes = product_info.get("notes", "").strip()
+    if notes:
+        notes_title = "備考・担当者メモ" if is_ja else "Observações"
+        st.markdown(
+            f'<div class="ins-card">'
+            f'<div class="ins-card-title">📝 {notes_title}</div>'
+            f'<div class="ins-notes">{notes}</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+    # ── Footer ────────────────────────────────────────────────────────────────
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+    footer_msg = f"生成日時: {now_str}" if is_ja else f"Gerado em: {now_str}"
+    st.markdown(
+        f'<div style="font-size:0.72rem;color:#374151;text-align:right;margin-top:8px">{footer_msg}</div>',
+        unsafe_allow_html=True,
+    )
+
+
 # ── Page: Export Center ───────────────────────────────────────────────────────
 
 def page_export_center():
@@ -2299,15 +2531,39 @@ def page_export_center():
         st.markdown(f'<div class="ec-section-title">📤 {exp_title}</div>',
                     unsafe_allow_html=True)
 
+        _SHOPIFY_KEYS_EC = [
+            "shopify_common_css", "shopify_hero_section_code", "shopify_about_section_code",
+            "shopify_problem_section_code", "shopify_features_section_code",
+            "shopify_usage_scene_section_code", "shopify_comparison_section_code",
+            "shopify_faq_section_code", "shopify_cta_section_code",
+        ]
         export_items = {k: v for k, v in gen.items()
                         if v and isinstance(v, str) and not k.startswith("_")}
         all_text = "\n\n---\n\n".join(f"# {k}\n\n{v}" for k, v in export_items.items())
-        shopify_code = gen.get("shopify_custom_liquid", "")
+        shopify_code = "\n\n".join(gen[k] for k in _SHOPIFY_KEYS_EC if gen.get(k))
 
-        dl1, dl2 = st.columns(2)
+        # Build ZIP bundle
+        def _build_zip() -> bytes:
+            buf = io.BytesIO()
+            with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+                core_t = st.session_state.get("core_text", "")
+                if core_t:
+                    zf.writestr("core.txt", core_t)
+                for key, text in export_items.items():
+                    safe = key.replace("/", "_").replace(" ", "_")
+                    ext = "html" if "shopify" in key.lower() else "txt"
+                    zf.writestr(f"{safe}.{ext}", text)
+                if shopify_code:
+                    zf.writestr(f"shopify_{product_name}.html", shopify_code)
+            buf.seek(0)
+            return buf.read()
+
+        has_content = bool(all_text or st.session_state.get("core_text"))
+
+        dl1, dl2, dl3 = st.columns(3)
         with dl1:
             st.download_button(
-                "⬇️ " + ("一括DL" if is_ja else "Tudo"),
+                "⬇️ " + ("一括TXT" if is_ja else "Tudo TXT"),
                 data=(all_text or " ").encode("utf-8"),
                 file_name=f"task_destroyer_{product_name}.txt",
                 mime="text/plain",
@@ -2324,6 +2580,17 @@ def page_export_center():
                 key="ec_shopify_dl",
                 use_container_width=True,
                 disabled=not shopify_code,
+            )
+        with dl3:
+            zip_bytes = _build_zip() if has_content else b""
+            st.download_button(
+                "📦 ZIP",
+                data=zip_bytes if zip_bytes else b" ",
+                file_name=f"task_destroyer_{product_name}.zip",
+                mime="application/zip",
+                key="ec_zip_dl",
+                use_container_width=True,
+                disabled=not has_content,
             )
 
         st.markdown("")
@@ -2352,7 +2619,8 @@ def page_export_center():
 
         manage_label = "🔗 連携サービスを管理" if is_ja else "🔗 Gerenciar integrações"
         if st.button(manage_label, key="ec_manage_int", use_container_width=True):
-            st.info("連携サービス管理は準備中です" if is_ja else "Gestão de integrações em preparação")
+            st.session_state["page"] = "instruction_sheet"
+            st.rerun()
 
 
 # ── Page: Saved Data ──────────────────────────────────────────────────────────
@@ -3384,6 +3652,7 @@ def main():
         "output": page_output,
         "saved_data": page_saved_data,
         "export_center": page_export_center,
+        "instruction_sheet": page_instruction_sheet,
     }
 
     render_fn = page_map.get(page, page_mode_selection)
