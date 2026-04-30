@@ -486,6 +486,7 @@ def render_sidebar():
             ("approval",          "🔐  " + t("nav.approval")),
             ("output",            "📤  " + t("nav.output")),
             ("saved_data",        "💾  " + t("nav.saved_data")),
+            ("export_center",     "⚡  " + t("nav.export_center")),
         ]
 
         for page_id, label in nav_items:
@@ -1930,6 +1931,295 @@ def page_output():
                     unsafe_allow_html=True)
 
 
+# ── Page: Export Center ───────────────────────────────────────────────────────
+
+def page_export_center():
+    st.markdown("""<style>
+.ec-preview-box{background:#0a0a0a;border:1px solid #1e1e1e;border-radius:8px;padding:14px;
+  font-size:0.8125rem;line-height:1.75;color:#9ca3af;white-space:pre-wrap;
+  max-height:200px;overflow:hidden;font-family:inherit}
+.ec-empty-card{background:#0d0d0d;border:1px dashed #374151;border-radius:8px;padding:36px;
+  text-align:center;color:#4b5563;font-size:0.875rem}
+.ec-section-title{font-size:0.78rem;font-weight:700;color:#6b7280;text-transform:uppercase;
+  letter-spacing:0.08em;margin-bottom:14px}
+.ec-proj-table{width:100%;border-collapse:collapse}
+.ec-proj-table th{background:#0a0a0a;color:#6b7280;font-size:0.72rem;font-weight:700;
+  text-transform:uppercase;letter-spacing:.06em;padding:10px 12px;text-align:left;
+  border-bottom:1px solid #1e1e1e}
+.ec-proj-table td{padding:10px 12px;border-bottom:1px solid #161616;font-size:0.8125rem;
+  color:#d1d5db;vertical-align:middle}
+.ec-proj-name{font-weight:600;color:#e8e8e8}
+.ec-proj-sub{font-size:0.72rem;color:#6b7280;margin-top:2px}
+.ec-export-tile{display:flex;align-items:center;gap:12px;background:#141414;
+  border:1px solid #1e1e1e;border-radius:10px;padding:13px 16px;margin-bottom:8px}
+.ec-export-icon{width:34px;height:34px;border-radius:8px;background:#1a1a1a;
+  display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0}
+.ec-export-name{font-size:0.85rem;font-weight:600;color:#e8e8e8}
+.ec-export-desc{font-size:0.72rem;color:#6b7280;margin-top:2px}
+.ec-soon{font-size:0.68rem;color:#374151;background:#111;border:1px solid #1e1e1e;
+  padding:2px 8px;border-radius:20px;margin-left:auto;flex-shrink:0;white-space:nowrap}
+</style>""", unsafe_allow_html=True)
+
+    pid = ensure_product_id()
+    gen = st.session_state.get("generated", {})
+    product_info = st.session_state.get("product_info", {})
+    product_name = product_info.get("name", "product")
+    lang = st.session_state.get("lang", "ja")
+    is_ja = (lang == "ja")
+
+    # ── Header ────────────────────────────────────────────────────────────────
+    hcol_title, hcol_btn = st.columns([5, 1])
+    with hcol_title:
+        title = "生成＆エクスポートセンター" if is_ja else "Centro de Geração & Exportação"
+        sub = ("各形式で生成されたコンテンツを確認・調整し、ワンクリックでエクスポートできます。"
+               if is_ja else
+               "Confirme, ajuste e exporte conteúdo gerado com um clique.")
+        st.markdown(f'<div class="section-header">⚡ {title}</div>'
+                    f'<div class="section-sub">{sub}</div>', unsafe_allow_html=True)
+    with hcol_btn:
+        new_label = "✨ 新規生成を開始" if is_ja else "✨ Nova Geração"
+        if st.button(new_label, type="primary", use_container_width=True, key="ec_new_gen"):
+            st.session_state["page"] = "product_input"
+            st.rerun()
+
+    # ── Page navigator mapping (used in multiple places) ─────────────────────
+    CT_PAGE = {
+        "product_page":          "product_page",
+        "shopify_custom_liquid": "product_page",
+        "image_prompt":          "image_prompt",
+        "video_script":          "video_script",
+        "ads_sns":               "ads_sns",
+    }
+
+    # ── Content tabs ─────────────────────────────────────────────────────────
+    if is_ja:
+        TAB_DEFS = [
+            ("📄 商品ページ文",   "product_page",          "product_page"),
+            ("</> Shopifyコード", "shopify_custom_liquid",  "shopify_custom_liquid"),
+            ("🖼️ 画像プロンプト", "image_prompt",           "image_prompt"),
+            ("🎬 動画台本",       "video_script",           "video_script"),
+            ("📣 広告SNS",        "ads_sns",                "ads_sns"),
+        ]
+    else:
+        TAB_DEFS = [
+            ("📄 Página do Produto",  "product_page",         "product_page"),
+            ("</> Código Shopify",    "shopify_custom_liquid", "shopify_custom_liquid"),
+            ("🖼️ Prompts de Imagem",  "image_prompt",          "image_prompt"),
+            ("🎬 Roteiro de Vídeo",   "video_script",          "video_script"),
+            ("📣 Anúncios/SNS",       "ads_sns",               "ads_sns"),
+        ]
+
+    tabs = st.tabs([d[0] for d in TAB_DEFS])
+
+    for tab_widget, (tab_label, gen_key, ct) in zip(tabs, TAB_DEFS):
+        with tab_widget:
+            content = gen.get(gen_key, "")
+            try:
+                appr = svc["approval"].get_status(pid, ct)
+            except Exception:
+                appr = {"status": "draft"}
+            status = appr.get("status", "draft")
+
+            # Status row + language toggle
+            row_a, row_b = st.columns([3, 1])
+            with row_a:
+                short_label = tab_label.split(" ", 1)[-1]
+                st.markdown(
+                    f'<div style="margin:4px 0 12px">'
+                    f'<span style="font-weight:700;color:#e8e8e8;font-size:0.9rem">{short_label}</span>'
+                    f'&nbsp;&nbsp;{status_badge(status)}</div>',
+                    unsafe_allow_html=True,
+                )
+            with row_b:
+                cur_lang = st.session_state.get(f"ec_lang_{ct}", "ja")
+                lc1, lc2 = st.columns(2)
+                with lc1:
+                    if st.button("JA", key=f"ec_ja_{ct}",
+                                 type="primary" if cur_lang == "ja" else "secondary",
+                                 use_container_width=True):
+                        st.session_state[f"ec_lang_{ct}"] = "ja"
+                        st.rerun()
+                with lc2:
+                    if st.button("PT", key=f"ec_pt_{ct}",
+                                 type="primary" if cur_lang == "pt" else "secondary",
+                                 use_container_width=True):
+                        st.session_state[f"ec_lang_{ct}"] = "pt"
+                        st.rerun()
+
+            if content:
+                # Content preview (first 500 chars)
+                preview = content[:500] + ("\n…" if len(content) > 500 else "")
+                st.markdown(f'<div class="ec-preview-box">{preview}</div>',
+                            unsafe_allow_html=True)
+                st.markdown("")
+
+                # Action buttons
+                a1, a2, a3, a4, a5 = st.columns(5)
+                with a1:
+                    copy_label = "📋 コピー" if is_ja else "📋 Copiar"
+                    if st.button(copy_label, key=f"ec_copy_{ct}", use_container_width=True):
+                        st.session_state[f"ec_show_copy_{ct}"] = not st.session_state.get(f"ec_show_copy_{ct}", False)
+                        st.rerun()
+                with a2:
+                    st.download_button(
+                        "⬇️ DL",
+                        data=content.encode("utf-8"),
+                        file_name=f"{ct}_{product_name}.txt",
+                        mime="text/plain",
+                        key=f"ec_dl_{ct}",
+                        use_container_width=True,
+                    )
+                with a3:
+                    edit_label = "✏️ 編集" if is_ja else "✏️ Editar"
+                    if st.button(edit_label, key=f"ec_edit_{ct}", use_container_width=True):
+                        st.session_state["page"] = CT_PAGE.get(ct, "product_page")
+                        st.rerun()
+                with a4:
+                    approve_label = "✅ 承認" if is_ja else "✅ Aprovar"
+                    if st.button(approve_label, key=f"ec_approve_{ct}", use_container_width=True):
+                        svc["approval"].approve(pid, ct,
+                                                user=st.session_state.get("reviewer", ""))
+                        st.success("承認しました" if is_ja else "Aprovado")
+                        st.rerun()
+                with a5:
+                    revise_label = "🔄 修正依頼" if is_ja else "🔄 Revisão"
+                    if st.button(revise_label, key=f"ec_revise_{ct}", use_container_width=True):
+                        svc["approval"].request_revision(
+                            pid, ct, user=st.session_state.get("assignee", ""))
+                        st.warning("修正依頼を送りました" if is_ja else "Revisão solicitada")
+                        st.rerun()
+
+                # Toggle copy area (st.code has built-in copy button)
+                if st.session_state.get(f"ec_show_copy_{ct}"):
+                    st.code(content, language="text")
+                    close_label = "閉じる" if is_ja else "Fechar"
+                    if st.button(close_label, key=f"ec_close_copy_{ct}"):
+                        st.session_state[f"ec_show_copy_{ct}"] = False
+                        st.rerun()
+            else:
+                empty_msg = "まだ生成されていません。各生成ページでコンテンツを生成してください。" if is_ja else "Ainda não gerado. Gere o conteúdo na página correspondente."
+                st.markdown(f'<div class="ec-empty-card">⚡ {empty_msg}</div>',
+                            unsafe_allow_html=True)
+                st.markdown("")
+                gen_nav_label = (f"🚀 {short_label}を生成する"
+                                 if is_ja else f"🚀 Gerar {short_label}")
+                if st.button(gen_nav_label, key=f"ec_goto_{ct}", type="primary"):
+                    st.session_state["page"] = CT_PAGE.get(ct, "product_page")
+                    st.rerun()
+
+    # ── Bottom: saved projects + export ──────────────────────────────────────
+    st.markdown("---")
+    bot_l, bot_r = st.columns([3, 2])
+
+    with bot_l:
+        proj_title = "保存済みプロジェクト" if is_ja else "Projetos Salvos"
+        st.markdown(f'<div class="ec-section-title">💾 {proj_title}</div>',
+                    unsafe_allow_html=True)
+        try:
+            projects = svc["storage"].list_products()
+        except Exception:
+            projects = []
+
+        if projects:
+            rows_html = ""
+            for p in list(reversed(projects))[:5]:
+                has_appr = False
+                try:
+                    has_appr = svc["storage"].has_approved_content(p["id"])
+                except Exception:
+                    pass
+                badge_html = ('<span class="badge badge-approved">完了</span>'
+                              if has_appr else
+                              '<span class="badge badge-draft">作業中</span>')
+                rows_html += (
+                    f'<tr>'
+                    f'<td><div class="ec-proj-name">{p.get("name", p["id"])}</div>'
+                    f'<div class="ec-proj-sub">{p.get("category", "")}</div></td>'
+                    f'<td style="color:#6b7280;font-size:0.75rem">{p.get("updated_at", "")}</td>'
+                    f'<td>{badge_html}</td>'
+                    f'</tr>'
+                )
+            th_name = "プロジェクト名" if is_ja else "Projeto"
+            th_updated = "最終更新" if is_ja else "Atualizado"
+            th_status = "ステータス" if is_ja else "Status"
+            st.markdown(
+                f'<table class="ec-proj-table">'
+                f'<thead><tr><th>{th_name}</th><th>{th_updated}</th><th>{th_status}</th></tr></thead>'
+                f'<tbody>{rows_html}</tbody>'
+                f'</table>',
+                unsafe_allow_html=True,
+            )
+            st.markdown("")
+            see_all = "すべてのプロジェクトを見る →" if is_ja else "Ver todos os projetos →"
+            if st.button(see_all, key="ec_all_projects"):
+                st.session_state["page"] = "saved_data"
+                st.rerun()
+        else:
+            no_proj = "保存済みプロジェクトがありません" if is_ja else "Nenhum projeto salvo"
+            st.markdown(f'<div class="ec-empty-card">{no_proj}</div>',
+                        unsafe_allow_html=True)
+
+    with bot_r:
+        exp_title = "エクスポート＆連携" if is_ja else "Exportação & Integração"
+        st.markdown(f'<div class="ec-section-title">📤 {exp_title}</div>',
+                    unsafe_allow_html=True)
+
+        export_items = {k: v for k, v in gen.items()
+                        if v and isinstance(v, str) and not k.startswith("_")}
+        all_text = "\n\n---\n\n".join(f"# {k}\n\n{v}" for k, v in export_items.items())
+        shopify_code = gen.get("shopify_custom_liquid", "")
+
+        dl1, dl2 = st.columns(2)
+        with dl1:
+            st.download_button(
+                "⬇️ " + ("一括DL" if is_ja else "Tudo"),
+                data=(all_text or " ").encode("utf-8"),
+                file_name=f"task_destroyer_{product_name}.txt",
+                mime="text/plain",
+                key="ec_bulk_dl",
+                use_container_width=True,
+                disabled=not all_text,
+            )
+        with dl2:
+            st.download_button(
+                "</> Shopify",
+                data=(shopify_code or " ").encode("utf-8"),
+                file_name=f"shopify_{product_name}.html",
+                mime="text/html",
+                key="ec_shopify_dl",
+                use_container_width=True,
+                disabled=not shopify_code,
+            )
+
+        st.markdown("")
+
+        INTEGRATIONS = [
+            ("🟢", ("Googleドライブに保存" if is_ja else "Salvar no Google Drive"),
+                   ("Google Drive連携"    if is_ja else "Integração Google Drive")),
+            ("📘", ("Word / Docsに出力"  if is_ja else "Exportar Word/Docs"),
+                   ("文書エクスポート"    if is_ja else "Exportação de documentos")),
+            ("📅", ("SNS投稿を予約"      if is_ja else "Agendar posts SNS"),
+                   ("SNS連携"            if is_ja else "Integração SNS")),
+            ("📧", ("メールで送信"       if is_ja else "Enviar por e-mail"),
+                   ("メール送信"         if is_ja else "Envio por e-mail")),
+        ]
+        soon = "近日公開" if is_ja else "Em breve"
+        for icon, name, desc in INTEGRATIONS:
+            st.markdown(
+                f'<div class="ec-export-tile">'
+                f'<div class="ec-export-icon">{icon}</div>'
+                f'<div><div class="ec-export-name">{name}</div>'
+                f'<div class="ec-export-desc">{desc}</div></div>'
+                f'<span class="ec-soon">{soon}</span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+        manage_label = "🔗 連携サービスを管理" if is_ja else "🔗 Gerenciar integrações"
+        if st.button(manage_label, key="ec_manage_int", use_container_width=True):
+            st.info("連携サービス管理は準備中です" if is_ja else "Gestão de integrações em preparação")
+
+
 # ── Page: Saved Data ──────────────────────────────────────────────────────────
 
 def page_saved_data():
@@ -2135,6 +2425,7 @@ def main():
         "approval": page_approval,
         "output": page_output,
         "saved_data": page_saved_data,
+        "export_center": page_export_center,
     }
 
     render_fn = page_map.get(page, page_mode_selection)

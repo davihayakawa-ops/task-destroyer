@@ -17,7 +17,8 @@
     "approval": "Fluxo de Aprovação",
     "output": "Exportar",
     "saved_data": "Dados Salvos",
-    "instruction_sheet": "Instrução de Produção"
+    "instruction_sheet": "Instrução de Produção",
+    "export_center": "Geração & Exportação"
   },
   "mode": {
     "title": "Selecione um Modo",

@@ -17,7 +17,8 @@
     "approval": "承認フロー",
     "output": "出力",
     "saved_data": "保存データ",
-    "instruction_sheet": "制作指示書"
+    "instruction_sheet": "制作指示書",
+    "export_center": "生成＆エクスポート"
   },
   "mode": {
     "title": "モードを選択してください",
