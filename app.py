@@ -1814,92 +1814,153 @@ def page_check():
 # ── Page: Approval Flow ────────────────────────────────────────────────────────
 
 def page_approval():
+    st.markdown(_APV_CSS, unsafe_allow_html=True)
     st.markdown('<div class="section-header">🔐 ' + t("approval.title") + '</div>',
                 unsafe_allow_html=True)
 
     pid = ensure_product_id()
     product_info = st.session_state.get("product_info", {})
     product_name = product_info.get("name", "未設定")
+    gen = st.session_state.get("generated", {})
 
-    # Approval flow visual
-    st.markdown("### 承認フロー")
-
-    core_status = svc["approval"].get_status(pid, "core").get("status", "draft")
-
-    steps = [
-        ("AI生成", t("approval.ai_generated_desc"),
-         "step-done" if core_status not in ("draft",) else "step-wait", "✓"),
-        ("担当者編集", t("approval.edit_desc"),
-         "step-done" if core_status in ("edited", "pending", "approved") else "step-active" if core_status == "ai_generated" else "step-wait", "✓" if core_status in ("edited", "pending", "approved") else "✎"),
-        ("確認待ち", t("approval.pending_desc"),
-         "step-active" if core_status == "pending" else "step-done" if core_status in ("approved",) else "step-wait", "⏱" if core_status == "pending" else "✓" if core_status == "approved" else "○"),
-        ("承認済み", t("approval.approved_desc"),
-         "step-done" if core_status == "approved" else "step-wait", "🛡" if core_status == "approved" else "○"),
+    _SHOPIFY_KEYS = [
+        "shopify_common_css", "shopify_hero_section_code", "shopify_about_section_code",
+        "shopify_problem_section_code", "shopify_features_section_code",
+        "shopify_usage_scene_section_code", "shopify_comparison_section_code",
+        "shopify_faq_section_code", "shopify_cta_section_code",
     ]
 
-    for title, desc, cls, icon in steps:
+    content_specs = [
+        ("core",             "Core / 核",         "🧠"),
+        ("product_page",     "商品ページ",         "📄"),
+        ("shopify_sections", "Shopify HTML",       "🛒"),
+        ("image_prompt",     "画像プロンプト",     "🖼️"),
+        ("video_script",     "動画台本",           "🎬"),
+        ("ads_sns",          "広告・SNS",          "📣"),
+    ]
+
+    # Fetch all statuses once
+    statuses = {ct: svc["approval"].get_status(pid, ct) for ct, _, _ in content_specs}
+
+    approved_count = sum(
+        1 for s in statuses.values() if s["status"] in ("approved", "ready", "published")
+    )
+    pending_count = sum(1 for s in statuses.values() if s["status"] == "pending")
+    total = len(content_specs)
+    pct = int(approved_count / total * 100)
+
+    # ── Progress bar ──────────────────────────────────────────────
+    st.markdown(
+        f'<div class="apv-progress-wrap">'
+        f'<div class="apv-progress-label">承認進捗　{approved_count} / {total}　完了 ({pct}%)</div>'
+        f'<div class="apv-progress-bar"><div class="apv-progress-fill" style="width:{pct}%"></div></div>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+    # ── Bulk action buttons ───────────────────────────────────────
+    b_col1, b_col2, _ = st.columns([2, 2, 4])
+    with b_col1:
+        if st.button("⏳ 全て確認待ちにする", use_container_width=True):
+            for ct, _, _ in content_specs:
+                if statuses[ct]["status"] not in ("approved", "ready", "published", "pending"):
+                    svc["approval"].set_pending(pid, ct, st.session_state.get("assignee", ""))
+            st.rerun()
+    with b_col2:
+        bulk_label = f"✅ 確認待ち {pending_count} 件を一括承認" if pending_count else "✅ 一括承認"
+        if st.button(bulk_label, use_container_width=True,
+                     type="primary" if pending_count else "secondary",
+                     disabled=(pending_count == 0)):
+            for ct, _, _ in content_specs:
+                if statuses[ct]["status"] == "pending":
+                    svc["approval"].approve(pid, ct, user=st.session_state.get("reviewer", "管理者"))
+                    svc["storage"].log_activity(pid, "承認", ct, st.session_state.get("reviewer", ""))
+            st.rerun()
+
+    st.markdown("---")
+
+    # ── Per-content cards ─────────────────────────────────────────
+    for ct, label, icon in content_specs:
+        approval  = statuses[ct]
+        status    = approval["status"]
+        comment   = approval.get("comment", "")
+
+        # Build preview text
+        if ct == "core":
+            raw_preview = st.session_state.get("core_text", "")
+        elif ct == "shopify_sections":
+            raw_preview = "\n".join(gen.get(k, "")[:80] for k in _SHOPIFY_KEYS if gen.get(k))
+        else:
+            raw_preview = str(gen.get(ct) or "")
+        preview_text = raw_preview[:160].strip()
+
+        badge_html   = status_badge(status)
+        preview_html = (
+            f'<div class="apv-preview">{preview_text}{"…" if len(raw_preview) > 160 else ""}</div>'
+            if preview_text
+            else '<div class="apv-preview apv-empty">コンテンツ未生成</div>'
+        )
+        comment_html = (
+            f'<div class="apv-comment-box">💬 {comment}</div>' if comment else ""
+        )
+
         st.markdown(
-            f'<div class="approval-step">'
-            f'<div class="step-icon {cls}">{icon}</div>'
-            f'<div class="step-info"><h4>{title}</h4><p>{desc}</p></div>'
+            f'<div class="apv-card apv-card-{status}">'
+            f'<div class="apv-head">'
+            f'<span class="apv-icon">{icon}</span>'
+            f'<span class="apv-label">{label}</span>'
+            f'{badge_html}'
+            f'</div>'
+            f'{preview_html}'
+            f'{comment_html}'
             f'</div>',
             unsafe_allow_html=True,
         )
 
-    st.markdown("---")
-
-    # Content approval status overview
-    st.markdown("### 各コンテンツのステータス")
-
-    content_types = [
-        ("core", "Core / 核"),
-        ("product_page", "商品ページ"),
-        ("image_prompt", "画像プロンプト"),
-        ("video_script", "動画台本"),
-        ("ads_sns", "広告・SNS"),
-    ]
-
-    for ct, label in content_types:
-        approval = svc["approval"].get_status(pid, ct)
-        status = approval.get("status", "draft")
-        comment = approval.get("comment", "")
-
-        col1, col2, col3 = st.columns([3, 2, 3])
-        with col1:
-            st.markdown(f'**{label}** {status_badge(status)}', unsafe_allow_html=True)
-        with col2:
-            if status in ("ai_generated", "edited", "revision_requested"):
+        # Action buttons row
+        a1, a2, a3, _ = st.columns([2, 2, 2, 4])
+        with a1:
+            if status in ("draft", "ai_generated", "edited", "revision_requested"):
                 if st.button("⏳ 確認待ち", key=f"pend_{ct}", use_container_width=True):
                     svc["approval"].set_pending(pid, ct, st.session_state.get("assignee", ""))
                     st.rerun()
-        with col3:
+        with a2:
             if status == "pending":
-                col_a, col_b = st.columns(2)
-                with col_a:
-                    if st.button("✅ 承認", key=f"appr_{ct}", use_container_width=True, type="primary"):
-                        svc["approval"].approve(pid, ct, user=st.session_state.get("reviewer", "管理者"))
-                        svc["storage"].log_activity(pid, "承認", ct, st.session_state.get("reviewer", ""))
-                        st.rerun()
-                with col_b:
-                    if st.button("🔄 修正依頼", key=f"rev_{ct}", use_container_width=True):
-                        svc["approval"].request_revision(pid, ct, comment)
-                        st.rerun()
+                if st.button("✅ 承認", key=f"appr_{ct}", use_container_width=True, type="primary"):
+                    svc["approval"].approve(pid, ct, user=st.session_state.get("reviewer", "管理者"))
+                    svc["storage"].log_activity(pid, "承認", ct, st.session_state.get("reviewer", ""))
+                    st.rerun()
+        with a3:
+            if status in ("pending", "approved", "ready"):
+                rev_toggle_key = f"apv_rev_open_{ct}"
+                label_rev = "🔄 修正依頼 ▲" if st.session_state.get(rev_toggle_key) else "🔄 修正依頼"
+                if st.button(label_rev, key=f"rev_btn_{ct}", use_container_width=True):
+                    st.session_state[rev_toggle_key] = not st.session_state.get(rev_toggle_key, False)
+                    st.rerun()
 
-        if comment:
-            st.markdown(f'<div class="cs-info" style="margin-top:4px;margin-bottom:8px;">💬 {comment}</div>',
-                        unsafe_allow_html=True)
+        # Inline revision panel (toggled)
+        rev_toggle_key = f"apv_rev_open_{ct}"
+        if st.session_state.get(rev_toggle_key, False):
+            rev_comment = st.text_input(
+                "修正内容", key=f"rev_input_{ct}",
+                placeholder="修正してほしい内容を入力",
+            )
+            rc1, rc2, _ = st.columns([1, 1, 4])
+            with rc1:
+                if st.button("送信", key=f"rev_send_{ct}", type="primary", use_container_width=True):
+                    svc["approval"].request_revision(
+                        pid, ct, rev_comment, st.session_state.get("reviewer", "")
+                    )
+                    st.session_state[rev_toggle_key] = False
+                    st.rerun()
+            with rc2:
+                if st.button("閉じる", key=f"rev_close_{ct}", use_container_width=True):
+                    st.session_state[rev_toggle_key] = False
+                    st.rerun()
 
-    # Global comment for revision request
-    st.markdown("---")
-    st.markdown("### 修正依頼コメント")
-    ct_select = st.selectbox("対象コンテンツ", [ct for ct, _ in content_types], format_func=lambda x: dict(content_types)[x])
-    comment_text = st.text_area("コメント", placeholder="修正してほしい内容を記入してください", height=100)
-    if st.button("🔄 修正依頼を送る", type="primary"):
-        svc["approval"].request_revision(pid, ct_select, comment_text, st.session_state.get("reviewer", ""))
-        st.success(f"修正依頼を送りました: {comment_text}")
-        st.rerun()
+        st.markdown('<div style="height:6px"></div>', unsafe_allow_html=True)
 
-    # Activity log
+    # ── Activity log ──────────────────────────────────────────────
     st.markdown("---")
     with st.expander("📋 作業ログを見る"):
         logs = svc["storage"].get_activity_log(pid)
@@ -2517,6 +2578,52 @@ def page_saved_data():
                         st.session_state["core_status"] = c.get("status", "ai_generated")
                         st.success("Coreを読み込みました")
                         st.rerun()
+
+
+# ── Page: Approval (Phase 4 CSS) ─────────────────────────────────────────────
+
+_APV_CSS = """
+<style>
+/* ════════════════════════════════════════════════════════════════
+   APPROVAL PAGE  — apv- prefix
+   ════════════════════════════════════════════════════════════════ */
+.apv-progress-wrap { margin: 0 0 18px 0; }
+.apv-progress-label { font-size:0.83rem; color:#9ca3af; margin-bottom:6px; }
+.apv-progress-bar { height:8px; background:#1f2937; border-radius:4px; overflow:hidden; }
+.apv-progress-fill {
+    height:100%; border-radius:4px;
+    background:linear-gradient(90deg,#22c55e,#16a34a);
+    transition:width .4s ease;
+}
+.apv-card {
+    background:#111827; border:1px solid #1f2937;
+    border-radius:10px; padding:14px 16px; margin-bottom:4px;
+    border-left:4px solid #374151;
+}
+.apv-card-approved,.apv-card-ready,.apv-card-published { border-left-color:#22c55e; }
+.apv-card-pending  { border-left-color:#f97316; }
+.apv-card-revision_requested { border-left-color:#ef4444; }
+.apv-card-ai_generated,.apv-card-edited { border-left-color:#3b82f6; }
+.apv-card-draft,.apv-card-hold { border-left-color:#374151; }
+.apv-head { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+.apv-icon { font-size:1.1rem; }
+.apv-label { font-weight:600; color:#f3f4f6; font-size:0.95rem; flex:1; }
+.apv-preview {
+    font-size:0.75rem; color:#6b7280;
+    background:#0d1117; border-radius:4px;
+    padding:6px 10px; margin:4px 0 8px 0;
+    white-space:pre-wrap; word-break:break-all;
+    max-height:58px; overflow:hidden;
+    line-height:1.45;
+}
+.apv-empty { color:#374151; font-style:italic; }
+.apv-comment-box {
+    font-size:0.8rem; color:#fb923c;
+    background:#1c1410; border:1px solid #44220a;
+    border-radius:4px; padding:5px 10px; margin-top:4px;
+}
+</style>
+"""
 
 
 # ── Page: New Dashboard (Phase 1 — dummy data) ────────────────────────────────
