@@ -43,15 +43,26 @@ class Storage:
 
     def list_products(self) -> list[dict]:
         result = []
-        for p in sorted((DATA_DIR / "projects").glob("*.json")):
-            # Generated content files have underscores in their stem;
-            # product files are plain product_id (8 hex chars, no underscore).
+        proj_dir = DATA_DIR / "projects"
+        for p in sorted(proj_dir.glob("*.json")):
+            # Generated content files always have underscores in their stem
+            # (pattern: {pid}_{content_type}_{id}.json).
+            # Real product files are plain {pid}.json with no underscore.
             if "_" in p.stem:
                 continue
             try:
                 data = json.loads(p.read_text())
-                if isinstance(data, dict):
-                    result.append({"id": p.stem, **data})
+                if not isinstance(data, dict):
+                    continue
+                # Skip generated-content wrappers that sneak through
+                if "content_type" in data or "content" in data:
+                    continue
+                entry = {
+                    "id": p.stem,
+                    "file_path": str(p.resolve()),  # absolute path → reliable deletion
+                    **data,
+                }
+                result.append(entry)
             except Exception:
                 pass
         return result
@@ -170,22 +181,57 @@ class Storage:
                 pass
         return False
 
-    def delete_project(self, product_id: str, deleted_by: str = "", reason: str = "") -> dict:
-        deleted = []
-        project_file = DATA_DIR / "projects" / f"{product_id}.json"
+    def delete_project(self, product_id: str, deleted_by: str = "",
+                       reason: str = "", file_path: str = "") -> dict:
+        # Normalise: strip whitespace and any accidental .json suffix
+        product_id = str(product_id).strip()
+        if product_id.endswith(".json"):
+            product_id = product_id[:-5]
 
-        if not project_file.exists():
+        deleted = []
+        project_file = None
+        searched = []
+
+        # 1. Trust the absolute path from list_products() if provided
+        if file_path:
+            fp = Path(file_path)
+            searched.append(str(fp))
+            if fp.exists():
+                project_file = fp
+
+        # 2. Fall back: search all plausible locations
+        if project_file is None:
+            candidates = [
+                DATA_DIR / "projects" / f"{product_id}.json",
+                Path("data") / "projects" / f"{product_id}.json",
+                Path("data/projects") / f"{product_id}.json",
+            ]
+            for c in candidates:
+                s = str(c.resolve())
+                if s not in searched:
+                    searched.append(s)
+                if c.exists():
+                    project_file = c
+                    break
+
+        if project_file is None:
             return {
                 "success": False,
-                "message": f"削除対象が見つかりません: {product_id}.json",
+                "message": (
+                    "削除対象が見つかりませんでした。\n"
+                    "検索した場所:\n" + "\n".join(f"  • {s}" for s in searched)
+                ),
                 "deleted_paths": [],
+                "searched_paths": searched,
             }
 
         try:
             deleted.append(str(project_file))
             project_file.unlink()
 
-            for p in list((DATA_DIR / "projects").glob(f"{product_id}_*.json")):
+            # Delete all generated-content files for this product
+            proj_dir = project_file.parent
+            for p in list(proj_dir.glob(f"{product_id}_*.json")):
                 deleted.append(str(p))
                 p.unlink()
 
@@ -209,7 +255,7 @@ class Storage:
                 "deleted_paths": deleted,
             }
 
-        # Log the deletion — must not raise so it never blocks a successful delete
+        # Write delete log — must never crash so it never reverts a successful delete
         try:
             self.save_delete_log(product_id, deleted_by, reason, deleted)
         except Exception:

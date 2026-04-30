@@ -2002,21 +2002,22 @@ def page_saved_data():
                                          key=f"do_del_{pid}", type="primary",
                                          use_container_width=True):
                                 deleted_by = st.session_state.get("assignee", "")
+                                # Use the absolute file_path from list_products for reliable targeting
+                                file_path = p.get("file_path", "")
                                 result = {"success": False, "message": "不明なエラー", "deleted_paths": []}
                                 try:
-                                    storage = svc["storage"]
-                                    if not hasattr(storage, "delete_project"):
-                                        from modules.storage import Storage as _Storage
-                                        storage = _Storage()
-                                    result = storage.delete_project(pid, deleted_by, delete_reason)
-                                    # Older cached instance returns a list — normalise to dict
+                                    from modules.storage import Storage as _Storage
+                                    storage = _Storage()
+                                    result = storage.delete_project(
+                                        pid, deleted_by, delete_reason, file_path=file_path
+                                    )
                                     if isinstance(result, list):
-                                        result = {"success": True, "message": "削除しました", "deleted_paths": result}
+                                        result = {"success": True, "message": "削除しました",
+                                                  "deleted_paths": result}
                                 except Exception as e:
                                     result = {"success": False, "message": str(e), "deleted_paths": []}
 
                                 if result["success"]:
-                                    # Clear session state for deleted project
                                     if st.session_state.get("product_id") == pid:
                                         for k in ("product_id", "product_info", "core_text",
                                                   "core_status", "assignee", "reviewer"):
@@ -2026,7 +2027,7 @@ def page_saved_data():
                                     st.session_state.pop("confirm_delete_id", None)
                                     st.session_state.pop("confirm_delete_name", None)
                                     st.success(t("saved_data.deleted_msg"))
-                                    if result["deleted_paths"]:
+                                    if result.get("deleted_paths"):
                                         st.caption("削除ファイル数: " + str(len(result["deleted_paths"])))
                                     st.rerun()
                                 else:
