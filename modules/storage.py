@@ -7,6 +7,8 @@ from typing import Any, Optional
 import uuid
 
 DATA_DIR = Path(os.getenv("DATA_DIR", "data"))
+if not DATA_DIR.is_absolute():
+    DATA_DIR = Path(__file__).resolve().parent.parent / DATA_DIR
 
 
 def _ensure_dir(path: Path):
@@ -215,14 +217,32 @@ class Storage:
                     break
 
         if project_file is None:
+            # Ghost entry: main file already gone (prev deployment or manual deletion).
+            # Clean up any remaining associated files and treat as success.
+            try:
+                for p in list((DATA_DIR / "projects").glob(f"{product_id}_*.json")):
+                    deleted.append(str(p))
+                    p.unlink()
+                for p in list((DATA_DIR / "core_library").glob(f"{product_id}_*.json")):
+                    deleted.append(str(p))
+                    p.unlink()
+                for p in list((DATA_DIR / "approvals").glob(f"{product_id}_*.json")):
+                    deleted.append(str(p))
+                    p.unlink()
+                log_file = DATA_DIR / "activity_logs" / f"{product_id}.jsonl"
+                if log_file.exists():
+                    deleted.append(str(log_file))
+                    log_file.unlink()
+            except Exception:
+                pass
+            try:
+                self.save_delete_log(product_id, deleted_by, reason, deleted)
+            except Exception:
+                pass
             return {
-                "success": False,
-                "message": (
-                    "削除対象が見つかりませんでした。\n"
-                    "検索した場所:\n" + "\n".join(f"  • {s}" for s in searched)
-                ),
-                "deleted_paths": [],
-                "searched_paths": searched,
+                "success": True,
+                "message": "削除しました",
+                "deleted_paths": deleted,
             }
 
         try:

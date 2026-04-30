@@ -472,6 +472,7 @@ def render_sidebar():
 
         # Navigation items
         nav_items = [
+            ("dashboard",         "🏠  ダッシュボード (New)"),
             ("mode_selection",    "🗂️  " + t("nav.mode_selection")),
             ("product_input",     "📦  " + t("nav.product_input")),
             ("external_core",     "📥  " + t("nav.external_core")),
@@ -515,6 +516,17 @@ def render_sidebar():
                 f'Core: {status_badge(core_status)}',
                 unsafe_allow_html=True,
             )
+
+        # ── Usage / credits footer (new dashboard style) ──────────────────
+        st.markdown(
+            '<div class="nd-sidebar-footer">'
+            '<div style="color:#1e3a1e;font-size:.6rem;letter-spacing:.1em;">API USAGE</div>'
+            '<div class="nd-use-bar"><div class="nd-use-fill" style="width:73%;"></div></div>'
+            '<div>730 / 1,000 calls</div>'
+            '<div style="margin-top:4px;color:#1e2a1e;">v2.0 · Commerce</div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
 
 
 # ── Page: Mode Selection ──────────────────────────────────────────────────────
@@ -818,31 +830,38 @@ def page_product_input():
         reviewer = ""
 
     if st.button("💾 " + t("product_input.save_button"), type="primary", use_container_width=True):
-        product_id = ensure_product_id()
+        _is_ja = st.session_state.get("lang", "ja") == "ja"
+        if not name.strip() and not product_url.strip() and not description.strip():
+            st.error(
+                "商品名・URL・説明のいずれかを入力してください" if _is_ja
+                else "Por favor, insira ao menos o nome, URL ou descrição do produto"
+            )
+        else:
+            product_id = ensure_product_id()
 
-        tones = [tone for tone in brand_tone_selected if tone not in (free_input, free_input_o)]
-        if brand_tone_custom_val.strip():
-            tones.append(brand_tone_custom_val.strip())
-        brand_tone = "、".join(tones)
+            tones = [tone for tone in brand_tone_selected if tone not in (free_input, free_input_o)]
+            if brand_tone_custom_val.strip():
+                tones.append(brand_tone_custom_val.strip())
+            brand_tone = "、".join(tones)
 
-        new_info = {
-            "name": name, "category": category, "price": price,
-            "target": target, "gender": gender, "age": age,
-            "product_url": product_url, "features": features,
-            "weaknesses": weaknesses, "brand_tone": brand_tone,
-            "prohibited": prohibited, "description": description,
-            "use_scenes": use_scenes, "competitor_urls": competitor_urls,
-            "notes": notes,
-            "assignee": assignee,
-            "final_reviewer": reviewer,
-        }
-        st.session_state["product_info"] = new_info
-        st.session_state["assignee"] = assignee
-        st.session_state["reviewer"] = reviewer
-        svc["storage"].save_product(product_id, new_info)
-        svc["storage"].log_activity(product_id, "商品情報保存", name, assignee)
-        st.markdown('<div class="cs-success">✅ ' + t("product_input.saved_msg") + '</div>',
-                    unsafe_allow_html=True)
+            new_info = {
+                "name": name, "category": category, "price": price,
+                "target": target, "gender": gender, "age": age,
+                "product_url": product_url, "features": features,
+                "weaknesses": weaknesses, "brand_tone": brand_tone,
+                "prohibited": prohibited, "description": description,
+                "use_scenes": use_scenes, "competitor_urls": competitor_urls,
+                "notes": notes,
+                "assignee": assignee,
+                "final_reviewer": reviewer,
+            }
+            st.session_state["product_info"] = new_info
+            st.session_state["assignee"] = assignee
+            st.session_state["reviewer"] = reviewer
+            svc["storage"].save_product(product_id, new_info)
+            svc["storage"].log_activity(product_id, "商品情報保存", name, assignee)
+            st.markdown('<div class="cs-success">✅ ' + t("product_input.saved_msg") + '</div>',
+                        unsafe_allow_html=True)
 
 
 # ── Page: Core Generation ──────────────────────────────────────────────────────
@@ -2222,6 +2241,28 @@ def page_export_center():
 
 # ── Page: Saved Data ──────────────────────────────────────────────────────────
 
+def _is_empty_project_entry(p: dict) -> bool:
+    """Return True if the project has no meaningful content (name/url/description all empty)."""
+    name = str(p.get("name") or "").strip()
+    url = str(p.get("product_url") or "").strip()
+    desc = str(p.get("description") or "").strip()
+    return not name and not url and not desc
+
+
+def _do_delete_project(pid: str, file_path: str, delete_reason: str) -> dict:
+    """Run delete_project via a fresh Storage instance; normalise the result."""
+    from modules.storage import Storage as _Storage
+    storage = _Storage()
+    deleted_by = st.session_state.get("assignee", "")
+    try:
+        result = storage.delete_project(pid, deleted_by, delete_reason, file_path=file_path)
+        if isinstance(result, list):
+            result = {"success": True, "message": "削除しました", "deleted_paths": result}
+    except Exception as e:
+        result = {"success": False, "message": str(e), "deleted_paths": []}
+    return result
+
+
 def page_saved_data():
     st.markdown('<div class="section-header">💾 ' + t("nav.saved_data") + '</div>',
                 unsafe_allow_html=True)
@@ -2232,14 +2273,44 @@ def page_saved_data():
     ])
 
     with tab1:
-        products = svc["storage"].list_products()
+        all_products = svc["storage"].list_products()
 
-        # Search filter
-        search = st.text_input("🔍", placeholder=t("saved_data.search_placeholder"),
-                               label_visibility="collapsed")
+        # ── Display options ──────────────────────────────────────────────
+        ctrl_col1, ctrl_col2 = st.columns([3, 2])
+        with ctrl_col1:
+            search = st.text_input("🔍", placeholder=t("saved_data.search_placeholder"),
+                                   label_visibility="collapsed")
+        with ctrl_col2:
+            show_empty = st.checkbox("空データも表示する", value=False)
+
+        # ── Separate empty / normal ──────────────────────────────────────
+        empty_products = [p for p in all_products if _is_empty_project_entry(p)]
+        normal_products = [p for p in all_products if not _is_empty_project_entry(p)]
+
         if search:
-            products = [p for p in products
-                        if search.lower() in p.get("name", "").lower()]
+            normal_products = [p for p in normal_products
+                               if search.lower() in p.get("name", "").lower()]
+
+        products = normal_products + (empty_products if show_empty else [])
+
+        # ── Bulk cleanup button (only when empty entries exist) ──────────
+        if empty_products:
+            st.markdown(
+                f'<div class="cs-warning">⚠️ 空データが {len(empty_products)} 件あります。'
+                '整理ボタンで一括削除できます。</div>',
+                unsafe_allow_html=True,
+            )
+            if st.button("🧹 空プロジェクトを整理する", type="secondary", use_container_width=False):
+                from modules.storage import Storage as _Storage
+                _s = _Storage()
+                cleaned = 0
+                for ep in empty_products:
+                    r = _s.delete_project(ep["id"], "auto_cleanup", "空データ自動整理",
+                                          file_path=ep.get("file_path", ""))
+                    if r.get("success"):
+                        cleaned += 1
+                st.success(f"空プロジェクト {cleaned} 件を削除しました")
+                st.rerun()
 
         if not products:
             st.markdown('<div class="cs-info">💡 ' +
@@ -2248,7 +2319,9 @@ def page_saved_data():
         else:
             for p in products:
                 pid = p["id"]
-                header = f"📦 {p.get('name', '—')}  ({p.get('category', '')})"
+                disp_name = p.get("name") or "—"
+                is_empty = _is_empty_project_entry(p)
+                header = f"{'⚠️ [空] ' if is_empty else ''}📦 {disp_name}  ({p.get('category', '')})"
 
                 with st.expander(header):
                     col_info, col_actions = st.columns([3, 1])
@@ -2258,34 +2331,37 @@ def page_saved_data():
                         st.markdown(f"**ターゲット:** {p.get('target', '-')}")
                         if p.get("assignee"):
                             st.markdown(f"**{t('product_input.assignee')}:** {p.get('assignee', '-')}")
+                        if is_empty:
+                            st.caption(f"ID: {pid} | file_path: {p.get('file_path', 'N/A')}")
                     with col_actions:
-                        if st.button("📂 " + t("saved_data.load_btn"), key=f"load_{pid}",
-                                     use_container_width=True):
-                            st.session_state["product_id"] = pid
-                            st.session_state["product_info"] = {k: v for k, v in p.items() if k != "id"}
-                            st.session_state["assignee"] = p.get("assignee", "")
-                            st.session_state["reviewer"] = p.get("final_reviewer", "")
-                            core_entry = svc["storage"].load_latest_core(pid)
-                            if core_entry:
-                                st.session_state["core_text"] = core_entry["core"].get("text", "")
-                                st.session_state["core_status"] = core_entry.get("status", "ai_generated")
-                            st.success(f"'{p.get('name')}' を読み込みました")
-                            st.rerun()
+                        if not is_empty:
+                            if st.button("📂 " + t("saved_data.load_btn"), key=f"load_{pid}",
+                                         use_container_width=True):
+                                st.session_state["product_id"] = pid
+                                st.session_state["product_info"] = {k: v for k, v in p.items()
+                                                                     if k not in ("id", "file_path")}
+                                st.session_state["assignee"] = p.get("assignee", "")
+                                st.session_state["reviewer"] = p.get("final_reviewer", "")
+                                core_entry = svc["storage"].load_latest_core(pid)
+                                if core_entry:
+                                    st.session_state["core_text"] = core_entry["core"].get("text", "")
+                                    st.session_state["core_status"] = core_entry.get("status", "ai_generated")
+                                st.success(f"'{p.get('name')}' を読み込みました")
+                                st.rerun()
 
                         if st.button("🗑️ " + t("saved_data.delete_btn"), key=f"del_{pid}",
                                      use_container_width=True):
                             st.session_state["confirm_delete_id"] = pid
-                            st.session_state["confirm_delete_name"] = p.get("name", pid)
+                            st.session_state["confirm_delete_file_path"] = p.get("file_path", "")
+                            st.session_state["confirm_delete_name"] = disp_name
                             st.rerun()
 
                     # Confirmation dialog
                     if st.session_state.get("confirm_delete_id") == pid:
                         try:
-                            storage = svc["storage"]
-                            if not hasattr(storage, "has_approved_content"):
-                                from modules.storage import Storage as _Storage
-                                storage = _Storage()
-                            has_approved = storage.has_approved_content(pid)
+                            from modules.storage import Storage as _Storage
+                            _storage = _Storage()
+                            has_approved = _storage.has_approved_content(pid)
                         except Exception:
                             has_approved = False
                         st.markdown("---")
@@ -2305,21 +2381,9 @@ def page_saved_data():
                             if st.button("🗑️ " + t("saved_data.delete_confirm_btn"),
                                          key=f"do_del_{pid}", type="primary",
                                          use_container_width=True):
-                                deleted_by = st.session_state.get("assignee", "")
-                                # Use the absolute file_path from list_products for reliable targeting
-                                file_path = p.get("file_path", "")
-                                result = {"success": False, "message": "不明なエラー", "deleted_paths": []}
-                                try:
-                                    from modules.storage import Storage as _Storage
-                                    storage = _Storage()
-                                    result = storage.delete_project(
-                                        pid, deleted_by, delete_reason, file_path=file_path
-                                    )
-                                    if isinstance(result, list):
-                                        result = {"success": True, "message": "削除しました",
-                                                  "deleted_paths": result}
-                                except Exception as e:
-                                    result = {"success": False, "message": str(e), "deleted_paths": []}
+                                file_path = st.session_state.get("confirm_delete_file_path",
+                                                                  p.get("file_path", ""))
+                                result = _do_delete_project(pid, file_path, delete_reason)
 
                                 if result["success"]:
                                     if st.session_state.get("product_id") == pid:
@@ -2329,17 +2393,28 @@ def page_saved_data():
                                                 st.session_state.get(k), str) else {}
                                         st.session_state["generated"] = {}
                                     st.session_state.pop("confirm_delete_id", None)
+                                    st.session_state.pop("confirm_delete_file_path", None)
                                     st.session_state.pop("confirm_delete_name", None)
                                     st.success(t("saved_data.deleted_msg"))
                                     if result.get("deleted_paths"):
                                         st.caption("削除ファイル数: " + str(len(result["deleted_paths"])))
                                     st.rerun()
                                 else:
-                                    st.error(f"削除に失敗しました: {result['message']}")
+                                    from pathlib import Path
+                                    fp_str = file_path
+                                    fp_exists = Path(fp_str).exists() if fp_str else False
+                                    st.error(
+                                        f"削除に失敗しました\n\n"
+                                        f"- project_id: `{pid}`\n"
+                                        f"- file_path: `{fp_str}`\n"
+                                        f"- file_exists: `{fp_exists}`\n\n"
+                                        f"詳細: {result['message']}"
+                                    )
                         with dcol2:
                             if st.button("✖ " + t("saved_data.delete_cancel_btn"),
                                          key=f"cancel_del_{pid}", use_container_width=True):
                                 st.session_state.pop("confirm_delete_id", None)
+                                st.session_state.pop("confirm_delete_file_path", None)
                                 st.session_state.pop("confirm_delete_name", None)
                                 st.rerun()
 
@@ -2361,6 +2436,540 @@ def page_saved_data():
                         st.session_state["core_status"] = c.get("status", "ai_generated")
                         st.success("Coreを読み込みました")
                         st.rerun()
+
+
+# ── Page: New Dashboard (Phase 1 — dummy data) ────────────────────────────────
+
+_ND_CSS = """
+<style>
+/* ════════════════════════════════════════════════════════════════
+   NEW DASHBOARD  — nd- prefix  (isolated from existing cs- styles)
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── Header ──────────────────────────────────────────────────── */
+.nd-header {
+    background: linear-gradient(135deg,#0a0a0a 0%,#0d1117 60%,#071207 100%);
+    border:1px solid #1a2e1a; border-radius:14px; padding:22px 28px;
+    margin-bottom:22px; position:relative; overflow:hidden;
+}
+.nd-header::before {
+    content:''; position:absolute; top:0;left:0;right:0; height:1px;
+    background:linear-gradient(90deg,transparent,#22c55e55,transparent);
+}
+.nd-header::after {
+    content:''; position:absolute; bottom:0;right:0;
+    width:240px; height:120px;
+    background:radial-gradient(ellipse at 80% 80%,#22c55e08,transparent 70%);
+    pointer-events:none;
+}
+.nd-header-eyebrow {
+    font-size:.62rem; color:#374151; letter-spacing:.18em;
+    text-transform:uppercase; font-weight:700; margin-bottom:8px;
+}
+.nd-header-title {
+    font-size:1.65rem; font-weight:900; color:#f0f0f0;
+    letter-spacing:-.03em; line-height:1.1; margin-bottom:5px;
+}
+.nd-header-sub {
+    font-size:.75rem; color:#4b5563; letter-spacing:.06em;
+}
+.nd-status-dot {
+    display:inline-block; width:6px; height:6px; background:#22c55e;
+    border-radius:50%; margin-right:5px; box-shadow:0 0 7px #22c55e;
+    animation:nd-blink 2.4s ease-in-out infinite;
+}
+@keyframes nd-blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+.nd-badge-sys {
+    display:inline-block; background:#052e0f; border:1px solid #22c55e33;
+    color:#22c55e; font-size:.62rem; font-weight:700; padding:2px 8px;
+    border-radius:3px; letter-spacing:.14em; text-transform:uppercase;
+}
+.nd-credit-wrap { text-align:right; }
+.nd-credit-val { font-size:.82rem; color:#22c55e; font-weight:700; }
+.nd-credit-label { font-size:.62rem; color:#374151; text-transform:uppercase;
+    letter-spacing:.1em; margin-top:2px; }
+.nd-credit-bar { background:#0f1f0f; border-radius:2px; height:3px;
+    margin:5px 0 0 auto; width:110px; overflow:hidden; }
+.nd-credit-fill { background:linear-gradient(90deg,#22c55e,#16a34a);
+    height:100%; border-radius:2px; box-shadow:0 0 5px #22c55e55; }
+
+/* ── KPI Cards ───────────────────────────────────────────────── */
+.nd-kpi {
+    background:#0d0d0d; border:1px solid #1e1e1e; border-radius:11px;
+    padding:18px 20px; position:relative; overflow:hidden;
+    transition:border-color .2s;
+}
+.nd-kpi:hover { border-color:#22c55e33; }
+.nd-kpi::after {
+    content:''; position:absolute; bottom:0;left:0;right:0; height:2px;
+    background:linear-gradient(90deg,transparent,var(--ac,#22c55e),transparent);
+    opacity:.35;
+}
+.nd-kpi-icon { font-size:1.3rem; margin-bottom:8px; opacity:.8; }
+.nd-kpi-val {
+    font-size:2rem; font-weight:900; color:#f0f0f0;
+    letter-spacing:-.04em; line-height:1; margin-bottom:4px;
+}
+.nd-kpi-lbl { font-size:.68rem; color:#4b5563; text-transform:uppercase;
+    letter-spacing:.09em; font-weight:600; }
+.nd-kpi-delta { font-size:.68rem; margin-top:7px; }
+.nd-up { color:#22c55e; } .nd-dn { color:#ef4444; }
+.nd-nt { color:#4b5563; }
+
+/* ── Section label ───────────────────────────────────────────── */
+.nd-sec-lbl {
+    font-size:.65rem; color:#374151; text-transform:uppercase;
+    letter-spacing:.14em; font-weight:700; margin-bottom:14px;
+    padding-bottom:8px; border-bottom:1px solid #141414;
+}
+
+/* ── Content Cards ───────────────────────────────────────────── */
+.nd-card {
+    background:#0d0d0d; border:1px solid #1e1e1e; border-radius:12px;
+    padding:18px 20px; margin-bottom:14px;
+    transition:border-color .2s,box-shadow .2s;
+}
+.nd-card:hover { border-color:#22c55e22; box-shadow:0 0 18px rgba(34,197,94,.04); }
+.nd-card-hd {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:13px; gap:10px;
+}
+.nd-card-ttl {
+    font-size:.88rem; font-weight:700; color:#e8e8e8;
+    display:flex; align-items:center; gap:8px;
+}
+.nd-card-meta { display:flex; align-items:center; gap:6px; flex-shrink:0; }
+.nd-preview {
+    background:#080808; border:1px solid #0f0f0f; border-radius:8px;
+    padding:12px 14px; font-size:.77rem; color:#4b5563;
+    line-height:1.8; min-height:72px; white-space:pre-wrap;
+    word-break:break-word; font-family:'SF Mono','Monaco',monospace;
+}
+.nd-preview.filled { color:#b0b0b0; font-family:-apple-system,sans-serif; }
+.nd-preview.code { color:#7dd3fc; font-family:'SF Mono','Monaco',monospace; }
+
+/* ── Badges ──────────────────────────────────────────────────── */
+.nd-b {
+    display:inline-block; font-size:.62rem; font-weight:700;
+    padding:2px 7px; border-radius:3px; letter-spacing:.1em;
+    text-transform:uppercase; white-space:nowrap;
+}
+.nd-b-ok  { background:#052e0f; color:#22c55e; border:1px solid #22c55e33; }
+.nd-b-ai  { background:#0a0a1e; color:#818cf8; border:1px solid #818cf833; }
+.nd-b-pnd { background:#1a1500; color:#f59e0b; border:1px solid #f59e0b33; }
+.nd-b-rev { background:#1a0a00; color:#f97316; border:1px solid #f9731633; }
+.nd-b-dft { background:#111;    color:#4b5563; border:1px solid #1e1e1e; }
+.nd-b-tag { background:#111; color:#6b7280; border:1px solid #1a1a1a;
+    font-size:.6rem; }
+
+/* ── Project Table ───────────────────────────────────────────── */
+.nd-tbl {
+    width:100%; border-collapse:collapse; font-size:.8rem;
+    margin-top:6px;
+}
+.nd-tbl th {
+    text-align:left; font-size:.63rem; text-transform:uppercase;
+    letter-spacing:.1em; color:#374151; font-weight:700;
+    padding:7px 12px; border-bottom:1px solid #1a1a1a;
+}
+.nd-tbl td { padding:10px 12px; color:#b0b0b0; border-bottom:1px solid #0d0d0d; }
+.nd-tbl tr:hover td { background:#0a0a0a; }
+.nd-tbl td.name { font-weight:600; color:#e8e8e8; }
+.nd-tbl td.date { color:#374151; font-size:.73rem; }
+.nd-row-action {
+    display:inline-block; background:#141414; border:1px solid #1e1e1e;
+    color:#6b7280; font-size:.62rem; font-weight:600; padding:2px 7px;
+    border-radius:4px; cursor:pointer; text-decoration:none;
+    letter-spacing:.05em; transition:all .15s;
+}
+.nd-row-action:hover { border-color:#22c55e55; color:#22c55e; }
+
+/* ── Export Tiles ────────────────────────────────────────────── */
+.nd-ex-tile {
+    background:#0d0d0d; border:1px solid #1e1e1e; border-radius:11px;
+    padding:16px 18px; margin-bottom:10px;
+    display:flex; align-items:center; gap:14px;
+    transition:all .15s;
+}
+.nd-ex-tile:hover { border-color:#22c55e33; background:#0a120a; }
+.nd-ex-tile.soon { opacity:.5; cursor:not-allowed; }
+.nd-ex-ico { font-size:1.5rem; min-width:34px; text-align:center; }
+.nd-ex-ttl { font-size:.85rem; font-weight:600; color:#e8e8e8; }
+.nd-ex-dsc { font-size:.72rem; color:#4b5563; margin-top:2px; }
+.nd-ex-badge {
+    margin-left:auto; font-size:.6rem; background:#111;
+    border:1px solid #1e1e1e; color:#374151; padding:2px 7px;
+    border-radius:3px; white-space:nowrap; font-weight:600;
+    text-transform:uppercase; letter-spacing:.09em;
+}
+.nd-ex-badge.live { background:#052e0f; border-color:#22c55e33; color:#22c55e; }
+
+/* ── Sidebar additions ───────────────────────────────────────── */
+.nd-sidebar-sec {
+    font-size:.58rem; color:#2a2a2a; text-transform:uppercase;
+    letter-spacing:.16em; font-weight:700; padding:10px 4px 2px;
+    margin-top:2px;
+}
+.nd-sidebar-footer {
+    font-size:.68rem; color:#374151; padding:10px 4px 0;
+    border-top:1px solid #111; margin-top:6px; line-height:1.8;
+}
+
+/* ── Usage bar (sidebar) ─────────────────────────────────────── */
+.nd-use-bar { background:#0d0d0d; border-radius:2px; height:3px;
+    margin:4px 0; overflow:hidden; }
+.nd-use-fill { background:linear-gradient(90deg,#22c55e,#16a34a);
+    height:100%; border-radius:2px; box-shadow:0 0 4px #22c55e66; }
+
+/* ── Misc ────────────────────────────────────────────────────── */
+.nd-divider { border:none; border-top:1px solid #141414; margin:20px 0; }
+.nd-empty { text-align:center; padding:36px 20px;
+    color:#374151; font-size:.82rem; }
+.nd-scroll { max-height:400px; overflow-y:auto; }
+</style>
+"""
+
+# ── Dummy data for Phase 1 (replace with real data in Phase 2) ──
+
+_ND_DUMMY_PROJECTS = [
+    {"name":"APEXDRIVE PRO", "updated":"2026-04-30 18:42", "formats":"商品文 / Shopify / 画像","status":"approved","id":"a1b2c3d4"},
+    {"name":"PulseZen Sinso スキンケア", "updated":"2026-04-29 11:17", "formats":"商品文 / 広告SNS","status":"pending","id":"e5f6a7b8"},
+    {"name":"NeoCellar ワインセラー", "updated":"2026-04-28 09:03", "formats":"商品文","status":"ai_generated","id":"c9d0e1f2"},
+    {"name":"ArcBlade ゲーミングマウス", "updated":"2026-04-26 22:55", "formats":"商品文 / Shopify / 動画","status":"revision","id":"f3a4b5c6"},
+    {"name":"SilkFlow タオルセット", "updated":"2026-04-25 14:30", "formats":"商品文 / 画像","status":"draft","id":"d7e8f9a0"},
+]
+
+_ND_DUMMY_CONTENT = [
+    {
+        "key":"product_page","icon":"📄","title":"商品ページ文章","tag":"JA",
+        "status":"approved","words":312,
+        "preview":(
+            "APEXDRIVE PRO — 次世代ドライビングシューズ\n\n"
+            "スピードを求める者へ。35年のレーシングノウハウを\n"
+            "デイリーユースへと昇華した革命的フットウェア。\n\n"
+            "■ カーボンナノファイバーソール — 0.3mm のグリップ精度\n"
+            "■ アダプティブフィットシステム — 走行中も最適な締め付けを維持\n"
+            "■ 耐熱コーティング — 260℃環境でも変形なし"
+        ),
+    },
+    {
+        "key":"shopify_code","icon":"🛒","title":"Shopify Custom Liquid","tag":"CODE",
+        "status":"ai_generated","words":9,
+        "preview":(
+            '<!-- HERO SECTION: APEXDRIVE PRO -->\n'
+            '<section class="apex-hero">\n'
+            '  <div class="apex-eyebrow">PERFORMANCE SERIES 2025</div>\n'
+            '  <h1 class="apex-headline">速度を、履く。</h1>\n'
+            '  <p>35年のレーシングDNAが生んだ究極のシューズ。</p>\n'
+            '</section>'
+        ),
+    },
+    {
+        "key":"image_prompt","icon":"🖼️","title":"画像プロンプト","tag":"EN",
+        "status":"ai_generated","words":48,
+        "preview":(
+            "[Shot 1 — Hero]\n"
+            "Ultra-sharp product photo, APEXDRIVE PRO, 45° angle.\n"
+            "Carbon fiber texture on sole. Matte black studio,\n"
+            "single LED strip. Precision engineering aesthetic.\n\n"
+            "[Shot 2 — Lifestyle]\n"
+            "Driver's hand in luxury sports car cockpit, morning light."
+        ),
+    },
+    {
+        "key":"video_script","icon":"🎬","title":"動画台本","tag":"JA",
+        "status":"pending","words":180,
+        "preview":(
+            "【Opening: 3s】 BLACK SCREEN → LED flicker\n"
+            "SE: 高級EV起動音\n"
+            'TEXT: "35年間、ピットで磨かれた技術が"\n\n'
+            "【Scene 1: 5s】 スローモーション\n"
+            "ソールがペダルに触れる瞬間\n"
+            'VO: "0.3mmの精度が、タイムを変える"'
+        ),
+    },
+    {
+        "key":"ads_sns","icon":"📣","title":"広告 / SNS","tag":"JA",
+        "status":"draft","words":95,
+        "preview":(
+            "【Google 検索広告】\n"
+            "見出し1: 速さを履く — APEXDRIVE PRO\n"
+            "見出し2: レーシング技術をデイリーに\n"
+            "見出し3: 限定200足 ¥29,800（税込）\n\n"
+            "【Instagram】\n"
+            "⚡ 速度を、履く。\n"
+            "#APEXDRIVE #ドライビングシューズ #カーボン"
+        ),
+    },
+]
+
+_ND_BADGE_HTML = {
+    "approved":    '<span class="nd-b nd-b-ok">✓ 承認済</span>',
+    "ai_generated":'<span class="nd-b nd-b-ai">⚡ AI生成</span>',
+    "pending":     '<span class="nd-b nd-b-pnd">⏳ 確認待ち</span>',
+    "revision":    '<span class="nd-b nd-b-rev">↩ 修正依頼</span>',
+    "draft":       '<span class="nd-b nd-b-dft">○ 下書き</span>',
+}
+
+
+def page_new_dashboard():
+    """Enterprise dashboard — Phase 1 (dummy data, layout skeleton)."""
+
+    # ── Inject CSS ───────────────────────────────────────────────────────────────
+    st.markdown(_ND_CSS, unsafe_allow_html=True)
+
+    # ── Current project context (real data, read-only) ──────────────────────────
+    _is_ja = st.session_state.get("lang", "ja") == "ja"
+    _product_name = (
+        st.session_state.get("product_info", {}).get("name")
+        or "APEXDRIVE PRO [デモ]"
+    )
+
+    # ── Header ───────────────────────────────────────────────────────────────────
+    st.markdown(
+        f"""
+        <div class="nd-header">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;">
+            <div>
+              <div class="nd-header-eyebrow">TASK DESTROYER v2.0 ・ COMMERCE MODE ・ IMPERIAL DATA LINK</div>
+              <div class="nd-header-title">⚡ ダッシュボード</div>
+              <div class="nd-header-sub" style="margin-top:6px;">
+                <span class="nd-status-dot"></span>
+                <span class="nd-badge-sys">SYSTEM ONLINE</span>
+                &nbsp;&nbsp;現在のプロジェクト:
+                <span style="color:#e8e8e8;font-weight:600;">{_product_name}</span>
+              </div>
+            </div>
+            <div class="nd-credit-wrap">
+              <div class="nd-credit-val">730 <span style="font-size:.7rem;font-weight:400;color:#374151;">/ 1,000</span></div>
+              <div class="nd-credit-label">API Calls 残量</div>
+              <div class="nd-credit-bar"><div class="nd-credit-fill" style="width:73%;"></div></div>
+              <div style="font-size:.6rem;color:#1e3a1e;margin-top:4px;letter-spacing:.1em;">▓▓▓▓▓▓▓░░░ 73% REMAINING</div>
+            </div>
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # ── KPI Cards ────────────────────────────────────────────────────────────────
+    k1, k2, k3, k4 = st.columns(4)
+    _kpis = [
+        ("📦", "12", "総プロジェクト", "↑ 3 今月", "up", "#22c55e"),
+        ("⚡", "47", "生成コンテンツ", "↑ 11 今週", "up", "#818cf8"),
+        ("✓",  "8",  "承認済み",       "↑ 2 今日",  "up", "#22c55e"),
+        ("🔄", "3",  "確認待ち",       "→ 前週と同じ","nt", "#f59e0b"),
+    ]
+    for col, (ico, val, lbl, delta, direction, color) in zip([k1, k2, k3, k4], _kpis):
+        d_cls = {"up":"nd-up","dn":"nd-dn","nt":"nd-nt"}[direction]
+        arrow = "↑" if direction=="up" else ("↓" if direction=="dn" else "→")
+        with col:
+            st.markdown(
+                f'<div class="nd-kpi" style="--ac:{color};">'
+                f'<div class="nd-kpi-icon">{ico}</div>'
+                f'<div class="nd-kpi-val">{val}</div>'
+                f'<div class="nd-kpi-lbl">{lbl}</div>'
+                f'<div class="nd-kpi-delta {d_cls}">{arrow} {delta.lstrip("↑↓→").strip()}</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+    st.markdown('<hr class="nd-divider">', unsafe_allow_html=True)
+
+    # ── Main Tabs ─────────────────────────────────────────────────────────────────
+    tab_gen, tab_proj, tab_export = st.tabs([
+        "⚡  生成コンテンツ",
+        "📁  プロジェクト一覧",
+        "📤  エクスポート＆連携",
+    ])
+
+    # ════════════════════════════════════════════════
+    # Tab 1: 生成コンテンツ
+    # ════════════════════════════════════════════════
+    with tab_gen:
+        st.markdown(
+            '<div class="nd-sec-lbl">生成コンテンツ — APEXDRIVE PRO [デモデータ]</div>',
+            unsafe_allow_html=True,
+        )
+
+        # Language toggle (dummy)
+        lc1, lc2, _ = st.columns([1, 1, 5])
+        with lc1:
+            if st.button("🇯🇵 JA", key="nd_lang_ja", use_container_width=True,
+                         type="primary" if _is_ja else "secondary"):
+                st.session_state["lang"] = "ja"
+                st.rerun()
+        with lc2:
+            if st.button("🇧🇷 PT", key="nd_lang_pt", use_container_width=True,
+                         type="primary" if not _is_ja else "secondary"):
+                st.session_state["lang"] = "pt"
+                st.rerun()
+
+        st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
+
+        for item in _ND_DUMMY_CONTENT:
+            badge_html = _ND_BADGE_HTML.get(item["status"], "")
+            preview_cls = "code" if item["key"] == "shopify_code" else "filled"
+            word_unit = "セクション" if item["key"] == "shopify_code" else "words"
+
+            st.markdown(
+                f"""
+                <div class="nd-card">
+                  <div class="nd-card-hd">
+                    <div class="nd-card-ttl">
+                      {item["icon"]} {item["title"]}
+                      <span class="nd-b nd-b-tag">{item["tag"]}</span>
+                    </div>
+                    <div class="nd-card-meta">
+                      <span style="font-size:.68rem;color:#374151;">{item["words"]} {word_unit}</span>
+                      {badge_html}
+                    </div>
+                  </div>
+                  <div class="nd-preview {preview_cls}">{item["preview"]}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            # Action buttons (Streamlit widgets — connectable in Phase 2)
+            ab1, ab2, ab3, ab4, _ = st.columns([1, 1, 1, 1, 3])
+            with ab1:
+                st.button("📋 コピー",      key=f"nd_copy_{item['key']}",  use_container_width=True)
+            with ab2:
+                st.button("⬇️ DL",          key=f"nd_dl_{item['key']}",    use_container_width=True)
+            with ab3:
+                st.button("✨ 再生成",       key=f"nd_regen_{item['key']}", use_container_width=True)
+            with ab4:
+                st.button("🔐 承認",         key=f"nd_appr_{item['key']}",  use_container_width=True)
+            st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
+
+    # ════════════════════════════════════════════════
+    # Tab 2: プロジェクト一覧
+    # ════════════════════════════════════════════════
+    with tab_proj:
+        st.markdown(
+            '<div class="nd-sec-lbl">保存済みプロジェクト — 最新 5 件 [デモデータ]</div>',
+            unsafe_allow_html=True,
+        )
+
+        # Search
+        search_q = st.text_input("🔍 プロジェクトを検索",
+                                 placeholder="商品名で検索...",
+                                 label_visibility="collapsed",
+                                 key="nd_proj_search")
+
+        _projs = _ND_DUMMY_PROJECTS
+        if search_q:
+            _projs = [p for p in _projs if search_q.lower() in p["name"].lower()]
+
+        # Build HTML table
+        rows_html = ""
+        for p in _projs:
+            badge = _ND_BADGE_HTML.get(p["status"], "")
+            rows_html += (
+                f'<tr>'
+                f'<td class="name">{p["name"]}</td>'
+                f'<td class="date">{p["updated"]}</td>'
+                f'<td><span class="nd-b nd-b-tag">{p["formats"]}</span></td>'
+                f'<td>{badge}</td>'
+                f'<td>'
+                f'<span class="nd-row-action">📂 読込</span>&nbsp;'
+                f'<span class="nd-row-action">🗑 削除</span>'
+                f'</td>'
+                f'</tr>'
+            )
+
+        if rows_html:
+            st.markdown(
+                f"""
+                <div class="nd-scroll">
+                <table class="nd-tbl">
+                  <thead><tr>
+                    <th>プロジェクト名</th>
+                    <th>最終更新</th>
+                    <th>生成形式</th>
+                    <th>ステータス</th>
+                    <th>アクション</th>
+                  </tr></thead>
+                  <tbody>{rows_html}</tbody>
+                </table>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(
+                '<div class="nd-empty">🔍 該当するプロジェクトが見つかりません</div>',
+                unsafe_allow_html=True,
+            )
+
+        st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
+        pc1, pc2, pc3 = st.columns([1, 1, 4])
+        with pc1:
+            if st.button("📁 保存データ管理", key="nd_go_saved", use_container_width=True):
+                st.session_state["page"] = "saved_data"
+                st.rerun()
+        with pc2:
+            if st.button("🧹 空データ整理", key="nd_cleanup_empty", use_container_width=True):
+                st.session_state["page"] = "saved_data"
+                st.rerun()
+
+    # ════════════════════════════════════════════════
+    # Tab 3: エクスポート＆連携
+    # ════════════════════════════════════════════════
+    with tab_export:
+        st.markdown(
+            '<div class="nd-sec-lbl">エクスポート＆連携パネル</div>',
+            unsafe_allow_html=True,
+        )
+
+        _exports = [
+            ("📄", "テキスト一括ダウンロード",      "全コンテンツを .txt / .md でまとめてDL",          "live",  False),
+            ("🛒", "Shopify に出力",                "Custom Liquidコードをクリップボードへコピー",       "live",  False),
+            ("📊", "JSON エクスポート",              "全データを JSON 形式でダウンロード",               "live",  False),
+            ("📁", "Google Drive に保存",            "Google Driveへ自動アップロード",                   "soon",  True),
+            ("📝", "Word Docs に出力",               ".docx 形式で書き出し",                            "soon",  True),
+            ("📱", "SNS 投稿予約",                   "Buffer / Hootsuite 連携（準備中）",               "soon",  True),
+            ("✉️", "メール送信",                     "チームへコンテンツをメール送信",                   "soon",  True),
+            ("🔗", "連携サービス管理",               "外部APIキーと連携設定",                            "soon",  True),
+        ]
+
+        ex_col1, ex_col2 = st.columns(2)
+        for i, (ico, ttl, dsc, badge_type, is_soon) in enumerate(_exports):
+            badge_cls = "live" if badge_type == "live" else ""
+            badge_lbl = "READY" if badge_type == "live" else "COMING SOON"
+            tile_cls  = "nd-ex-tile soon" if is_soon else "nd-ex-tile"
+            html = (
+                f'<div class="{tile_cls}">'
+                f'<div class="nd-ex-ico">{ico}</div>'
+                f'<div><div class="nd-ex-ttl">{ttl}</div>'
+                f'<div class="nd-ex-dsc">{dsc}</div></div>'
+                f'<div class="nd-ex-badge {badge_cls}">{badge_lbl}</div>'
+                f'</div>'
+            )
+            with (ex_col1 if i % 2 == 0 else ex_col2):
+                st.markdown(html, unsafe_allow_html=True)
+                if not is_soon:
+                    if ttl.startswith("テキスト"):
+                        if st.button("⬇️ ダウンロード", key=f"nd_ex_{i}", use_container_width=True):
+                            st.session_state["page"] = "output"
+                            st.rerun()
+                    elif ttl.startswith("Shopify"):
+                        if st.button("📋 コードをコピー", key=f"nd_ex_{i}", use_container_width=True):
+                            st.session_state["page"] = "product_page"
+                            st.rerun()
+                    else:
+                        if st.button("⬇️ エクスポート", key=f"nd_ex_{i}", use_container_width=True):
+                            st.session_state["page"] = "output"
+                            st.rerun()
+
+        st.markdown('<hr class="nd-divider">', unsafe_allow_html=True)
+        st.markdown(
+            '<div style="font-size:.7rem;color:#1e3a1e;letter-spacing:.15em;text-align:center;">'
+            '// TASK DESTROYER EXPORT TERMINAL — ALL SYSTEMS NOMINAL //'
+            '</div>',
+            unsafe_allow_html=True,
+        )
 
 
 # ── Page: Custom Mode ──────────────────────────────────────────────────────────
@@ -2411,6 +3020,7 @@ def main():
         return
 
     page_map = {
+        "dashboard": page_new_dashboard,
         "mode_selection": page_mode_selection,
         "product_input": page_product_input,
         "external_core": page_external_core,
