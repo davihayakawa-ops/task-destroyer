@@ -2713,17 +2713,61 @@ _ND_BADGE_HTML = {
 
 
 def page_new_dashboard():
-    """Enterprise dashboard — Phase 1 (dummy data, layout skeleton)."""
+    """Enterprise dashboard — Phase 2 (real data connected)."""
+    import html as _html
 
     # ── Inject CSS ───────────────────────────────────────────────────────────────
     st.markdown(_ND_CSS, unsafe_allow_html=True)
 
-    # ── Current project context (real data, read-only) ──────────────────────────
-    _is_ja = st.session_state.get("lang", "ja") == "ja"
-    _product_name = (
-        st.session_state.get("product_info", {}).get("name")
-        or "APEXDRIVE PRO [デモ]"
-    )
+    # ── Real data ────────────────────────────────────────────────────────────────
+    _is_ja       = st.session_state.get("lang", "ja") == "ja"
+    _gen         = st.session_state.get("generated", {})
+    _pid         = st.session_state.get("product_id", "")
+    _pinfo       = st.session_state.get("product_info", {})
+    _product_name = _pinfo.get("name") or ("商品未選択" if _is_ja else "No product selected")
+    _has_product  = bool(_pinfo.get("name") or _pinfo.get("product_url"))
+    _has_core     = bool(st.session_state.get("core_text"))
+
+    # Shopify: 9 sections → combined text
+    _SHOPIFY_KEYS = [
+        "shopify_common_css", "shopify_hero_section_code", "shopify_about_section_code",
+        "shopify_problem_section_code", "shopify_features_section_code",
+        "shopify_usage_scene_section_code", "shopify_comparison_section_code",
+        "shopify_faq_section_code", "shopify_cta_section_code",
+    ]
+    _shopify_text = "\n\n".join(_gen[k] for k in _SHOPIFY_KEYS if _gen.get(k))
+
+    def _content(key):
+        return _shopify_text if key == "shopify_code" else str(_gen.get(key) or "")
+
+    # Content spec: key / approval_key / icon / title / tag / regen_page / lang_code
+    _SPECS = [
+        ("product_page",  "product_page",         "📄", "商品ページ文章",         "TEXT", "product_page"),
+        ("shopify_code",  "shopify_sections",      "🛒", "Shopify Custom Liquid",   "CODE", "product_page"),
+        ("image_prompt",  "image_prompt",          "🖼️", "画像プロンプト",          "EN",   "image_prompt"),
+        ("video_script",  "video_script",          "🎬", "動画台本",               "JA",   "video_script"),
+        ("ads_sns",       "ads_sns",               "📣", "広告 / SNS",             "JA",   "ads_sns"),
+    ]
+
+    # Approval statuses (try-except for stale cache safety)
+    _aprv = {}
+    if _pid:
+        for key, aprv_key, *_ in _SPECS:
+            try:
+                _aprv[key] = svc["approval"].get_status(_pid, aprv_key).get("status", "draft")
+            except Exception:
+                _aprv[key] = "draft"
+
+    # KPI counts (real)
+    try:
+        _all_projs = [p for p in svc["storage"].list_products() if not _is_empty_project_entry(p)]
+    except Exception:
+        _all_projs = []
+    _gen_count      = sum(1 for key, *_ in _SPECS if _content(key).strip())
+    _approved_count = sum(1 for k, v in _aprv.items() if v == "approved")
+    _pending_count  = sum(1 for k, v in _aprv.items() if v in ("pending", "revision_requested"))
+
+    _product_name = _pinfo.get("name") or ("商品未選択" if _is_ja else "No product selected")
 
     # ── Header ───────────────────────────────────────────────────────────────────
     st.markdown(
@@ -2752,24 +2796,21 @@ def page_new_dashboard():
         unsafe_allow_html=True,
     )
 
-    # ── KPI Cards ────────────────────────────────────────────────────────────────
+    # ── KPI Cards (real counts) ───────────────────────────────────────────────────
     k1, k2, k3, k4 = st.columns(4)
     _kpis = [
-        ("📦", "12", "総プロジェクト", "↑ 3 今月", "up", "#22c55e"),
-        ("⚡", "47", "生成コンテンツ", "↑ 11 今週", "up", "#818cf8"),
-        ("✓",  "8",  "承認済み",       "↑ 2 今日",  "up", "#22c55e"),
-        ("🔄", "3",  "確認待ち",       "→ 前週と同じ","nt", "#f59e0b"),
+        ("📦", str(len(_all_projs)), "総プロジェクト",  "#22c55e"),
+        ("⚡", str(_gen_count),      "生成コンテンツ",  "#818cf8"),
+        ("✓",  str(_approved_count),"承認済み",         "#22c55e"),
+        ("🔄", str(_pending_count), "確認待ち",         "#f59e0b"),
     ]
-    for col, (ico, val, lbl, delta, direction, color) in zip([k1, k2, k3, k4], _kpis):
-        d_cls = {"up":"nd-up","dn":"nd-dn","nt":"nd-nt"}[direction]
-        arrow = "↑" if direction=="up" else ("↓" if direction=="dn" else "→")
+    for col, (ico, val, lbl, color) in zip([k1, k2, k3, k4], _kpis):
         with col:
             st.markdown(
                 f'<div class="nd-kpi" style="--ac:{color};">'
                 f'<div class="nd-kpi-icon">{ico}</div>'
                 f'<div class="nd-kpi-val">{val}</div>'
                 f'<div class="nd-kpi-lbl">{lbl}</div>'
-                f'<div class="nd-kpi-delta {d_cls}">{arrow} {delta.lstrip("↑↓→").strip()}</div>'
                 f'</div>',
                 unsafe_allow_html=True,
             )
@@ -2784,15 +2825,14 @@ def page_new_dashboard():
     ])
 
     # ════════════════════════════════════════════════
-    # Tab 1: 生成コンテンツ
+    # Tab 1: 生成コンテンツ (real data)
     # ════════════════════════════════════════════════
     with tab_gen:
-        st.markdown(
-            '<div class="nd-sec-lbl">生成コンテンツ — APEXDRIVE PRO [デモデータ]</div>',
-            unsafe_allow_html=True,
-        )
+        proj_label = f"生成コンテンツ — {_product_name}" + ("" if _has_product else " （商品未設定）")
+        st.markdown(f'<div class="nd-sec-lbl">{_html.escape(proj_label)}</div>',
+                    unsafe_allow_html=True)
 
-        # Language toggle (dummy)
+        # Language toggle
         lc1, lc2, _ = st.columns([1, 1, 5])
         with lc1:
             if st.button("🇯🇵 JA", key="nd_lang_ja", use_container_width=True,
@@ -2805,103 +2845,205 @@ def page_new_dashboard():
                 st.session_state["lang"] = "pt"
                 st.rerun()
 
-        st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
+        # Missing prerequisite warnings
+        if not _has_product:
+            st.markdown(
+                '<div class="cs-warning" style="margin:12px 0;">⚠️ '
+                '商品情報が未入力です。まず「商品入力」ページで商品を設定してください。</div>',
+                unsafe_allow_html=True,
+            )
+        elif not _has_core:
+            st.markdown(
+                '<div class="cs-info" style="margin:12px 0;">💡 '
+                'Coreがまだ生成されていません。「Core生成・編集」でCoreを生成すると各コンテンツを生成できます。</div>',
+                unsafe_allow_html=True,
+            )
 
-        for item in _ND_DUMMY_CONTENT:
-            badge_html = _ND_BADGE_HTML.get(item["status"], "")
-            preview_cls = "code" if item["key"] == "shopify_code" else "filled"
-            word_unit = "セクション" if item["key"] == "shopify_code" else "words"
+        st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
+
+        for key, aprv_key, icon, title, tag, regen_page in _SPECS:
+            text       = _content(key)
+            has_text   = bool(text.strip())
+            apv_status = _aprv.get(key, "draft")
+            badge_html = _ND_BADGE_HTML.get(apv_status, _ND_BADGE_HTML["draft"])
+
+            # Preview text (HTML-escaped so raw content is safe)
+            if has_text:
+                preview_raw = text[:320] + ("..." if len(text) > 320 else "")
+                preview_escaped = _html.escape(preview_raw)
+                preview_cls = "code" if key == "shopify_code" else "filled"
+                word_count  = (
+                    f"{sum(1 for k in _SHOPIFY_KEYS if _gen.get(k))} セクション"
+                    if key == "shopify_code"
+                    else f"{len(text.split())} words"
+                )
+            else:
+                preview_escaped = "（未生成）— 右の「再生成」ボタンで生成してください"
+                preview_cls = ""
+                word_count  = "未生成"
 
             st.markdown(
                 f"""
                 <div class="nd-card">
                   <div class="nd-card-hd">
                     <div class="nd-card-ttl">
-                      {item["icon"]} {item["title"]}
-                      <span class="nd-b nd-b-tag">{item["tag"]}</span>
+                      {icon} {_html.escape(title)}
+                      <span class="nd-b nd-b-tag">{tag}</span>
                     </div>
                     <div class="nd-card-meta">
-                      <span style="font-size:.68rem;color:#374151;">{item["words"]} {word_unit}</span>
+                      <span style="font-size:.68rem;color:#374151;">{word_count}</span>
                       {badge_html}
                     </div>
                   </div>
-                  <div class="nd-preview {preview_cls}">{item["preview"]}</div>
+                  <div class="nd-preview {preview_cls}">{preview_escaped}</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
             )
 
-            # Action buttons (Streamlit widgets — connectable in Phase 2)
+            # ── Action buttons ────────────────────────────────────────────────
             ab1, ab2, ab3, ab4, _ = st.columns([1, 1, 1, 1, 3])
+
+            # Copy: toggle st.code() below card (Streamlit built-in copy button)
             with ab1:
-                st.button("📋 コピー",      key=f"nd_copy_{item['key']}",  use_container_width=True)
+                _copy_key = f"nd_copy_open_{key}"
+                if st.button("📋 コピー", key=f"nd_copy_{key}",
+                             disabled=not has_text, use_container_width=True):
+                    st.session_state[_copy_key] = not st.session_state.get(_copy_key, False)
+
+            # Download
             with ab2:
-                st.button("⬇️ DL",          key=f"nd_dl_{item['key']}",    use_container_width=True)
+                _fname = f"{key}_{_product_name}.txt"
+                st.download_button(
+                    "⬇️ DL", data=(text or " ").encode("utf-8"),
+                    file_name=_fname, mime="text/plain",
+                    key=f"nd_dl_{key}", disabled=not has_text,
+                    use_container_width=True,
+                )
+
+            # Regenerate → navigate to generation page
             with ab3:
-                st.button("✨ 再生成",       key=f"nd_regen_{item['key']}", use_container_width=True)
+                if st.button("✨ 再生成", key=f"nd_regen_{key}",
+                             use_container_width=True):
+                    st.session_state["page"] = regen_page
+                    st.rerun()
+
+            # Approve
             with ab4:
-                st.button("🔐 承認",         key=f"nd_appr_{item['key']}",  use_container_width=True)
-            st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
+                if apv_status == "approved":
+                    st.button("✓ 承認済", key=f"nd_appr_{key}",
+                              disabled=True, use_container_width=True)
+                elif has_text and _pid:
+                    if st.button("🔐 承認", key=f"nd_appr_{key}",
+                                 use_container_width=True):
+                        try:
+                            svc["approval"].approve(_pid, aprv_key, user=st.session_state.get("assignee",""))
+                        except Exception:
+                            pass
+                        st.rerun()
+                else:
+                    st.button("🔐 承認", key=f"nd_appr_{key}",
+                              disabled=True, use_container_width=True)
+
+            # Show copy code block when toggled
+            if st.session_state.get(f"nd_copy_open_{key}") and has_text:
+                lang_hint = "html" if key == "shopify_code" else "text"
+                st.code(text, language=lang_hint)
+
+            st.markdown("<div style='height:2px'></div>", unsafe_allow_html=True)
 
     # ════════════════════════════════════════════════
-    # Tab 2: プロジェクト一覧
+    # Tab 2: プロジェクト一覧 (real data)
     # ════════════════════════════════════════════════
     with tab_proj:
+        _proj_count = len(_all_projs)
         st.markdown(
-            '<div class="nd-sec-lbl">保存済みプロジェクト — 最新 5 件 [デモデータ]</div>',
+            f'<div class="nd-sec-lbl">保存済みプロジェクト — {_proj_count} 件</div>',
             unsafe_allow_html=True,
         )
 
-        # Search
-        search_q = st.text_input("🔍 プロジェクトを検索",
-                                 placeholder="商品名で検索...",
-                                 label_visibility="collapsed",
-                                 key="nd_proj_search")
+        search_q = st.text_input("🔍", placeholder="商品名で検索...",
+                                 label_visibility="collapsed", key="nd_proj_search")
 
-        _projs = _ND_DUMMY_PROJECTS
+        _projs_filtered = _all_projs
         if search_q:
-            _projs = [p for p in _projs if search_q.lower() in p["name"].lower()]
+            _projs_filtered = [p for p in _all_projs
+                               if search_q.lower() in p.get("name","").lower()]
 
-        # Build HTML table
-        rows_html = ""
-        for p in _projs:
-            badge = _ND_BADGE_HTML.get(p["status"], "")
-            rows_html += (
-                f'<tr>'
-                f'<td class="name">{p["name"]}</td>'
-                f'<td class="date">{p["updated"]}</td>'
-                f'<td><span class="nd-b nd-b-tag">{p["formats"]}</span></td>'
-                f'<td>{badge}</td>'
-                f'<td>'
-                f'<span class="nd-row-action">📂 読込</span>&nbsp;'
-                f'<span class="nd-row-action">🗑 削除</span>'
-                f'</td>'
-                f'</tr>'
-            )
-
-        if rows_html:
-            st.markdown(
-                f"""
-                <div class="nd-scroll">
-                <table class="nd-tbl">
-                  <thead><tr>
-                    <th>プロジェクト名</th>
-                    <th>最終更新</th>
-                    <th>生成形式</th>
-                    <th>ステータス</th>
-                    <th>アクション</th>
-                  </tr></thead>
-                  <tbody>{rows_html}</tbody>
-                </table>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+        if not _projs_filtered:
+            _empty_msg = "🔍 該当するプロジェクトが見つかりません" if search_q else \
+                         "💡 保存済みプロジェクトがありません。商品情報を入力して保存してください。"
+            st.markdown(f'<div class="nd-empty">{_empty_msg}</div>', unsafe_allow_html=True)
         else:
+            # Table header (HTML)
             st.markdown(
-                '<div class="nd-empty">🔍 該当するプロジェクトが見つかりません</div>',
+                '<div class="nd-scroll"><table class="nd-tbl"><thead><tr>'
+                '<th>プロジェクト名</th><th>最終更新</th><th>ステータス</th><th style="width:160px">操作</th>'
+                '</tr></thead></table></div>',
                 unsafe_allow_html=True,
             )
+            # Rows: use Streamlit columns for interactive buttons
+            for p in _projs_filtered[:10]:
+                pname = p.get("name") or "—"
+                pupdated = p.get("updated_at", "-")
+                ppid = p["id"]
+                # Determine overall status from approval
+                row_status = "draft"
+                if ppid:
+                    try:
+                        _pp_apv = [svc["approval"].get_status(ppid, s[1]).get("status","draft")
+                                   for s in _SPECS]
+                        if all(s == "approved" for s in _pp_apv):
+                            row_status = "approved"
+                        elif any(s in ("pending","revision_requested") for s in _pp_apv):
+                            row_status = "pending"
+                        elif any(s == "ai_generated" for s in _pp_apv):
+                            row_status = "ai_generated"
+                    except Exception:
+                        pass
+                badge = _ND_BADGE_HTML.get(row_status, _ND_BADGE_HTML["draft"])
+
+                tc1, tc2, tc3, tc4, tc5 = st.columns([3, 2, 1.5, 1, 1])
+                with tc1:
+                    st.markdown(
+                        f'<div style="padding:8px 0;font-weight:600;color:#e8e8e8;'
+                        f'font-size:.82rem;">{_html.escape(pname)}</div>',
+                        unsafe_allow_html=True,
+                    )
+                with tc2:
+                    st.markdown(
+                        f'<div style="padding:8px 0;color:#374151;font-size:.73rem;">{pupdated}</div>',
+                        unsafe_allow_html=True,
+                    )
+                with tc3:
+                    st.markdown(
+                        f'<div style="padding:8px 0;">{badge}</div>',
+                        unsafe_allow_html=True,
+                    )
+                with tc4:
+                    if st.button("📂 読込", key=f"nd_load_{ppid}", use_container_width=True):
+                        st.session_state["product_id"] = ppid
+                        st.session_state["product_info"] = {
+                            k: v for k, v in p.items() if k not in ("id","file_path")
+                        }
+                        st.session_state["assignee"] = p.get("assignee","")
+                        st.session_state["reviewer"] = p.get("final_reviewer","")
+                        _core_entry = svc["storage"].load_latest_core(ppid)
+                        if _core_entry:
+                            st.session_state["core_text"] = _core_entry["core"].get("text","")
+                            st.session_state["core_status"] = _core_entry.get("status","ai_generated")
+                        st.success(f"'{pname}' を読み込みました")
+                        st.rerun()
+                with tc5:
+                    if st.button("🗑 削除", key=f"nd_del_{ppid}", use_container_width=True):
+                        st.session_state["page"] = "saved_data"
+                        st.session_state["confirm_delete_id"] = ppid
+                        st.session_state["confirm_delete_file_path"] = p.get("file_path","")
+                        st.session_state["confirm_delete_name"] = pname
+                        st.rerun()
+
+                st.markdown('<hr style="border:none;border-top:1px solid #0d0d0d;margin:0;">',
+                            unsafe_allow_html=True)
 
         st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
         pc1, pc2, pc3 = st.columns([1, 1, 4])
@@ -2915,51 +3057,78 @@ def page_new_dashboard():
                 st.rerun()
 
     # ════════════════════════════════════════════════
-    # Tab 3: エクスポート＆連携
+    # Tab 3: エクスポート＆連携 (real downloads connected)
     # ════════════════════════════════════════════════
     with tab_export:
-        st.markdown(
-            '<div class="nd-sec-lbl">エクスポート＆連携パネル</div>',
-            unsafe_allow_html=True,
+        st.markdown('<div class="nd-sec-lbl">エクスポート＆連携パネル</div>',
+                    unsafe_allow_html=True)
+
+        # Build combined text bundle for bulk download
+        _all_text_parts = []
+        for key, _, icon, title, *_ in _SPECS:
+            txt = _content(key)
+            if txt.strip():
+                _all_text_parts.append(f"{'='*60}\n{title}\n{'='*60}\n{txt}")
+        _all_text_bundle = "\n\n".join(_all_text_parts) or "（生成済みコンテンツがありません）"
+        _all_json_bundle = json.dumps(
+            {k: _content(k) for k, *_ in _SPECS if _content(k).strip()},
+            ensure_ascii=False, indent=2
         )
 
         _exports = [
-            ("📄", "テキスト一括ダウンロード",      "全コンテンツを .txt / .md でまとめてDL",          "live",  False),
-            ("🛒", "Shopify に出力",                "Custom Liquidコードをクリップボードへコピー",       "live",  False),
-            ("📊", "JSON エクスポート",              "全データを JSON 形式でダウンロード",               "live",  False),
-            ("📁", "Google Drive に保存",            "Google Driveへ自動アップロード",                   "soon",  True),
-            ("📝", "Word Docs に出力",               ".docx 形式で書き出し",                            "soon",  True),
-            ("📱", "SNS 投稿予約",                   "Buffer / Hootsuite 連携（準備中）",               "soon",  True),
-            ("✉️", "メール送信",                     "チームへコンテンツをメール送信",                   "soon",  True),
-            ("🔗", "連携サービス管理",               "外部APIキーと連携設定",                            "soon",  True),
+            # (ico, title, desc, badge, is_soon, widget_fn)
+            ("📄", "テキスト一括ダウンロード",  "全コンテンツを .txt でまとめてDL",           "live", False, "dl_txt"),
+            ("📊", "JSON エクスポート",          "全データを JSON 形式でダウンロード",          "live", False, "dl_json"),
+            ("🛒", "Shopify セクション表示",     "Shopifyコードを確認・コピー",                 "live", False, "shopify"),
+            ("📋", "出力センターへ",              "承認済みコンテンツの出力・管理",              "live", False, "output"),
+            ("📁", "Google Drive に保存",         "Google Driveへ自動アップロード",              "soon", True,  None),
+            ("📝", "Word Docs に出力",            ".docx 形式で書き出し",                       "soon", True,  None),
+            ("📱", "SNS 投稿予約",                "Buffer / Hootsuite 連携（準備中）",          "soon", True,  None),
+            ("✉️", "メール送信",                  "チームへコンテンツをメール送信",              "soon", True,  None),
         ]
 
         ex_col1, ex_col2 = st.columns(2)
-        for i, (ico, ttl, dsc, badge_type, is_soon) in enumerate(_exports):
+        for i, (ico, ttl, dsc, badge_type, is_soon, wfn) in enumerate(_exports):
             badge_cls = "live" if badge_type == "live" else ""
             badge_lbl = "READY" if badge_type == "live" else "COMING SOON"
             tile_cls  = "nd-ex-tile soon" if is_soon else "nd-ex-tile"
-            html = (
-                f'<div class="{tile_cls}">'
-                f'<div class="nd-ex-ico">{ico}</div>'
-                f'<div><div class="nd-ex-ttl">{ttl}</div>'
-                f'<div class="nd-ex-dsc">{dsc}</div></div>'
-                f'<div class="nd-ex-badge {badge_cls}">{badge_lbl}</div>'
-                f'</div>'
-            )
             with (ex_col1 if i % 2 == 0 else ex_col2):
-                st.markdown(html, unsafe_allow_html=True)
+                st.markdown(
+                    f'<div class="{tile_cls}">'
+                    f'<div class="nd-ex-ico">{ico}</div>'
+                    f'<div><div class="nd-ex-ttl">{ttl}</div>'
+                    f'<div class="nd-ex-dsc">{dsc}</div></div>'
+                    f'<div class="nd-ex-badge {badge_cls}">{badge_lbl}</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
                 if not is_soon:
-                    if ttl.startswith("テキスト"):
-                        if st.button("⬇️ ダウンロード", key=f"nd_ex_{i}", use_container_width=True):
-                            st.session_state["page"] = "output"
-                            st.rerun()
-                    elif ttl.startswith("Shopify"):
-                        if st.button("📋 コードをコピー", key=f"nd_ex_{i}", use_container_width=True):
+                    if wfn == "dl_txt":
+                        st.download_button(
+                            "⬇️ 一括ダウンロード (.txt)",
+                            data=_all_text_bundle.encode("utf-8"),
+                            file_name=f"task_destroyer_{_product_name}_all.txt",
+                            mime="text/plain",
+                            key=f"nd_ex_{i}",
+                            use_container_width=True,
+                        )
+                    elif wfn == "dl_json":
+                        st.download_button(
+                            "⬇️ JSON ダウンロード",
+                            data=_all_json_bundle.encode("utf-8"),
+                            file_name=f"task_destroyer_{_product_name}.json",
+                            mime="application/json",
+                            key=f"nd_ex_{i}",
+                            use_container_width=True,
+                        )
+                    elif wfn == "shopify":
+                        if st.button("🛒 Shopifyページへ", key=f"nd_ex_{i}",
+                                     use_container_width=True):
                             st.session_state["page"] = "product_page"
                             st.rerun()
-                    else:
-                        if st.button("⬇️ エクスポート", key=f"nd_ex_{i}", use_container_width=True):
+                    elif wfn == "output":
+                        if st.button("📤 出力センターへ", key=f"nd_ex_{i}",
+                                     use_container_width=True):
                             st.session_state["page"] = "output"
                             st.rerun()
 
