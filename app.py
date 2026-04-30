@@ -1331,17 +1331,24 @@ def page_product_page():
             if st.button("✨ セクション別コードを生成", type="primary",
                          use_container_width=True, key="gen_sections"):
                 with st.spinner("セクション別コードを生成中（しばらくお待ちください）..."):
-                    result = svc["generator"].generate_shopify_sections(core, product_info)
-                    for s in SECTIONS:
-                        code = result.get(s["key"], "")
-                        if code:
-                            gen[s["key"]] = code
-                            svc["storage"].save_generated(pid, s["key"], {"text": code})
-                    st.session_state["generated"] = gen
-                    svc["approval"].mark_ai_generated(pid, "shopify_sections")
-                    svc["storage"].log_activity(pid, "Shopifyセクション生成", "",
-                                                st.session_state.get("assignee", ""))
-                    st.rerun()
+                    try:
+                        generator = svc["generator"]
+                        if not hasattr(generator, "generate_shopify_sections"):
+                            from modules.generator_engine import GeneratorEngine
+                            generator = GeneratorEngine(svc["llm"])
+                        result = generator.generate_shopify_sections(core, product_info)
+                        for s in SECTIONS:
+                            code = result.get(s["key"], "")
+                            if code:
+                                gen[s["key"]] = code
+                                svc["storage"].save_generated(pid, s["key"], {"text": code})
+                        st.session_state["generated"] = gen
+                        svc["approval"].mark_ai_generated(pid, "shopify_sections")
+                        svc["storage"].log_activity(pid, "Shopifyセクション生成", "",
+                                                    st.session_state.get("assignee", ""))
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"セクション別コード生成中にエラーが発生しました: {e}")
 
         with gen_col2:
             if st.button("🛒 ページ全体コードを生成（旧形式）",
