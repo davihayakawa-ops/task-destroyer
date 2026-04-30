@@ -596,6 +596,10 @@ class GeneratorEngine:
         )
         try:
             raw = self.llm.generate_structured(prompt, max_tokens=4096)
+            # LLMClient returns errors as strings (e.g. "[Anthropic APIエラー：...]")
+            # rather than raising exceptions — detect and fall back
+            if not raw or raw.lstrip().startswith("[") or "<" not in raw:
+                return fallback_fn()
             m = re.search(rf"<<<{marker}>>>(.*?)<<<END_SECTION>>>", raw, re.DOTALL)
             code = m.group(1).strip() if m else raw.strip()
             return code if code else fallback_fn()
@@ -604,9 +608,11 @@ class GeneratorEngine:
 
     def generate_shopify_sections(self, core: str, product_info: dict) -> dict:
         product_name = product_info.get("name", "")
+        # Truncate core to avoid 400 "prompt too long" errors from the API
+        core_trimmed = core[:3500] if len(core) > 3500 else core
         args = dict(
             rules=_SHOPIFY_RULES,
-            core=core,
+            core=core_trimmed,
             product_name=product_name,
             category=product_info.get("category", ""),
             price=product_info.get("price", ""),
