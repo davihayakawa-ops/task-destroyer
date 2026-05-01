@@ -448,6 +448,43 @@ hr {
     box-shadow: 0 0 0 1px rgba(34,197,94,0.1),
                 inset 0 0 20px rgba(34,197,94,0.02);
 }
+
+/* ── Breadcrumb ── */
+.sb-breadcrumb {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 0.75rem; margin-bottom: 14px;
+    padding: 5px 12px;
+    background: rgba(34,197,94,0.05);
+    border: 1px solid rgba(34,197,94,0.12);
+    border-radius: 6px;
+}
+.sb-bc-group { color: #6b7280; }
+.sb-bc-sep   { color: #374151; font-size: 0.7rem; }
+.sb-bc-page  { color: #4ade80; font-weight: 600; }
+
+/* ── Sidebar nav mode toggle ── */
+.sb-mode-label {
+    font-size: 0.68rem; color: #374151;
+    text-transform: uppercase; letter-spacing: .08em;
+    margin-bottom: 6px;
+}
+
+/* ── Sidebar group expander tweaks ── */
+[data-testid="stSidebar"] [data-testid="stExpander"] summary {
+    font-size: 0.8rem !important;
+    color: #9ca3af !important;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    padding: 6px 4px !important;
+}
+[data-testid="stSidebar"] [data-testid="stExpander"] summary:hover {
+    color: #e8e8e8 !important;
+}
+[data-testid="stSidebar"] [data-testid="stExpander"] {
+    border: none !important;
+    background: transparent !important;
+    margin-bottom: 2px;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -470,6 +507,7 @@ def init_state():
         "approval": {},
         "assignee": "",
         "reviewer": "",
+        "nav_mode": "simple",
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -562,20 +600,97 @@ def status_badge(status: str) -> str:
     return f'<span class="badge {cls}">{label}</span>'
 
 
+# ── Sidebar nav data ──────────────────────────────────────────────────────────
+# (group_id, label_ja, label_pt, items)
+# items: (page_id, label_ja, label_pt, unique_key_suffix)
+_NAV_GROUPS = [
+    ("home", "🏠 ホーム", "🏠 Início", [
+        ("dashboard",       "🏠 ダッシュボード",   "🏠 Painel",          "dash"),
+        ("mode_selection",  "🗂️ モード選択",       "🗂️ Seleção de Modo", "mode"),
+    ]),
+    ("product", "📦 商品準備", "📦 Produto", [
+        ("product_input",   "📦 商品入力",         "📦 Entrada do Produto",  "pi"),
+        ("external_core",   "📥 外部Core取り込み", "📥 Importar Core",        "ec"),
+    ]),
+    ("core", "✨ Core", "✨ Core", [
+        ("core_generation", "✨ Core生成・編集",   "✨ Gerar/Editar Core", "cg"),
+        ("core_generation", "📚 Coreライブラリ",  "📚 Biblioteca de Cores","cl"),
+    ]),
+    ("generate", "⚡ 生成", "⚡ Gerar", [
+        ("product_page",    "📄 商品ページ",        "📄 Página do Produto",  "pp"),
+        ("product_page",    "🛒 Shopifyコード",     "🛒 Código Shopify",     "sh"),
+        ("image_prompt",    "🖼️ 画像プロンプト",   "🖼️ Prompts de Imagem", "ip"),
+        ("video_script",    "🎬 動画台本",          "🎬 Roteiro de Vídeo",   "vs"),
+        ("ads_sns",         "📣 広告・SNS",         "📣 Anúncios/SNS",       "as_"),
+        ("bulk_pack",       "🔥 一括生成",          "🔥 Geração em Lote",    "bp"),
+    ]),
+    ("review", "✅ 確認", "✅ Verificação", [
+        ("refinement",      "✍️ 日本語補正・翻訳", "✍️ Refinar/Traduzir",  "rf"),
+        ("check",           "✅ チェック",          "✅ Verificação",        "ck"),
+        ("approval",        "🔐 承認フロー",        "🔐 Aprovação",          "ap"),
+    ]),
+    ("output", "📤 出力・管理", "📤 Saída / Gestão", [
+        ("export_center",     "⚡ 生成＆エクスポート","⚡ Gerar & Exportar",   "exc"),
+        ("output",            "📤 出力",              "📤 Exportar",           "out"),
+        ("saved_data",        "💾 保存データ",        "💾 Dados Salvos",       "sv"),
+        ("instruction_sheet", "📋 制作指示書",        "📋 Ficha de Produção",  "ins"),
+    ]),
+]
+
+_BREADCRUMB_MAP_JA = {
+    "dashboard":        ("🏠 ホーム",      "ダッシュボード"),
+    "mode_selection":   ("🏠 ホーム",      "モード選択"),
+    "product_input":    ("📦 商品準備",    "商品入力"),
+    "external_core":    ("📦 商品準備",    "外部Core取り込み"),
+    "core_generation":  ("✨ Core",        "Core生成・編集"),
+    "product_page":     ("⚡ 生成",        "商品ページ"),
+    "image_prompt":     ("⚡ 生成",        "画像プロンプト"),
+    "video_script":     ("⚡ 生成",        "動画台本"),
+    "ads_sns":          ("⚡ 生成",        "広告・SNS"),
+    "bulk_pack":        ("⚡ 生成",        "一括生成"),
+    "refinement":       ("✅ 確認",        "日本語補正・翻訳"),
+    "check":            ("✅ 確認",        "チェック"),
+    "approval":         ("✅ 確認",        "承認フロー"),
+    "export_center":    ("📤 出力・管理",  "生成＆エクスポート"),
+    "output":           ("📤 出力・管理",  "出力"),
+    "saved_data":       ("📤 出力・管理",  "保存データ"),
+    "instruction_sheet":("📤 出力・管理",  "制作指示書"),
+}
+_BREADCRUMB_MAP_PT = {
+    "dashboard":        ("🏠 Início",       "Painel"),
+    "mode_selection":   ("🏠 Início",       "Seleção de Modo"),
+    "product_input":    ("📦 Produto",      "Entrada do Produto"),
+    "external_core":    ("📦 Produto",      "Importar Core"),
+    "core_generation":  ("✨ Core",         "Gerar/Editar Core"),
+    "product_page":     ("⚡ Gerar",        "Página do Produto"),
+    "image_prompt":     ("⚡ Gerar",        "Prompts de Imagem"),
+    "video_script":     ("⚡ Gerar",        "Roteiro de Vídeo"),
+    "ads_sns":          ("⚡ Gerar",        "Anúncios/SNS"),
+    "bulk_pack":        ("⚡ Gerar",        "Geração em Lote"),
+    "refinement":       ("✅ Verificação",  "Refinar/Traduzir"),
+    "check":            ("✅ Verificação",  "Verificação"),
+    "approval":         ("✅ Verificação",  "Aprovação"),
+    "export_center":    ("📤 Saída/Gestão", "Gerar & Exportar"),
+    "output":           ("📤 Saída/Gestão", "Exportar"),
+    "saved_data":       ("📤 Saída/Gestão", "Dados Salvos"),
+    "instruction_sheet":("📤 Saída/Gestão", "Ficha de Produção"),
+}
+
+
 # ── Sidebar ────────────────────────────────────────────────────────────────────
 
 def render_sidebar():
     with st.sidebar:
-        # Logo + title
+        # ── Logo + title ──────────────────────────────────────────────────
         st.markdown(
             '<div class="cs-header">'
             '<div class="cs-logo"></div>'
-            f'<div class="cs-title">Task Destroyer</div>'
+            '<div class="cs-title">Task Destroyer</div>'
             '</div>',
             unsafe_allow_html=True,
         )
 
-        # Language switcher
+        # ── Language switcher ─────────────────────────────────────────────
         lang_col1, lang_col2 = st.columns(2)
         with lang_col1:
             if st.button("🇯🇵 日本語", use_container_width=True,
@@ -592,62 +707,101 @@ def render_sidebar():
 
         st.markdown("---")
 
-        # Current mode badge
+        # ── Mode badge ────────────────────────────────────────────────────
         mode = get_mode(st.session_state["mode"])
         lang = st.session_state["lang"]
-        mode_name = mode["name_ja"] if lang == "ja" else mode["name_pt"]
-        st.markdown(f'<div style="font-size:0.75rem;color:#6b7280;margin-bottom:8px;">'
-                    f'{mode["icon"]} {mode_name}</div>', unsafe_allow_html=True)
+        is_ja = (lang == "ja")
+        mode_name = mode["name_ja"] if is_ja else mode["name_pt"]
+        st.markdown(
+            f'<div style="font-size:0.75rem;color:#6b7280;margin-bottom:10px;">'
+            f'{mode["icon"]} {mode_name}</div>',
+            unsafe_allow_html=True,
+        )
 
-        # Navigation items
-        nav_items = [
-            ("dashboard",         "🏠  ダッシュボード (New)"),
-            ("mode_selection",    "🗂️  " + t("nav.mode_selection")),
-            ("product_input",     "📦  " + t("nav.product_input")),
-            ("external_core",     "📥  " + t("nav.external_core")),
-            ("core_generation",   "✨  " + t("nav.core_generation")),
-            ("product_page",      "📄  " + t("nav.product_page")),
-            ("image_prompt",      "🖼️  " + t("nav.image_prompt")),
-            ("video_script",      "🎬  " + t("nav.video_script")),
-            ("ads_sns",           "📣  " + t("nav.ads_sns")),
-            ("bulk_pack",         "⚡  " + t("nav.bulk_pack")),
-            ("refinement",        "✍️  " + t("nav.refinement")),
-            ("check",             "✅  " + t("nav.check")),
-            ("approval",          "🔐  " + t("nav.approval")),
-            ("output",            "📤  " + t("nav.output")),
-            ("saved_data",        "💾  " + t("nav.saved_data")),
-            ("export_center",     "⚡  " + t("nav.export_center")),
-            ("instruction_sheet", "📋  " + t("nav.instruction_sheet")),
-        ]
-
-        for page_id, label in nav_items:
-            is_active = st.session_state["page"] == page_id
+        # ── Simple / Full mode toggle ─────────────────────────────────────
+        st.markdown(
+            f'<div class="sb-mode-label">{"表示モード" if is_ja else "Modo de exibição"}</div>',
+            unsafe_allow_html=True,
+        )
+        nm_c1, nm_c2 = st.columns(2)
+        with nm_c1:
             if st.button(
-                label,
-                key=f"nav_{page_id}",
+                "シンプル" if is_ja else "Simples",
+                key="nav_mode_simple",
                 use_container_width=True,
-                type="primary" if is_active else "secondary",
+                type="primary" if st.session_state["nav_mode"] == "simple" else "secondary",
             ):
-                st.session_state["page"] = page_id
+                st.session_state["nav_mode"] = "simple"
+                st.rerun()
+        with nm_c2:
+            if st.button(
+                "詳細" if is_ja else "Completo",
+                key="nav_mode_full",
+                use_container_width=True,
+                type="primary" if st.session_state["nav_mode"] == "full" else "secondary",
+            ):
+                st.session_state["nav_mode"] = "full"
                 st.rerun()
 
-        # Product info summary in sidebar
+        st.markdown("---")
+
+        cur_page = st.session_state.get("page", "")
+
+        # ── Simple mode: 5 flat items ─────────────────────────────────────
+        if st.session_state["nav_mode"] == "simple":
+            simple_items = [
+                ("product_input",   "📦 " + ("商品入力"         if is_ja else "Entrada do Produto")),
+                ("core_generation", "✨ " + ("Core生成"          if is_ja else "Gerar Core")),
+                ("product_page",    "🛒 " + ("Shopifyコード"     if is_ja else "Código Shopify")),
+                ("export_center",   "⚡ " + ("生成＆エクスポート" if is_ja else "Gerar & Exportar")),
+                ("saved_data",      "💾 " + ("保存データ"        if is_ja else "Dados Salvos")),
+            ]
+            for page_id, label in simple_items:
+                is_active = cur_page == page_id
+                if st.button(
+                    label,
+                    key=f"snav_{page_id}",
+                    use_container_width=True,
+                    type="primary" if is_active else "secondary",
+                ):
+                    st.session_state["page"] = page_id
+                    st.rerun()
+
+        # ── Full mode: grouped collapsible sections ───────────────────────
+        else:
+            for group_id, grp_ja, grp_pt, items in _NAV_GROUPS:
+                grp_label = grp_ja if is_ja else grp_pt
+                # Auto-expand the group that contains the current page
+                group_pages = {item[0] for item in items}
+                auto_open   = cur_page in group_pages
+                with st.expander(grp_label, expanded=auto_open):
+                    for page_id, lbl_ja, lbl_pt, key_sfx in items:
+                        label     = lbl_ja if is_ja else lbl_pt
+                        is_active = cur_page == page_id
+                        if st.button(
+                            label,
+                            key=f"fnav_{group_id}_{key_sfx}",
+                            use_container_width=True,
+                            type="primary" if is_active else "secondary",
+                        ):
+                            st.session_state["page"] = page_id
+                            st.rerun()
+
+        # ── Product info summary ──────────────────────────────────────────
         if st.session_state.get("product_info", {}).get("name"):
             st.markdown("---")
+            prod_lbl = "商品" if is_ja else "Produto"
             st.markdown(
-                f'<div style="font-size:0.75rem;color:#6b7280;">商品</div>'
+                f'<div style="font-size:0.75rem;color:#6b7280;">{prod_lbl}</div>'
                 f'<div style="font-size:0.875rem;color:#e8e8e8;font-weight:600;">'
                 f'{st.session_state["product_info"]["name"]}</div>',
                 unsafe_allow_html=True,
             )
         if st.session_state.get("core_text"):
             core_status = st.session_state.get("core_status", "ai_generated")
-            st.markdown(
-                f'Core: {status_badge(core_status)}',
-                unsafe_allow_html=True,
-            )
+            st.markdown(f'Core: {status_badge(core_status)}', unsafe_allow_html=True)
 
-        # ── Usage / credits footer (new dashboard style) ──────────────────
+        # ── API usage footer ──────────────────────────────────────────────
         st.markdown(
             '<div class="nd-sidebar-footer">'
             '<div style="color:#1e3a1e;font-size:.6rem;letter-spacing:.1em;">API USAGE</div>'
@@ -657,6 +811,23 @@ def render_sidebar():
             '</div>',
             unsafe_allow_html=True,
         )
+
+
+def render_breadcrumb():
+    page    = st.session_state.get("page", "")
+    is_ja   = st.session_state.get("lang", "ja") == "ja"
+    bc_map  = _BREADCRUMB_MAP_JA if is_ja else _BREADCRUMB_MAP_PT
+    if page not in bc_map:
+        return
+    grp, lbl = bc_map[page]
+    st.markdown(
+        f'<div class="sb-breadcrumb">'
+        f'<span class="sb-bc-group">{grp}</span>'
+        f'<span class="sb-bc-sep"> › </span>'
+        f'<span class="sb-bc-page">{lbl}</span>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
 
 
 # ── Page: Mode Selection ──────────────────────────────────────────────────────
@@ -3746,6 +3917,7 @@ def page_custom_mode():
 
 def main():
     render_sidebar()
+    render_breadcrumb()
 
     # API key warning
     if not svc["llm"].is_available:
