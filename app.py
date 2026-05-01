@@ -82,12 +82,22 @@ st.markdown("""
 <style>
 /* ── Global dark theme ── */
 [data-testid="stAppViewContainer"] {
-    background-color: #0f0f0f;
+    background-color: #0b0f12;
+    background-image:
+        linear-gradient(rgba(110,255,170,0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(110,255,170,0.045) 1px, transparent 1px),
+        radial-gradient(ellipse at 12% 0%,   rgba(34,197,94,0.07) 0%, transparent 42%),
+        radial-gradient(ellipse at 88% 100%, rgba(34,197,94,0.04) 0%, transparent 38%);
+    background-size: 32px 32px, 32px 32px, 100% 100%, 100% 100%;
     color: #e8e8e8;
 }
 [data-testid="stSidebar"] {
-    background-color: #0a0a0a;
-    border-right: 1px solid #1e1e1e;
+    background-color: #080b0e;
+    background-image:
+        linear-gradient(rgba(110,255,170,0.022) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(110,255,170,0.022) 1px, transparent 1px);
+    background-size: 24px 24px;
+    border-right: 1px solid rgba(34,197,94,0.14);
 }
 [data-testid="stSidebar"] * {
     color: #e8e8e8 !important;
@@ -185,7 +195,15 @@ st.markdown("""
     font-size: 1.4rem;
     font-weight: 700;
     color: #f0f0f0;
+    padding-bottom: 10px;
     margin-bottom: 8px;
+    border-bottom: 1px solid transparent;
+    border-image: linear-gradient(
+        90deg,
+        rgba(34,197,94,0.65) 0%,
+        rgba(34,197,94,0.18) 35%,
+        transparent 70%
+    ) 1;
 }
 .section-sub {
     font-size: 0.875rem;
@@ -252,7 +270,17 @@ st.markdown("""
 
 /* ── Divider ── */
 hr {
-    border-color: #1e1e1e;
+    border: none;
+    height: 1px;
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(34,197,94,0.25) 20%,
+        rgba(34,197,94,0.12) 50%,
+        rgba(34,197,94,0.06) 75%,
+        transparent 100%
+    );
+    margin: 16px 0;
 }
 
 /* ── Sidebar nav items ── */
@@ -320,6 +348,105 @@ hr {
     padding: 12px 16px;
     color: #4ade80;
     font-size: 0.875rem;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   GRID DESIGN SYSTEM  — gd- additions
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── Card glow on hover ── */
+.cs-card {
+    transition: box-shadow 0.25s, border-color 0.25s;
+}
+.cs-card:hover {
+    border-color: rgba(34,197,94,0.22);
+    box-shadow: 0 0 0 1px rgba(34,197,94,0.08),
+                0 4px 24px rgba(0,0,0,0.45);
+}
+
+/* ── Sidebar header accent ── */
+.cs-header {
+    border-bottom: 1px solid transparent;
+    border-image: linear-gradient(
+        90deg,
+        rgba(34,197,94,0.5) 0%,
+        rgba(34,197,94,0.1) 60%,
+        transparent 100%
+    ) 1;
+}
+
+/* ── Column guide lines for saved-projects / instruction-sheet tables ── */
+.ec-proj-table td,
+.ec-proj-table th {
+    border-right: 1px solid rgba(110,255,170,0.04);
+}
+.ec-proj-table td:last-child,
+.ec-proj-table th:last-child {
+    border-right: none;
+}
+.ins-tbl td,
+.ins-tbl th {
+    border-right: 1px solid rgba(110,255,170,0.05);
+}
+.ins-tbl td:last-child,
+.ins-tbl th:last-child {
+    border-right: none;
+}
+
+/* ── Export center divider tiles ── */
+.ec-export-tile {
+    border-top: 1px solid rgba(110,255,170,0.05);
+}
+.ec-export-tile:first-of-type {
+    border-top: none;
+}
+
+/* ── APV / INS / ND cards: subtle inner grid glow on left accent ── */
+.apv-card,
+.ins-card,
+.nd-card {
+    position: relative;
+    overflow: hidden;
+}
+.apv-card::after,
+.ins-card::after,
+.nd-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+        linear-gradient(rgba(110,255,170,0.018) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(110,255,170,0.018) 1px, transparent 1px);
+    background-size: 28px 28px;
+    pointer-events: none;
+    border-radius: inherit;
+}
+
+/* ── Main content block: faint top scanning line ── */
+[data-testid="stMain"] .block-container {
+    background: transparent;
+}
+[data-testid="stMain"] .block-container::before {
+    content: '';
+    display: block;
+    height: 1px;
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(34,197,94,0.3) 15%,
+        rgba(34,197,94,0.08) 50%,
+        transparent 100%
+    );
+    margin-bottom: 4px;
+}
+
+/* ── Approval page card hover ── */
+.apv-card {
+    transition: border-left-color 0.2s, box-shadow 0.2s;
+}
+.apv-card:hover {
+    box-shadow: 0 0 0 1px rgba(34,197,94,0.1),
+                inset 0 0 20px rgba(34,197,94,0.02);
 }
 </style>
 """, unsafe_allow_html=True)
