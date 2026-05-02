@@ -735,3 +735,94 @@ class GeneratorEngine:
                 key, marker, instructions, args, fallbacks[key]
             )
         return sections
+
+    # ── Per-item generation ───────────────────────────────────────────────────
+
+    def generate_image_prompt_item(self, item_key: str, core: str,
+                                   product_name: str, category: str) -> str:
+        _cfg = {
+            "main_visual":  ("商品ページ メインビジュアル", "白背景またはクリーンな背景で商品全体を美しく。高級感と信頼感を演出。"),
+            "product_only": ("商品単体画像", "様々な角度の商品単体カット。素材・質感が伝わる接写も含める。"),
+            "usage_scene":  ("使用シーン画像", "実際の使用シーン・ライフスタイルカット。ターゲットが共感できる場面。"),
+            "benefit":      ("ベネフィット訴求画像", "主なベネフィット・効果を視覚的に表現。Before/After的な表現も効果的。"),
+            "comparison":   ("比較画像", "競合との差別化ポイントを視覚化。"),
+            "ad_banner":    ("広告バナー画像", "クリック率重視。商品＋キャッチコピーが映える広告バナー構成。"),
+            "sns_post":     ("SNS投稿画像", "Instagram等SNS向け。1:1または4:5サイズ。"),
+            "story":        ("ストーリー用画像", "Instagram/TikTokストーリー向け縦型(9:16)。全画面を活かした構成。"),
+        }
+        cfg = _cfg.get(item_key)
+        if not cfg:
+            return f"[未知の項目: {item_key}]"
+        item_name, instructions = cfg
+        prompt = (
+            f"あなたは画像生成AIのプロンプト作成専門家です。\n"
+            f"以下のCoreと商品情報をもとに、「{item_name}」の画像生成プロンプトを作成してください。\n\n"
+            f"【Core】\n{core[:2000]}\n\n"
+            f"【商品情報】\n商品名: {product_name}\nカテゴリ: {category}\n\n"
+            f"【この画像の目的・要件】\n{instructions}\n\n"
+            f"【出力形式】\n"
+            f"## {item_name}\n\n"
+            f"### 目的\n### 構図・アングル\n### 背景・セッティング\n### ライティング\n"
+            f"### カラーパレット\n### 雰囲気・スタイル\n### 商品の見せ方\n### NG要素\n\n"
+            f"### 生成AIプロンプト（英語）\n"
+            f"（Midjourney/Stable Diffusion等に直接貼り付けられる英語プロンプト）\n\n"
+            f"### 日本語メモ（制作担当者への補足）\n\n"
+            f"生成AIプロンプトは英語で具体的・詳細に。日本市場の美的感覚（清潔感・上品さ・信頼感）を反映すること。"
+        )
+        return self.llm.generate_structured(prompt)
+
+    def generate_video_script_item(self, item_key: str, core: str, product_name: str) -> str:
+        _cfg = {
+            "script_15s": ("15秒動画台本", "フック(3秒)→悩み提示(4秒)→商品紹介(5秒)→CTA(3秒)の構成。"),
+            "script_30s": ("30秒動画台本", "フック→悩み→ベネフィット→安心材料→CTAの流れ。"),
+            "script_45s": ("45秒動画台本", "複数ベネフィットと安心材料を詳しく展開できる45秒構成。"),
+            "script_60s": ("60秒動画台本", "完結したストーリーを展開。YouTube Shorts向け。"),
+            "tiktok":     ("TikTok用台本", "TikTokのトレンドに合わせた台本。音楽・エフェクト・テキストオーバーレイの使い方も含む。"),
+            "reels":      ("Instagram Reels用台本", "ビジュアル重視のReels台本。ブランドトーンと映像美を両立。"),
+            "yt_shorts":  ("YouTube Shorts用台本", "縦型・教育的なYouTube Shorts台本。"),
+            "narration":  ("読み上げ用ナレーション", "ナレーション音声テキストのみ。自然で読み上げやすい日本語。"),
+            "timeline":   ("秒数別構成", "秒数ごとの映像・テキスト・音声・テロップを一覧化した構成表。"),
+            "telop":      ("テロップ版", "画面表示テロップ（字幕）テキストのみ。端的で読みやすい文言。"),
+            "shooting":   ("撮影指示付き台本", "カメラアングル・照明・小道具・演出指示を含む詳細な撮影台本。"),
+        }
+        cfg = _cfg.get(item_key)
+        if not cfg:
+            return f"[未知の項目: {item_key}]"
+        item_name, instructions = cfg
+        prompt = (
+            f"あなたは動画台本の専門家です。\n"
+            f"以下のCoreをもとに、「{item_name}」を作成してください。\n\n"
+            f"【Core】\n{core[:2000]}\n\n"
+            f"【商品情報】\n商品名: {product_name}\n\n"
+            f"【この台本の要件】\n{instructions}\n\n"
+            f"台本を完成させてください。\n"
+            f"重要：冒頭3秒のフックを特に強くする。自然で親しみやすい日本語。"
+            f"購買意欲を高めつつ押しつけがましくない。薬機法・景表法リスク表現は避ける。"
+        )
+        return self.llm.generate_structured(prompt)
+
+    def generate_ads_sns_item(self, media: str, content_type: str,
+                              core: str, product_name: str) -> str:
+        _media_labels = {
+            "instagram": "Instagram", "tiktok": "TikTok",
+            "yt_shorts": "YouTube Shorts", "facebook": "Facebook",
+            "x": "X (Twitter)", "line": "LINE",
+            "shopify_ad": "Shopify広告文", "google_ad": "Google広告",
+        }
+        _type_labels = {
+            "post": "投稿文", "ad_copy": "広告コピー", "caption": "キャプション",
+            "hashtag": "ハッシュタグ", "cta": "CTA", "hook": "短いフック",
+            "comment_bait": "コメント誘導文",
+        }
+        media_label = _media_labels.get(media, media)
+        type_label = _type_labels.get(content_type, content_type)
+        prompt = (
+            f"あなたはSNS・広告マーケティングの専門家です。\n"
+            f"以下のCoreをもとに、{media_label}向けの「{type_label}」を3〜5案作成してください。\n\n"
+            f"【Core】\n{core[:2000]}\n\n"
+            f"【商品情報】\n商品名: {product_name}\n\n"
+            f"【媒体】{media_label}\n【生成タイプ】{type_label}\n\n"
+            f"重要：{media_label}のトーン・文化・文字数制限に合わせる。"
+            f"自然で親しみやすい日本語。絵文字を適度に使用。薬機法・景表法リスク表現は避ける。"
+        )
+        return self.llm.generate_structured(prompt)
