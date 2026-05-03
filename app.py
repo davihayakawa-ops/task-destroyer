@@ -3456,9 +3456,12 @@ def page_saved_data():
                 unsafe_allow_html=True)
     is_ja = st.session_state.get("lang", "ja") == "ja"
 
-    tab1, tab2 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
         "💼 " + t("saved_data.products_tab"),
         "📚 " + t("saved_data.cores_tab"),
+        "🔍 " + ("診断" if is_ja else "Diagnóstico"),
+        "🗃️ " + ("バックアップ" if is_ja else "Backup"),
+        "🗑️ " + ("ゴミ箱" if is_ja else "Lixeira"),
     ])
 
     with tab1:
@@ -3488,17 +3491,25 @@ def page_saved_data():
                            if is_ja else
                            f"{len(empty_products)} projeto(s) vazio(s) encontrado(s). Use o botão abaixo para limpar.")
             st.markdown(f'<div class="cs-warning">⚠️ {_empty_warn}</div>', unsafe_allow_html=True)
-            if st.button("🧹 " + ("空プロジェクトを整理する" if is_ja else "Limpar projetos vazios"),
+            if st.button("🧹 " + ("空プロジェクトを整理する（ゴミ箱へ移動）" if is_ja
+                                   else "Limpar projetos vazios (mover para lixeira)"),
                          type="secondary", use_container_width=False):
                 from modules.storage import Storage as _Storage
                 _s = _Storage()
+                # Auto-backup before cleanup
+                try:
+                    bk = _s.create_backup("before_empty_cleanup")
+                    st.info(("自動バックアップ作成: " if is_ja else "Backup automático criado: ") + bk.name)
+                except Exception as _be:
+                    st.warning(("バックアップ作成に失敗しました: " if is_ja else "Falha no backup: ") + str(_be))
                 cleaned = 0
                 for ep in empty_products:
                     r = _s.delete_project(ep["id"], "auto_cleanup", "空データ自動整理",
-                                          file_path=ep.get("file_path", ""))
+                                          file_path=ep.get("file_path", ""), use_trash=True)
                     if r.get("success"):
                         cleaned += 1
-                st.success(f"空プロジェクト {cleaned} 件を削除しました" if is_ja else f"{cleaned} projeto(s) vazio(s) excluído(s)")
+                st.success((f"空プロジェクト {cleaned} 件をゴミ箱に移動しました" if is_ja
+                             else f"{cleaned} projeto(s) vazio(s) movido(s) para a lixeira"))
                 st.rerun()
 
         if not products:
@@ -3572,10 +3583,17 @@ def page_saved_data():
                                             st.session_state[k] = "" if isinstance(
                                                 st.session_state.get(k), str) else {}
                                         st.session_state["generated"] = {}
+                                        for _cat in ("image_prompts", "video_scripts", "ads_sns_items"):
+                                            st.session_state.pop(_cat, None)
                                     st.session_state.pop("confirm_delete_id", None)
                                     st.session_state.pop("confirm_delete_file_path", None)
                                     st.session_state.pop("confirm_delete_name", None)
-                                    st.success(t("saved_data.deleted_msg"))
+                                    if result.get("trash_path"):
+                                        _del_ok = ("ゴミ箱に移動しました。ゴミ箱タブから復元できます。"
+                                                   if is_ja else "Movido para a lixeira. Restaure na aba Lixeira.")
+                                    else:
+                                        _del_ok = t("saved_data.deleted_msg")
+                                    st.success(_del_ok)
                                     if result.get("deleted_paths"):
                                         st.caption(("削除ファイル数: " if is_ja else "Arquivos excluídos: ") + str(len(result["deleted_paths"])))
                                     st.rerun()
@@ -3618,6 +3636,211 @@ def page_saved_data():
                         st.session_state["core_status"] = c.get("status", "ai_generated")
                         st.success("Coreを読み込みました" if is_ja else "Core carregado")
                         st.rerun()
+
+    # ── Tab 3: 診断 ───────────────────────────────────────────────────────────
+    with tab3:
+        from modules.storage import Storage as _StorageDx
+        _sdx = _StorageDx()
+        try:
+            dx = _sdx.get_diagnostics()
+        except Exception as _dxe:
+            st.error(f"診断情報の取得に失敗しました: {_dxe}")
+            dx = {}
+
+        if dx:
+            c1, c2, c3, c4 = st.columns(4)
+            with c1:
+                st.metric("📦 " + ("プロジェクト数" if is_ja else "Projetos"), dx.get("total_projects", 0))
+            with c2:
+                st.metric("✅ " + ("正常" if is_ja else "Normais"), dx.get("normal_projects", 0))
+            with c3:
+                st.metric("⚠️ " + ("空" if is_ja else "Vazios"), dx.get("empty_projects", 0))
+            with c4:
+                st.metric("🗑️ " + ("ゴミ箱" if is_ja else "Lixeira"), dx.get("trash_count", 0))
+
+            c5, c6 = st.columns(2)
+            with c5:
+                st.metric("🗃️ " + ("バックアップ数" if is_ja else "Backups"), dx.get("backup_count", 0))
+            with c6:
+                last_bk = dx.get("last_backup_at") or ("—" if is_ja else "None")
+                st.metric("🕐 " + ("最終バックアップ" if is_ja else "Último Backup"), last_bk)
+
+            st.markdown("---")
+            st.markdown("**" + ("読み込み対象フォルダ" if is_ja else "Diretório de dados") + "**")
+            st.code(dx.get("data_dir", ""))
+
+            counts = dx.get("dir_file_counts", {})
+            if counts:
+                st.markdown("**" + ("フォルダ別ファイル数" if is_ja else "Arquivos por pasta") + "**")
+                rows = "\n".join(f"- `{k}/` : {v}件" for k, v in sorted(counts.items()))
+                st.markdown(rows)
+
+            errors = dx.get("error_content_files", [])
+            if errors:
+                st.markdown("---")
+                st.markdown("**⚠️ " + ("APIエラー文が含まれる可能性のあるファイル（要確認）" if is_ja
+                             else "Arquivos com possível erro de API (verificar)") + "**")
+                for ef in errors:
+                    st.markdown(f"- `{ef['file']}` — 商品名: {ef['name']} — パターン: `{ef['pattern']}`")
+                st.caption("自動削除・上書きはしません。手動で確認してください。" if is_ja
+                           else "Nenhuma ação automática. Verifique manualmente.")
+            else:
+                st.success("APIエラー文を含むファイルは検出されませんでした。" if is_ja
+                           else "Nenhum arquivo com erro de API detectado.")
+
+    # ── Tab 4: バックアップ ────────────────────────────────────────────────────
+    with tab4:
+        from modules.storage import Storage as _StorageBk
+
+        st.markdown("### " + ("全保存データをバックアップ" if is_ja else "Backup de todos os dados"))
+        if st.button("⚡ " + ("バックアップZIPを生成" if is_ja else "Gerar ZIP de Backup"),
+                     type="primary", key="bk_generate"):
+            with st.spinner("バックアップ作成中..." if is_ja else "Criando backup..."):
+                try:
+                    _sbk = _StorageBk()
+                    bk_path = _sbk.create_backup("manual")
+                    with open(bk_path, "rb") as _f:
+                        st.session_state["_bk_bytes"] = _f.read()
+                    st.session_state["_bk_filename"] = bk_path.name
+                except Exception as _bke:
+                    st.error(f"バックアップ作成失敗: {_bke}")
+
+        if st.session_state.get("_bk_bytes"):
+            st.success("✅ " + ("バックアップ作成完了" if is_ja else "Backup criado com sucesso"))
+            st.download_button(
+                "⬇️ " + (f"ZIPをダウンロード ({st.session_state['_bk_filename']})"
+                          if is_ja else f"Baixar ZIP ({st.session_state['_bk_filename']})"),
+                data=st.session_state["_bk_bytes"],
+                file_name=st.session_state["_bk_filename"],
+                mime="application/zip",
+                key="bk_download",
+            )
+            if st.button("🗑️ " + ("キャッシュをクリア" if is_ja else "Limpar cache"), key="bk_clear"):
+                st.session_state.pop("_bk_bytes", None)
+                st.session_state.pop("_bk_filename", None)
+                st.rerun()
+
+        st.markdown("---")
+        st.markdown("### " + ("バックアップから復元" if is_ja else "Restaurar de Backup"))
+        st.markdown('<div class="cs-warning">⚠️ ' + (
+            "復元前に現在のデータが自動バックアップされます。ZIPファイルの内容がdata/配下に上書き展開されます。"
+            if is_ja else
+            "O estado atual será salvo automaticamente antes da restauração. O ZIP será extraído sobre data/."
+        ) + '</div>', unsafe_allow_html=True)
+        uploaded = st.file_uploader(
+            "バックアップZIPをアップロード" if is_ja else "Enviar ZIP de backup",
+            type=["zip"], key="bk_upload",
+        )
+        if uploaded:
+            if st.button("🔄 " + ("このZIPで復元する" if is_ja else "Restaurar com este ZIP"),
+                         type="primary", key="bk_restore_btn"):
+                with st.spinner("復元中..." if is_ja else "Restaurando..."):
+                    try:
+                        _sbk2 = _StorageBk()
+                        res = _sbk2.restore_from_backup(uploaded.read())
+                    except Exception as _rse:
+                        res = {"success": False, "message": str(_rse)}
+                if res["success"]:
+                    st.success(res["message"])
+                    st.caption(("事前バックアップ: " if is_ja else "Backup pré-restauração: ") +
+                               str(res.get("pre_backup", "")))
+                    st.rerun()
+                else:
+                    st.error(res["message"])
+
+        st.markdown("---")
+        st.markdown("### " + ("保存済みバックアップ一覧" if is_ja else "Backups Disponíveis"))
+        try:
+            _sbk3 = _StorageBk()
+            bk_list = _sbk3.list_backups()
+        except Exception:
+            bk_list = []
+        if not bk_list:
+            st.markdown('<div class="cs-info">💡 ' + (
+                "バックアップがありません。" if is_ja else "Nenhum backup disponível."
+            ) + '</div>', unsafe_allow_html=True)
+        else:
+            for bk in bk_list:
+                with st.expander(f"🗃️ {bk['filename']}  ({bk['created_at']}, {bk['size_kb']} KB)"):
+                    st.caption(bk["path"])
+                    try:
+                        with open(bk["path"], "rb") as _bf:
+                            _bdata = _bf.read()
+                        st.download_button(
+                            "⬇️ " + ("ダウンロード" if is_ja else "Baixar"),
+                            data=_bdata,
+                            file_name=bk["filename"],
+                            mime="application/zip",
+                            key=f"bk_dl_{bk['filename']}",
+                        )
+                    except Exception:
+                        st.caption("ファイルが読み込めません" if is_ja else "Arquivo não legível")
+
+    # ── Tab 5: ゴミ箱 ─────────────────────────────────────────────────────────
+    with tab5:
+        from modules.storage import Storage as _StorageTr
+        _str = _StorageTr()
+        try:
+            trash_list = _str.list_trash()
+        except Exception as _tre:
+            st.error(f"ゴミ箱の読み込みに失敗しました: {_tre}")
+            trash_list = []
+
+        if not trash_list:
+            st.markdown('<div class="cs-info">💡 ' + (
+                "ゴミ箱は空です。" if is_ja else "A lixeira está vazia."
+            ) + '</div>', unsafe_allow_html=True)
+        else:
+            st.markdown(("ゴミ箱内のデータを復元または完全削除できます。" if is_ja
+                          else "Você pode restaurar ou excluir permanentemente os itens da lixeira."))
+            for item in trash_list:
+                _hdr = f"🗑️ {item['product_name']}  ({item['deleted_at']})"
+                with st.expander(_hdr):
+                    col_i, col_a = st.columns([3, 1])
+                    with col_i:
+                        st.markdown(f"**{'商品名' if is_ja else 'Nome'}:** {item['product_name']}")
+                        st.markdown(f"**{'削除日時' if is_ja else 'Excluído em'}:** {item['deleted_at']}")
+                        st.markdown(f"**{'削除者' if is_ja else 'Excluído por'}:** {item['deleted_by'] or '—'}")
+                        st.markdown(f"**{'理由' if is_ja else 'Motivo'}:** {item['reason'] or '—'}")
+                        st.caption(f"ID: {item['product_id']} | 元ファイル: {item['original_path'] or '—'}")
+                    with col_a:
+                        if st.button("↩️ " + ("復元" if is_ja else "Restaurar"),
+                                     key=f"tr_restore_{item['filename']}", use_container_width=True,
+                                     type="primary"):
+                            res = _str.restore_from_trash(item["filename"])
+                            if res["success"]:
+                                st.success(res["message"])
+                                st.rerun()
+                            else:
+                                st.error(res["message"])
+
+                        if st.button("💀 " + ("完全削除" if is_ja else "Excluir"),
+                                     key=f"tr_purge_{item['filename']}", use_container_width=True):
+                            st.session_state[f"confirm_purge_{item['filename']}"] = True
+                            st.rerun()
+
+                    if st.session_state.get(f"confirm_purge_{item['filename']}"):
+                        st.markdown("---")
+                        st.warning("⚠️ " + ("この操作は元に戻せません。本当に完全削除しますか？"
+                                            if is_ja else "Esta ação é irreversível. Confirmar?"))
+                        pc1, pc2 = st.columns(2)
+                        with pc1:
+                            if st.button("🗑️ " + ("完全削除する" if is_ja else "Excluir definitivamente"),
+                                         key=f"tr_do_purge_{item['filename']}", type="primary",
+                                         use_container_width=True):
+                                res = _str.purge_trash(item["filename"])
+                                st.session_state.pop(f"confirm_purge_{item['filename']}", None)
+                                if res["success"]:
+                                    st.success(res["message"])
+                                    st.rerun()
+                                else:
+                                    st.error(res["message"])
+                        with pc2:
+                            if st.button("✖ " + ("キャンセル" if is_ja else "Cancelar"),
+                                         key=f"tr_cancel_purge_{item['filename']}",
+                                         use_container_width=True):
+                                st.session_state.pop(f"confirm_purge_{item['filename']}", None)
+                                st.rerun()
 
 
 # ── Page: Approval (Phase 4 CSS) ─────────────────────────────────────────────

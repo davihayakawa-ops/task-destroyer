@@ -1,6 +1,8 @@
+import io
 import json
 import os
 import shutil
+import zipfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
@@ -9,6 +11,30 @@ import uuid
 DATA_DIR = Path(os.getenv("DATA_DIR", "data"))
 if not DATA_DIR.is_absolute():
     DATA_DIR = Path(__file__).resolve().parent.parent / DATA_DIR
+
+# Directories included in backup ZIPs (secrets/env files are never included)
+_BACKUP_DIRS = [
+    "projects", "core_library", "approvals", "activity_logs",
+    "delete_logs", "bulk_packs", "ab_tests", "reviews",
+    "performance_notes", "category_templates", "trash",
+]
+
+# API error patterns used for diagnostics
+_ERROR_PATTERNS = [
+    "Your credit balance is too low",
+    "Anthropic APIエラー",
+    "invalid_request_error",
+    "Error code: 400",
+]
+
+
+def _is_empty_data(data: dict) -> bool:
+    """Return True when a project has no meaningful content."""
+    return (
+        not str(data.get("name") or "").strip()
+        and not str(data.get("product_url") or "").strip()
+        and not str(data.get("description") or "").strip()
+    )
 
 
 def _ensure_dir(path: Path):
@@ -28,6 +54,8 @@ class Storage:
         _ensure_dir(DATA_DIR / "approvals")
         _ensure_dir(DATA_DIR / "activity_logs")
         _ensure_dir(DATA_DIR / "delete_logs")
+        _ensure_dir(DATA_DIR / "backups")
+        _ensure_dir(DATA_DIR / "trash")
 
     # ── Product Info ──────────────────────────────────────────────────────────
 
@@ -207,7 +235,8 @@ class Storage:
         return False
 
     def delete_project(self, product_id: str, deleted_by: str = "",
-                       reason: str = "", file_path: str = "") -> dict:
+                       reason: str = "", file_path: str = "",
+                       use_trash: bool = True) -> dict:
         # Normalise: strip whitespace and any accidental .json suffix
         product_id = str(product_id).strip()
         if product_id.endswith(".json"):
@@ -238,6 +267,40 @@ class Storage:
                 if c.exists():
                     project_file = c
                     break
+
+        # ── Trash mode: move main file only, keep associated files intact ──────
+        if use_trash and project_file is not None:
+            _ensure_dir(DATA_DIR / "trash")
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            trash_name = f"{product_id}_deleted_{ts}.json"
+            trash_path = DATA_DIR / "trash" / trash_name
+            try:
+                data = json.loads(project_file.read_text())
+                data["_trash_meta"] = {
+                    "product_id": product_id,
+                    "original_path": str(project_file.resolve()),
+                    "deleted_at": _now(),
+                    "deleted_by": deleted_by,
+                    "reason": reason,
+                }
+                trash_path.write_text(json.dumps(data, ensure_ascii=False, indent=2))
+                project_file.unlink()
+            except Exception as e:
+                return {
+                    "success": False,
+                    "message": f"ゴミ箱移動中にエラーが発生しました: {e}",
+                    "deleted_paths": [],
+                }
+            try:
+                self.save_delete_log(product_id, deleted_by, reason, [str(project_file)])
+            except Exception:
+                pass
+            return {
+                "success": True,
+                "message": "ゴミ箱に移動しました",
+                "deleted_paths": [str(project_file)],
+                "trash_path": str(trash_path),
+            }
 
         if project_file is None:
             # Ghost entry: main file already gone (prev deployment or manual deletion).
@@ -321,3 +384,219 @@ class Storage:
         }
         path = DATA_DIR / "delete_logs" / f"{product_id}_{str(uuid.uuid4())[:8]}.json"
         path.write_text(json.dumps(entry, ensure_ascii=False, indent=2))
+
+    # ── Backup ────────────────────────────────────────────────────────────────
+
+    def create_backup(self, label: str = "manual") -> Path:
+        """Create a ZIP backup of all data directories. Returns path to the ZIP file.
+        Never includes .env, secrets, or files outside DATA_DIR."""
+        _ensure_dir(DATA_DIR / "backups")
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        if label == "manual":
+            zip_name = f"task_destroyer_backup_{ts}.zip"
+        else:
+            zip_name = f"backup_before_{label}_{ts}.zip"
+        zip_path = DATA_DIR / "backups" / zip_name
+
+        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+            for dir_name in _BACKUP_DIRS:
+                dir_path = DATA_DIR / dir_name
+                if not dir_path.exists():
+                    continue
+                for file_path in sorted(dir_path.rglob("*")):
+                    if not file_path.is_file():
+                        continue
+                    # Skip secrets / env files
+                    name_lower = file_path.name.lower()
+                    if name_lower in (".env", "secrets.toml") or "secret" in name_lower:
+                        continue
+                    arc_name = str(file_path.relative_to(DATA_DIR))
+                    zf.write(file_path, arc_name)
+
+        return zip_path
+
+    def list_backups(self) -> list[dict]:
+        """Return list of available backup ZIPs, newest first."""
+        backup_dir = DATA_DIR / "backups"
+        if not backup_dir.exists():
+            return []
+        result = []
+        for p in sorted(backup_dir.glob("*.zip"), reverse=True):
+            try:
+                stat = p.stat()
+                result.append({
+                    "filename": p.name,
+                    "path": str(p),
+                    "size_kb": round(stat.st_size / 1024, 1),
+                    "created_at": datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S"),
+                })
+            except Exception:
+                pass
+        return result
+
+    def restore_from_backup(self, zip_source) -> dict:
+        """Restore DATA_DIR from a backup ZIP (bytes or file path).
+        Auto-creates a pre-restore backup first."""
+        try:
+            pre_backup = self.create_backup("before_restore")
+        except Exception as e:
+            return {"success": False, "message": f"事前バックアップに失敗しました: {e}"}
+
+        try:
+            if isinstance(zip_source, (str, Path)):
+                zp = Path(zip_source)
+                if not zp.exists():
+                    return {"success": False, "message": f"ZIPファイルが見つかりません: {zip_source}"}
+                zip_data = zp.read_bytes()
+            else:
+                zip_data = zip_source  # bytes / BytesIO
+
+            if hasattr(zip_data, "read"):
+                zip_data = zip_data.read()
+
+            if not zipfile.is_zipfile(io.BytesIO(zip_data)):
+                return {"success": False, "message": "有効なZIPファイルではありません"}
+
+            restored = 0
+            with zipfile.ZipFile(io.BytesIO(zip_data), "r") as zf:
+                for member in zf.namelist():
+                    # Security: reject path traversal
+                    if member.startswith("/") or ".." in member:
+                        continue
+                    # Never restore env/secret files
+                    base = Path(member).name.lower()
+                    if base in (".env", "secrets.toml") or "secret" in base:
+                        continue
+                    target = DATA_DIR / member
+                    _ensure_dir(target.parent)
+                    with zf.open(member) as src:
+                        target.write_bytes(src.read())
+                    restored += 1
+
+            return {
+                "success": True,
+                "message": f"{restored} ファイルを復元しました",
+                "pre_backup": str(pre_backup),
+                "restored_count": restored,
+            }
+        except Exception as e:
+            return {"success": False, "message": f"復元中にエラーが発生しました: {e}"}
+
+    # ── Trash ─────────────────────────────────────────────────────────────────
+
+    def list_trash(self) -> list[dict]:
+        """Return list of files in data/trash/, newest first."""
+        trash_dir = DATA_DIR / "trash"
+        if not trash_dir.exists():
+            return []
+        result = []
+        for p in sorted(trash_dir.glob("*.json"), reverse=True):
+            try:
+                data = json.loads(p.read_text())
+                meta = data.get("_trash_meta", {})
+                stat = p.stat()
+                result.append({
+                    "filename": p.name,
+                    "path": str(p),
+                    "product_name": str(data.get("name") or "—"),
+                    "product_id": meta.get("product_id", p.stem.split("_deleted_")[0]),
+                    "original_path": meta.get("original_path", ""),
+                    "deleted_at": meta.get("deleted_at",
+                                  datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S")),
+                    "deleted_by": meta.get("deleted_by", ""),
+                    "reason": meta.get("reason", ""),
+                })
+            except Exception:
+                pass
+        return result
+
+    def restore_from_trash(self, filename: str) -> dict:
+        """Move a file from trash back to its original location."""
+        trash_path = DATA_DIR / "trash" / filename
+        if not trash_path.exists():
+            return {"success": False, "message": "ゴミ箱にファイルが見つかりません"}
+        try:
+            data = json.loads(trash_path.read_text())
+            meta = data.get("_trash_meta", {})
+            original_path = meta.get("original_path", "")
+            if not original_path:
+                return {"success": False, "message": "元のパス情報がありません"}
+
+            orig = Path(original_path)
+            _ensure_dir(orig.parent)
+            # Remove trash metadata before restoring
+            clean_data = {k: v for k, v in data.items() if k != "_trash_meta"}
+            orig.write_text(json.dumps(clean_data, ensure_ascii=False, indent=2))
+            trash_path.unlink()
+            return {"success": True, "message": "復元しました", "restored_to": str(orig)}
+        except Exception as e:
+            return {"success": False, "message": f"復元中にエラーが発生しました: {e}"}
+
+    def purge_trash(self, filename: str) -> dict:
+        """Permanently delete a single file from trash."""
+        trash_path = DATA_DIR / "trash" / filename
+        if not trash_path.exists():
+            return {"success": False, "message": "ファイルが見つかりません"}
+        try:
+            trash_path.unlink()
+            return {"success": True, "message": "完全削除しました"}
+        except Exception as e:
+            return {"success": False, "message": f"削除中にエラーが発生しました: {e}"}
+
+    # ── Diagnostics ───────────────────────────────────────────────────────────
+
+    def get_diagnostics(self) -> dict:
+        """Return diagnostic information about the data directory."""
+        try:
+            projects = self.list_products()
+        except Exception:
+            projects = []
+
+        normal = [p for p in projects if not _is_empty_data(p)]
+        empty = [p for p in projects if _is_empty_data(p)]
+
+        # Scan for API error strings in project files
+        error_files = []
+        try:
+            for p in (DATA_DIR / "projects").glob("*.json"):
+                try:
+                    text = p.read_text(encoding="utf-8", errors="ignore")
+                    for pattern in _ERROR_PATTERNS:
+                        if pattern in text:
+                            try:
+                                d = json.loads(text)
+                                name = d.get("name") or p.stem
+                            except Exception:
+                                name = p.stem
+                            error_files.append({
+                                "file": p.name,
+                                "name": name,
+                                "pattern": pattern,
+                            })
+                            break
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        backups = self.list_backups()
+        trash = self.list_trash()
+
+        dir_sizes = {}
+        for dir_name in _BACKUP_DIRS + ["backups"]:
+            dp = DATA_DIR / dir_name
+            if dp.exists():
+                count = sum(1 for _ in dp.rglob("*") if _.is_file())
+                dir_sizes[dir_name] = count
+
+        return {
+            "total_projects": len(projects),
+            "normal_projects": len(normal),
+            "empty_projects": len(empty),
+            "trash_count": len(trash),
+            "backup_count": len(backups),
+            "last_backup_at": backups[0]["created_at"] if backups else None,
+            "data_dir": str(DATA_DIR),
+            "dir_file_counts": dir_sizes,
+            "error_content_files": error_files,
+        }
