@@ -387,6 +387,24 @@ class Storage:
 
     # ── Backup ────────────────────────────────────────────────────────────────
 
+    def _zip_data_dirs(self, zf: zipfile.ZipFile) -> int:
+        """Write all backup-eligible files into an open ZipFile. Returns file count."""
+        count = 0
+        for dir_name in _BACKUP_DIRS:
+            dir_path = DATA_DIR / dir_name
+            if not dir_path.exists():
+                continue
+            for file_path in sorted(dir_path.rglob("*")):
+                if not file_path.is_file():
+                    continue
+                name_lower = file_path.name.lower()
+                if name_lower in (".env", "secrets.toml") or "secret" in name_lower:
+                    continue
+                arc_name = str(file_path.relative_to(DATA_DIR))
+                zf.write(file_path, arc_name)
+                count += 1
+        return count
+
     def create_backup(self, label: str = "manual") -> Path:
         """Create a ZIP backup of all data directories. Returns path to the ZIP file.
         Never includes .env, secrets, or files outside DATA_DIR."""
@@ -397,23 +415,32 @@ class Storage:
         else:
             zip_name = f"backup_before_{label}_{ts}.zip"
         zip_path = DATA_DIR / "backups" / zip_name
-
         with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
-            for dir_name in _BACKUP_DIRS:
-                dir_path = DATA_DIR / dir_name
-                if not dir_path.exists():
-                    continue
-                for file_path in sorted(dir_path.rglob("*")):
-                    if not file_path.is_file():
-                        continue
-                    # Skip secrets / env files
-                    name_lower = file_path.name.lower()
-                    if name_lower in (".env", "secrets.toml") or "secret" in name_lower:
-                        continue
-                    arc_name = str(file_path.relative_to(DATA_DIR))
-                    zf.write(file_path, arc_name)
-
+            self._zip_data_dirs(zf)
         return zip_path
+
+    def create_backup_bytes(self) -> tuple:
+        """Create a ZIP backup in memory. Returns (bytes, filename).
+        Also saves a copy to data/backups/ for the backup list.
+        Never includes .env, secrets, or files outside DATA_DIR."""
+        _ensure_dir(DATA_DIR / "backups")
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        zip_name = f"task_destroyer_backup_{ts}.zip"
+
+        # Write to memory buffer
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            self._zip_data_dirs(zf)
+        zip_bytes = buf.getvalue()
+
+        # Also save a copy on disk for the backup list
+        try:
+            zip_path = DATA_DIR / "backups" / zip_name
+            zip_path.write_bytes(zip_bytes)
+        except Exception:
+            pass
+
+        return zip_bytes, zip_name
 
     def list_backups(self) -> list[dict]:
         """Return list of available backup ZIPs, newest first."""
