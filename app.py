@@ -3693,56 +3693,105 @@ def page_saved_data():
 
         # ── セクション1: 全保存データをバックアップ ──────────────────────────
         st.markdown("### 🗃️ " + ("全保存データをバックアップ" if is_ja else "Backup de todos os dados"))
-        st.markdown(
-            ("data/ 配下の保存データをZIPにまとめてダウンロードします。"
-             "APIキー・.env・Secretsは含まれません。"
-             if is_ja else
-             "Compacta todos os dados salvos em data/ como ZIP para download. "
-             "Chaves de API, .env e Secrets não são incluídos.")
+
+        # バックアップ対象の統計情報を取得（常に表示）
+        try:
+            from modules.storage import Storage as _BkStorage
+            _bk_s = _BkStorage()
+            _bk_stats = _bk_s.get_backup_stats()
+        except Exception as _bk_stats_exc:
+            _bk_stats = {"project_count": 0, "dir_file_counts": {}, "total_file_count": 0}
+            st.error(f"統計情報の取得に失敗しました: {_bk_stats_exc}")
+
+        _bk_proj_count = _bk_stats["project_count"]
+        _bk_dir_counts = _bk_stats["dir_file_counts"]
+        _bk_total_files = _bk_stats["total_file_count"]
+
+        # 保存データ件数
+        st.metric(
+            "📦 " + ("保存データ件数" if is_ja else "Projetos salvos"),
+            _bk_proj_count,
         )
 
-        if st.button(
-            "⚡ " + ("全保存データをバックアップ" if is_ja else "Gerar ZIP de Backup"),
-            type="primary",
-            key="saved_data_bk_generate",
-            use_container_width=False,
-        ):
-            with st.spinner("バックアップ作成中..." if is_ja else "Criando backup..."):
-                try:
-                    from modules.storage import Storage as _BkStorage
-                    _bk_s = _BkStorage()
-                    _bk_bytes, _bk_fname = _bk_s.create_backup_bytes()
-                    st.session_state["_bk_ready_bytes"] = _bk_bytes
-                    st.session_state["_bk_ready_fname"] = _bk_fname
-                    st.session_state["_bk_ready_err"] = None
-                except Exception as _bk_exc:
-                    st.session_state["_bk_ready_bytes"] = None
-                    st.session_state["_bk_ready_fname"] = None
-                    st.session_state["_bk_ready_err"] = str(_bk_exc)
-
-        _bk_err = st.session_state.get("_bk_ready_err")
-        _bk_data = st.session_state.get("_bk_ready_bytes")
-        _bk_fname = st.session_state.get("_bk_ready_fname", "backup.zip")
-
-        if _bk_err:
-            st.error(("バックアップ作成失敗: " if is_ja else "Falha no backup: ") + _bk_err)
-        elif _bk_data:
-            st.success("✅ " + ("バックアップ作成完了 — 下のボタンでダウンロードしてください。"
-                                if is_ja else "Backup criado — clique abaixo para baixar."))
-            st.download_button(
-                label="⬇️ " + (f"ZIPをダウンロード ({_bk_fname})"
-                               if is_ja else f"Baixar ZIP ({_bk_fname})"),
-                data=_bk_data,
-                file_name=_bk_fname,
-                mime="application/zip",
-                key="saved_data_bk_download",
+        # バックアップ対象フォルダ + 各フォルダ内ファイル数
+        if _bk_dir_counts:
+            st.markdown("**" + ("バックアップ対象フォルダ" if is_ja else "Pastas incluídas no backup") + "**")
+            for _d, _c in sorted(_bk_dir_counts.items()):
+                st.markdown(f"　`data/{_d}/` : {_c}" + (" ファイル" if is_ja else " arquivos"))
+            st.caption(
+                ("合計 " if is_ja else "Total ") + str(_bk_total_files) +
+                (" ファイル（APIキー・.env・Secretsは除外）" if is_ja
+                 else " arquivos (APIkeys, .env, Secrets excluídos)")
             )
-            if st.button("🗑️ " + ("キャッシュをクリア" if is_ja else "Limpar cache"),
-                         key="saved_data_bk_clear"):
-                st.session_state.pop("_bk_ready_bytes", None)
-                st.session_state.pop("_bk_ready_fname", None)
-                st.session_state.pop("_bk_ready_err", None)
-                st.rerun()
+        else:
+            st.caption("バックアップ対象ファイルがありません" if is_ja else "Nenhum arquivo para backup")
+
+        st.markdown("---")
+
+        # 保存データ0件 → ボタンを出さずにメッセージのみ
+        if _bk_proj_count == 0:
+            st.markdown('<div class="cs-warning">⚠️ ' + (
+                "現在バックアップできる保存データはありません。"
+                if is_ja else
+                "Não há dados salvos para backup no momento."
+            ) + '</div>', unsafe_allow_html=True)
+        else:
+            st.markdown(
+                ("data/ 配下の保存データをZIPにまとめてダウンロードします。"
+                 "APIキー・.env・Secretsは含まれません。"
+                 if is_ja else
+                 "Compacta todos os dados salvos em data/ como ZIP para download. "
+                 "Chaves de API, .env e Secrets não são incluídos.")
+            )
+            if st.button(
+                "⚡ " + ("全保存データをバックアップ" if is_ja else "Gerar ZIP de Backup"),
+                type="primary",
+                key="saved_data_bk_generate",
+                use_container_width=False,
+            ):
+                with st.spinner("バックアップ作成中..." if is_ja else "Criando backup..."):
+                    try:
+                        from modules.storage import Storage as _BkStorage2
+                        _bk_s2 = _BkStorage2()
+                        _bk_bytes, _bk_fname, _bk_zip_count = _bk_s2.create_backup_bytes()
+                        st.session_state["_bk_ready_bytes"] = _bk_bytes
+                        st.session_state["_bk_ready_fname"] = _bk_fname
+                        st.session_state["_bk_ready_count"] = _bk_zip_count
+                        st.session_state["_bk_ready_err"] = None
+                    except Exception as _bk_exc:
+                        st.session_state["_bk_ready_bytes"] = None
+                        st.session_state["_bk_ready_fname"] = None
+                        st.session_state["_bk_ready_count"] = 0
+                        st.session_state["_bk_ready_err"] = str(_bk_exc)
+
+            _bk_err = st.session_state.get("_bk_ready_err")
+            _bk_data = st.session_state.get("_bk_ready_bytes")
+            _bk_fname = st.session_state.get("_bk_ready_fname", "backup.zip")
+            _bk_zip_count = st.session_state.get("_bk_ready_count", 0)
+
+            if _bk_err:
+                st.error(("バックアップ作成失敗: " if is_ja else "Falha no backup: ") + _bk_err)
+            elif _bk_data:
+                st.success("✅ " + (
+                    f"バックアップ作成完了 — {_bk_zip_count} ファイルをZIPに含めました。下のボタンでダウンロードしてください。"
+                    if is_ja else
+                    f"Backup criado — {_bk_zip_count} arquivos incluídos. Clique abaixo para baixar."
+                ))
+                st.download_button(
+                    label="⬇️ " + (f"ZIPをダウンロード ({_bk_fname})"
+                                   if is_ja else f"Baixar ZIP ({_bk_fname})"),
+                    data=_bk_data,
+                    file_name=_bk_fname,
+                    mime="application/zip",
+                    key="saved_data_bk_download",
+                )
+                if st.button("🗑️ " + ("キャッシュをクリア" if is_ja else "Limpar cache"),
+                             key="saved_data_bk_clear"):
+                    st.session_state.pop("_bk_ready_bytes", None)
+                    st.session_state.pop("_bk_ready_fname", None)
+                    st.session_state.pop("_bk_ready_count", None)
+                    st.session_state.pop("_bk_ready_err", None)
+                    st.rerun()
 
         st.markdown("---")
 

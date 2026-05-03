@@ -420,27 +420,57 @@ class Storage:
         return zip_path
 
     def create_backup_bytes(self) -> tuple:
-        """Create a ZIP backup in memory. Returns (bytes, filename).
+        """Create a ZIP backup in memory. Returns (bytes, filename, file_count).
         Also saves a copy to data/backups/ for the backup list.
         Never includes .env, secrets, or files outside DATA_DIR."""
         _ensure_dir(DATA_DIR / "backups")
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         zip_name = f"task_destroyer_backup_{ts}.zip"
 
-        # Write to memory buffer
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-            self._zip_data_dirs(zf)
+            file_count = self._zip_data_dirs(zf)
         zip_bytes = buf.getvalue()
 
-        # Also save a copy on disk for the backup list
         try:
             zip_path = DATA_DIR / "backups" / zip_name
             zip_path.write_bytes(zip_bytes)
         except Exception:
             pass
 
-        return zip_bytes, zip_name
+        return zip_bytes, zip_name, file_count
+
+    def get_backup_stats(self) -> dict:
+        """Return stats about what would be included in a backup, without creating ZIP.
+        Used to display pre-backup information and to decide whether backup is possible."""
+        try:
+            project_count = len(self.list_products())
+        except Exception:
+            project_count = 0
+
+        dir_counts = {}
+        total = 0
+        for dir_name in _BACKUP_DIRS:
+            dp = DATA_DIR / dir_name
+            if not dp.exists():
+                continue
+            count = 0
+            for fp in dp.rglob("*"):
+                if not fp.is_file():
+                    continue
+                name_lower = fp.name.lower()
+                if name_lower in (".env", "secrets.toml") or "secret" in name_lower:
+                    continue
+                count += 1
+            if count > 0:
+                dir_counts[dir_name] = count
+            total += count
+
+        return {
+            "project_count": project_count,
+            "dir_file_counts": dir_counts,
+            "total_file_count": total,
+        }
 
     def list_backups(self) -> list[dict]:
         """Return list of available backup ZIPs, newest first."""
