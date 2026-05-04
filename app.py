@@ -26,6 +26,7 @@ from modules.exporter import Exporter
 from modules.checker import Checker
 from modules.bulk_pack_generator import BulkPackGenerator
 from modules.mode_registry import list_modes, get_mode
+from modules.permissions import get_current_role, can_view_page, filter_nav_items, DEV_ROLE_OPTIONS
 
 # ── i18n ─────────────────────────────────────────────────────────────────────
 
@@ -745,9 +746,26 @@ def render_sidebar():
 
         st.markdown("---")
 
+        # ── Dev role switcher ─────────────────────────────────────────────
+        st.markdown(
+            f'<div class="sb-mode-label">{"👤 ロール（開発用）" if is_ja else "👤 Papel (dev)"}</div>',
+            unsafe_allow_html=True,
+        )
+        _dev_selected = st.selectbox(
+            "dev_role_label",
+            list(DEV_ROLE_OPTIONS.keys()),
+            key="dev_role_selectbox",
+            label_visibility="collapsed",
+        )
+        _dev_uname, _dev_rname = DEV_ROLE_OPTIONS[_dev_selected]
+        st.session_state["dev_user"] = _dev_uname
+        st.session_state["dev_role"] = _dev_rname
+
+        st.markdown("---")
+
         cur_page = st.session_state.get("page", "")
 
-        # ── Simple mode: 5 flat items ─────────────────────────────────────
+        # ── Simple mode: 5 flat items (filtered by role) ──────────────────
         if st.session_state["nav_mode"] == "simple":
             simple_items = [
                 ("product_input",   "📦 " + ("商品入力"         if is_ja else "Entrada do Produto")),
@@ -756,6 +774,7 @@ def render_sidebar():
                 ("export_center",   "⚡ " + ("生成＆エクスポート" if is_ja else "Gerar & Exportar")),
                 ("saved_data",      "💾 " + ("保存データ"        if is_ja else "Dados Salvos")),
             ]
+            simple_items = [item for item in simple_items if can_view_page(item[0])]
             for page_id, label in simple_items:
                 is_active = cur_page == page_id
                 if st.button(
@@ -767,15 +786,18 @@ def render_sidebar():
                     st.session_state["page"] = page_id
                     st.rerun()
 
-        # ── Full mode: grouped collapsible sections ───────────────────────
+        # ── Full mode: grouped collapsible sections (filtered by role) ────
         else:
             for group_id, grp_ja, grp_pt, items in _NAV_GROUPS:
+                filtered_items = filter_nav_items(items)
+                if not filtered_items:
+                    continue
                 grp_label = grp_ja if is_ja else grp_pt
                 # Auto-expand the group that contains the current page
-                group_pages = {item[0] for item in items}
+                group_pages = {item[0] for item in filtered_items}
                 auto_open   = cur_page in group_pages
                 with st.expander(grp_label, expanded=auto_open):
-                    for page_id, lbl_ja, lbl_pt, key_sfx in items:
+                    for page_id, lbl_ja, lbl_pt, key_sfx in filtered_items:
                         label     = lbl_ja if is_ja else lbl_pt
                         is_active = cur_page == page_id
                         if st.button(
@@ -4744,6 +4766,26 @@ def main():
 
     page = st.session_state.get("page", "mode_selection")
     mode = st.session_state.get("mode", "commerce")
+
+    if not can_view_page(page):
+        role = get_current_role()
+        is_ja = st.session_state.get("lang", "ja") == "ja"
+        if role == "viewer":
+            st.warning(
+                "このアプリへのアクセス権限がありません。" if is_ja
+                else "Você não tem permissão para acessar este aplicativo."
+            )
+        else:
+            st.warning(
+                f"このページへのアクセス権限がありません。（現在のロール: {role}）" if is_ja
+                else f"Você não tem permissão para acessar esta página. (Papel atual: {role})"
+            )
+            if is_ja:
+                st.info("左のサイドバーからアクセス可能なページを選択してください。")
+            else:
+                st.info("Selecione uma página disponível no menu lateral.")
+        st.session_state["page"] = "product_input" if role == "product_researcher" else "mode_selection"
+        return
 
     if mode == "custom":
         page_custom_mode()
