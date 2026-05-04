@@ -12,7 +12,7 @@ _RESEARCHER_PAGES = frozenset({
 DEV_ROLE_OPTIONS = {
     "Davi (admin)":               ("Davi",  "admin"),
     "Sara (admin)":               ("Sara",  "admin"),
-    "Iago (product_researcher)":  ("Iago",  "product_researcher"),
+    "Iago/Kaue (product_researcher)":  ("Iago",  "product_researcher"),
 }
 
 

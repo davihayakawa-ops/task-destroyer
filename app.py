@@ -1493,7 +1493,7 @@ def page_product_input():
             elif _pi_tr_status == "not_needed":
                 st.caption("✅ 日本語入力　📦 Core生成には日本語データを使用します")
             else:
-                st.caption("📝 未翻訳 — Iagoが「日本語に変換して提出」を使うか、下のボタンで変換してください")
+                st.caption("📝 未翻訳 — Iago/Kaueが「日本語に変換して提出」を使うか、下のボタンで変換してください")
 
             # タブ切り替え（翻訳済みの場合）/ 原文のみ（未翻訳の場合）
             if _pi_input_ja:
@@ -1590,11 +1590,11 @@ def page_core_generation():
     if not can_generate_core(_cg_project):
         _cg_status = _cg_project.get("product_prep_status", "draft")
         _cg_msgs = {
-            "draft":          ("⚠️ 商品準備が未提出です。Iagoが商品準備を提出し、承認されるまでCore生成はできません。",
+            "draft":          ("⚠️ 商品準備が未提出です。Iago/Kaueが商品準備を提出し、承認されるまでCore生成はできません。",
                                "⚠️ A preparação do produto não foi enviada. Core generation requires approved product prep."),
             "waiting_review": ("⏳ 商品準備が承認待ちです。承認後にCore生成が可能になります。",
                                "⏳ A preparação está aguardando revisão. Core generation will be available after approval."),
-            "rejected":       ("❌ 商品準備が差し戻されました。Iagoが修正・再提出し、承認されるまでCore生成はできません。",
+            "rejected":       ("❌ 商品準備が差し戻されました。Iago/Kaueが修正・再提出し、承認されるまでCore生成はできません。",
                                "❌ A preparação foi recusada. Core generation requires approved product prep."),
         }
         _cg_msg_ja, _cg_msg_pt = _cg_msgs.get(_cg_status,
