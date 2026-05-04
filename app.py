@@ -26,7 +26,7 @@ from modules.exporter import Exporter
 from modules.checker import Checker
 from modules.bulk_pack_generator import BulkPackGenerator
 from modules.mode_registry import list_modes, get_mode
-from modules.permissions import get_current_role, can_view_page, filter_nav_items, DEV_ROLE_OPTIONS, can_perform_action, can_generate_core
+from modules.permissions import get_current_role, get_current_user, can_view_page, filter_nav_items, DEV_ROLE_OPTIONS, can_perform_action, can_generate_core
 
 # ── i18n ─────────────────────────────────────────────────────────────────────
 
