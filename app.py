@@ -1249,26 +1249,38 @@ def page_product_input():
                         "product_prep_submitted_at"):
                 if _pk in _exist:
                     new_info[_pk] = _exist[_pk]
-            # ── Phase 4: capture input_original snapshot and preserve translation state ──
+            # ── Phase 4: capture input_original snapshot and set translation state ──
             _P4_FIELDS = ("name", "description", "price", "category", "target",
                           "use_scenes", "notes", "competitor_urls", "weaknesses",
                           "features", "product_prep_review_note",
                           "age", "gender", "prohibited", "brand_tone")
+            _CG_FIELDS_SAVE = ("name", "category", "price", "target", "gender", "age",
+                               "product_url", "features", "weaknesses", "brand_tone",
+                               "prohibited", "description", "use_scenes", "competitor_urls",
+                               "notes", "assignee", "final_reviewer")
             new_info["input_original"] = {k: new_info.get(k, "") for k in _P4_FIELDS}
-            new_info["input_original_language"] = (
-                "pt-BR" if st.session_state.get("lang", "ja") == "pt" else "ja"
-            )
-            # product_researcher saves: reset translation (original may have changed)
-            # admin saves: keep existing translation state
+            _save_lang = st.session_state.get("lang", "ja")
             if get_current_role() == "product_researcher":
+                # Researcher always saves in Portuguese → translation needed
+                new_info["input_original_language"] = "pt-BR"
                 new_info["translation_status"] = "not_translated"
-                new_info["core_source_data"] = {}  # stale after content change
+                new_info["core_source_data"] = {}
+                for _tk in ("input_ja", "translated_at", "translated_by"):
+                    new_info[_tk] = _exist.get(_tk, {} if _tk == "input_ja" else "")
+            elif _save_lang == "ja":
+                # Admin saving in Japanese → no translation needed, auto-build core_source_data
+                new_info["input_original_language"] = "ja"
+                new_info["translation_status"] = "not_needed"
+                new_info["core_source_data"] = {k: new_info.get(k, "") for k in _CG_FIELDS_SAVE}
+                for _tk in ("input_ja", "translated_at", "translated_by"):
+                    new_info[_tk] = _exist.get(_tk, {} if _tk == "input_ja" else "")
             else:
+                # Admin saving in Portuguese → preserve existing translation state
+                new_info["input_original_language"] = "pt-BR"
                 new_info["translation_status"] = _exist.get("translation_status", "not_translated")
                 new_info["core_source_data"] = _exist.get("core_source_data", {})
-            # Always preserve translation output across saves
-            for _tk in ("input_ja", "translated_at", "translated_by"):
-                new_info[_tk] = _exist.get(_tk, {} if _tk == "input_ja" else "")
+                for _tk in ("input_ja", "translated_at", "translated_by"):
+                    new_info[_tk] = _exist.get(_tk, {} if _tk == "input_ja" else "")
             st.session_state["product_info"] = new_info
             st.session_state["assignee"] = assignee
             st.session_state["reviewer"] = reviewer
@@ -1448,10 +1460,21 @@ def page_core_generation():
                     unsafe_allow_html=True)
         return
 
-    # ── 翻訳データゲート（Phase 4） ───────────────────────────────────────────
+    # ── Core生成用データ解決（優先順位付き） ─────────────────────────────────
+    _CG_CORE_FIELDS = ("name", "category", "price", "target", "gender", "age",
+                       "product_url", "features", "weaknesses", "brand_tone",
+                       "prohibited", "description", "use_scenes", "competitor_urls",
+                       "notes", "assignee", "final_reviewer")
+
+    def _cg_has_ja(text: str) -> bool:
+        if not text:
+            return False
+        return sum(1 for c in text if '぀' <= c <= '鿿' or '一' <= c <= '鿿') >= 3
+
+    # Priority 1: core_source_data がある
     _cg_core_source = _cg_project.get("core_source_data") or {}
 
-    # Recover: input_ja exists but core_source_data was lost → rebuild and save
+    # Priority 2: input_ja がある → core_source_data を再ビルド
     if not _cg_core_source:
         _cg_input_ja = _cg_project.get("input_ja") or {}
         if _cg_input_ja:
@@ -1462,22 +1485,55 @@ def page_core_generation():
             _cg_project = svc["storage"].load_product(_cg_pid) or {}
             _cg_core_source = _cg_project.get("core_source_data") or {}
 
+    # Priority 3+4: 日本語入力判定 → そのまま使う
+    if not _cg_core_source:
+        _cg_lang     = _cg_project.get("input_original_language", "")
+        _cg_tr_st    = _cg_project.get("translation_status", "not_translated")
+        _cg_txt_keys = ("name", "description", "features", "target", "use_scenes", "notes")
+        _cg_sample   = " ".join(str(_cg_project.get(k, "")) for k in _cg_txt_keys if _cg_project.get(k))
+        _cg_is_ja    = (
+            _cg_lang in ("ja", "japanese")
+            or _cg_tr_st == "not_needed"
+            or _cg_has_ja(_cg_sample)
+        )
+        if _cg_is_ja:
+            _cg_auto = {k: _cg_project.get(k, "") for k in _CG_CORE_FIELDS}
+            _cg_upd  = dict(_cg_project)
+            _cg_upd["core_source_data"]       = _cg_auto
+            _cg_upd["translation_status"]     = "not_needed"
+            _cg_upd["input_original_language"] = "ja"
+            svc["storage"].save_product(_cg_pid, _cg_upd)
+            _cg_core_source = _cg_auto
+
     # Debug display (temporary)
     with st.expander("🔧 デバッグ情報（開発用）", expanded=False):
         st.markdown(f"- **product_id (session)**: `{_cg_pid}`")
         st.markdown(f"- **input_ja**: {'✅ あり (' + str(len(_cg_project.get('input_ja') or {})) + 'フィールド)' if _cg_project.get('input_ja') else '❌ なし'}")
         st.markdown(f"- **core_source_data**: {'✅ あり (' + str(len(_cg_core_source)) + 'フィールド)' if _cg_core_source else '❌ なし'}")
+        st.markdown(f"- **input_original_language**: `{_cg_project.get('input_original_language', 'not set')}`")
         st.markdown(f"- **translation_status**: `{_cg_project.get('translation_status', 'not set')}`")
-        st.markdown(f"- **Core生成に使用するデータ**: {'core_source_data' if _cg_core_source else '（なし — ゲートでブロック）'}")
+        st.markdown(f"- **Core生成に使用するデータ**: {'core_source_data ✅' if _cg_core_source else '（なし — ゲートでブロック）'}")
 
+    # Priority 5: すべて失敗 → ボタン + 警告
     if not _cg_core_source:
-        _cg_tr_status = _cg_project.get("translation_status", "not_translated")
-        if _cg_tr_status == "not_translated":
-            _cg_tr_warn = ("⚠️ Core生成前に、保存データ画面でこのプロジェクトを開き「日本語に変換」を実行してください。"
-                           if is_ja else "⚠️ Please translate product data to Japanese before generating Core.")
+        _cg_lang2 = _cg_project.get("input_original_language", "")
+        _cg_tr_st2 = _cg_project.get("translation_status", "not_translated")
+        st.markdown("---")
+        if st.button("📋 現在の入力を日本語データとして使用", key="cg_use_current_as_ja"):
+            _cg_manual = {k: _cg_project.get(k, "") for k in _CG_CORE_FIELDS}
+            _cg_upd2   = dict(_cg_project)
+            _cg_upd2["core_source_data"]       = _cg_manual
+            _cg_upd2["translation_status"]     = "not_needed"
+            _cg_upd2["input_original_language"] = "ja"
+            svc["storage"].save_product(_cg_pid, _cg_upd2)
+            st.success("現在の入力を日本語データとして保存しました。")
+            st.rerun()
+        if _cg_lang2 == "ja" or _cg_tr_st2 == "not_needed":
+            _cg_tr_warn = "ℹ️ 現在の入力を日本語データとして使用できます。上のボタンを押してください。"
         else:
-            _cg_tr_warn = ("⚠️ Core生成用の日本語データが見つかりません。保存データ画面から「日本語に変換」を再実行してください。"
-                           if is_ja else "⚠️ Japanese data for Core not found. Please re-translate from saved data.")
+            _cg_tr_warn = ("⚠️ Core生成前に日本語確認用データを作成してください。"
+                           "保存データ画面から「日本語に変換」を実行するか、"
+                           "上のボタンで現在の入力をそのまま使用してください。")
         st.markdown(f'<div class="cs-warning">{_cg_tr_warn}</div>', unsafe_allow_html=True)
         return
 
