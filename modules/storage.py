@@ -5,7 +5,7 @@ import shutil
 import zipfile
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, List, Optional
 import uuid
 
 DATA_DIR = Path(os.getenv("DATA_DIR", "data"))
@@ -90,7 +90,7 @@ class Storage:
             return None
         return _fill_prep_defaults(json.loads(path.read_text()))
 
-    def list_products(self) -> list[dict]:
+    def list_products(self) -> List[dict]:
         result = []
         proj_dir = DATA_DIR / "projects"
         for p in sorted(proj_dir.glob("*.json")):
@@ -132,7 +132,7 @@ class Storage:
         path.write_text(json.dumps(entry, ensure_ascii=False, indent=2))
         return core_id
 
-    def list_cores(self, product_id: str) -> list[dict]:
+    def list_cores(self, product_id: str) -> List[dict]:
         result = []
         for p in sorted((DATA_DIR / "core_library").glob(f"{product_id}_*.json")):
             try:
@@ -268,7 +268,7 @@ class Storage:
         with open(log_path, "a", encoding="utf-8") as f:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
-    def get_activity_log(self, product_id: str) -> list[dict]:
+    def get_activity_log(self, product_id: str) -> List[dict]:
         log_path = DATA_DIR / "activity_logs" / f"{product_id}.jsonl"
         if not log_path.exists():
             return []
@@ -530,7 +530,7 @@ class Storage:
             "total_file_count": total,
         }
 
-    def list_backups(self) -> list[dict]:
+    def list_backups(self) -> List[dict]:
         """Return list of available backup ZIPs, newest first."""
         backup_dir = DATA_DIR / "backups"
         if not backup_dir.exists():
@@ -599,7 +599,7 @@ class Storage:
 
     # ── Trash ─────────────────────────────────────────────────────────────────
 
-    def list_trash(self) -> list[dict]:
+    def list_trash(self) -> List[dict]:
         """Return list of files in data/trash/, newest first."""
         trash_dir = DATA_DIR / "trash"
         if not trash_dir.exists():
