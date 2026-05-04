@@ -936,6 +936,27 @@ def page_product_input():
     other_lang = "pt" if lang == "ja" else "ja"
     other_i18n = load_i18n(other_lang)
 
+    # ── 表示切り替え: 日本語確認用 / 原文 Português ──────────────────────────
+    _PI_TR_FIELDS_FORM = (
+        "name", "description", "price", "category", "target",
+        "use_scenes", "notes", "competitor_urls", "weaknesses",
+        "features", "product_prep_review_note",
+        "age", "gender", "prohibited", "brand_tone",
+    )
+    _pi_input_ja_top = info.get("input_ja") or {}
+    _pi_has_ja_top   = bool(_pi_input_ja_top)
+    # Default to Japanese mode for admin when translation exists
+    if _pi_has_ja_top and get_current_role() == "admin":
+        if st.session_state.get("pi_disp_mode") not in ("🇯🇵 日本語確認用", "🇧🇷 原文 Português"):
+            st.session_state["pi_disp_mode"] = "🇯🇵 日本語確認用"
+    _pi_show_ja = (
+        _pi_has_ja_top
+        and st.session_state.get("pi_disp_mode") == "🇯🇵 日本語確認用"
+    )
+    # Overlay Japanese translations onto info so all info.get() calls use Japanese
+    if _pi_show_ja:
+        info = {**info, **_pi_input_ja_top}
+
     def _other(key: str, default=None):
         """Retrieve a value from the other-language i18n dict."""
         parts = key.split(".")
@@ -997,6 +1018,24 @@ def page_product_input():
     if custom_tone_parts:
         known_tones_default.append(free_input)
     custom_tone_default = "、".join(custom_tone_parts)
+
+    # ── 表示モード切り替えUI ──────────────────────────────────────────────
+    if _pi_has_ja_top:
+        _pi_disp_sel = st.radio(
+            "表示モード / Modo de exibição",
+            ["🇯🇵 日本語確認用", "🇧🇷 原文 Português"],
+            index=0 if _pi_show_ja else 1,
+            horizontal=True,
+            key="pi_disp_mode",
+            label_visibility="collapsed",
+        )
+        if _pi_show_ja:
+            st.caption(
+                "🇯🇵 日本語確認用データを表示中　—　"
+                "保存すると日本語確認用データが更新されます（原文Portuguêsは保持）"
+            )
+        else:
+            st.caption("🇧🇷 Português原文を表示中　—　保存すると原文データが更新されます")
 
     # ── 基本情報 ──────────────────────────────────────────────────────
     st.markdown(
@@ -1258,17 +1297,42 @@ def page_product_input():
                                "product_url", "features", "weaknesses", "brand_tone",
                                "prohibited", "description", "use_scenes", "competitor_urls",
                                "notes", "assignee", "final_reviewer")
-            new_info["input_original"] = {k: new_info.get(k, "") for k in _P4_FIELDS}
-            _save_lang = st.session_state.get("lang", "ja")
+            _save_lang     = st.session_state.get("lang", "ja")
+            _pi_save_in_ja = (
+                st.session_state.get("pi_disp_mode") == "🇯🇵 日本語確認用"
+                and _pi_has_ja_top
+            )
+
             if get_current_role() == "product_researcher":
                 # Researcher always saves in Portuguese → translation needed
+                new_info["input_original"] = {k: new_info.get(k, "") for k in _P4_FIELDS}
                 new_info["input_original_language"] = "pt-BR"
                 new_info["translation_status"] = "not_translated"
                 new_info["core_source_data"] = {}
                 for _tk in ("input_ja", "translated_at", "translated_by"):
                     new_info[_tk] = _exist.get(_tk, {} if _tk == "input_ja" else "")
+            elif _pi_save_in_ja:
+                # Admin saving in Japanese review mode:
+                # form fields contain Japanese text → save to input_ja, restore PT to main fields
+                _new_ja_vals = {k: new_info.get(k, "") for k in _P4_FIELDS if new_info.get(k)}
+                _updated_ja  = {**(_exist.get("input_ja") or {}), **_new_ja_vals}
+                _orig_data   = _exist.get("input_original") or {}
+                # Restore Portuguese to main fields (never overwrite with Japanese)
+                for _tk in _P4_FIELDS:
+                    new_info[_tk] = _orig_data.get(_tk, _exist.get(_tk, ""))
+                new_info["input_original"]         = _orig_data if _orig_data else {k: new_info.get(k, "") for k in _P4_FIELDS}
+                new_info["input_original_language"] = "pt-BR"
+                new_info["input_ja"]               = _updated_ja
+                new_info["translation_status"]     = "translated"
+                # Rebuild core_source_data: PT base with JA overlay
+                _cg_s = {k: new_info.get(k, "") for k in _CG_FIELDS_SAVE}
+                _cg_s.update({k: v for k, v in _updated_ja.items() if k in _CG_FIELDS_SAVE and v})
+                new_info["core_source_data"] = _cg_s
+                for _tk in ("translated_at", "translated_by"):
+                    new_info[_tk] = _exist.get(_tk, "")
             elif _save_lang == "ja":
                 # Admin saving in Japanese → no translation needed, auto-build core_source_data
+                new_info["input_original"] = {k: new_info.get(k, "") for k in _P4_FIELDS}
                 new_info["input_original_language"] = "ja"
                 new_info["translation_status"] = "not_needed"
                 new_info["core_source_data"] = {k: new_info.get(k, "") for k in _CG_FIELDS_SAVE}
@@ -1276,6 +1340,7 @@ def page_product_input():
                     new_info[_tk] = _exist.get(_tk, {} if _tk == "input_ja" else "")
             else:
                 # Admin saving in Portuguese → preserve existing translation state
+                new_info["input_original"] = {k: new_info.get(k, "") for k in _P4_FIELDS}
                 new_info["input_original_language"] = "pt-BR"
                 new_info["translation_status"] = _exist.get("translation_status", "not_translated")
                 new_info["core_source_data"] = _exist.get("core_source_data", {})
