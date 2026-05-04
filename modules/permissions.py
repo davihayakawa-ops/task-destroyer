@@ -10,9 +10,9 @@ _RESEARCHER_PAGES = frozenset({
 
 # Dev role switcher options: display label -> (user_name, role)
 DEV_ROLE_OPTIONS = {
-    "Davi (admin)":               ("davi",  "admin"),
-    "Sara (admin)":               ("sara",  "admin"),
-    "Iago (product_researcher)":  ("iago",  "product_researcher"),
+    "Davi (admin)":               ("Davi",  "admin"),
+    "Sara (admin)":               ("Sara",  "admin"),
+    "Iago (product_researcher)":  ("Iago",  "product_researcher"),
 }
 
 
@@ -21,7 +21,7 @@ def get_current_role() -> str:
 
 
 def get_current_user() -> str:
-    return st.session_state.get("dev_user", "davi")
+    return st.session_state.get("dev_user", "Davi")
 
 
 def can_view_page(page_id: str) -> bool:
@@ -59,3 +59,13 @@ def can_perform_action(action: str) -> bool:
     if role == "product_researcher":
         return action in _RESEARCHER_ACTIONS
     return False
+
+
+def can_generate_core(project: dict) -> bool:
+    """Return True only when role is admin AND product prep is approved."""
+    if get_current_role() != "admin":
+        return False
+    return (
+        project.get("product_prep_approved") is True
+        and project.get("product_prep_status") == "approved"
+    )

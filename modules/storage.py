@@ -28,6 +28,25 @@ _ERROR_PATTERNS = [
 ]
 
 
+_PREP_DEFAULTS = {
+    "product_prep_status":       "draft",
+    "product_prep_approved":     False,
+    "product_prep_approved_by":  "",
+    "product_prep_approved_at":  "",
+    "product_prep_review_note":  "",
+    "product_prep_submitted_by": "",
+    "product_prep_submitted_at": "",
+}
+
+
+def _fill_prep_defaults(data: dict) -> dict:
+    """Backfill missing approval fields so old saved data never causes KeyError."""
+    for k, v in _PREP_DEFAULTS.items():
+        if k not in data:
+            data[k] = v
+    return data
+
+
 def _is_empty_data(data: dict) -> bool:
     """Return True when a project has no meaningful content."""
     return (
@@ -69,7 +88,7 @@ class Storage:
         path = DATA_DIR / "projects" / f"{product_id}.json"
         if not path.exists():
             return None
-        return json.loads(path.read_text())
+        return _fill_prep_defaults(json.loads(path.read_text()))
 
     def list_products(self) -> list[dict]:
         result = []
@@ -90,7 +109,7 @@ class Storage:
                 entry = {
                     "id": p.stem,
                     "file_path": str(p.resolve()),  # absolute path → reliable deletion
-                    **data,
+                    **_fill_prep_defaults(data),
                 }
                 result.append(entry)
             except Exception:
@@ -195,6 +214,45 @@ class Storage:
         if not path.exists():
             return None
         return json.loads(path.read_text())
+
+    # ── Product Prep Approval ─────────────────────────────────────────────────
+
+    def submit_product_prep(self, product_id: str, submitted_by: str) -> bool:
+        data = self.load_product(product_id)
+        if not data:
+            return False
+        data["product_prep_status"] = "waiting_review"
+        data["product_prep_submitted_by"] = submitted_by
+        data["product_prep_submitted_at"] = _now()
+        self.save_product(product_id, data)
+        self.log_activity(product_id, "商品準備提出", "waiting_review", submitted_by)
+        return True
+
+    def approve_product_prep(self, product_id: str, approved_by: str, note: str = "") -> bool:
+        data = self.load_product(product_id)
+        if not data:
+            return False
+        data["product_prep_status"] = "approved"
+        data["product_prep_approved"] = True
+        data["product_prep_approved_by"] = approved_by
+        data["product_prep_approved_at"] = _now()
+        data["product_prep_review_note"] = note
+        self.save_product(product_id, data)
+        self.log_activity(product_id, "商品準備承認", "approved", approved_by)
+        return True
+
+    def reject_product_prep(self, product_id: str, rejected_by: str, note: str) -> bool:
+        data = self.load_product(product_id)
+        if not data:
+            return False
+        data["product_prep_status"] = "rejected"
+        data["product_prep_approved"] = False
+        data["product_prep_approved_by"] = ""
+        data["product_prep_approved_at"] = _now()
+        data["product_prep_review_note"] = note
+        self.save_product(product_id, data)
+        self.log_activity(product_id, "商品準備差し戻し", "rejected", rejected_by)
+        return True
 
     # ── Activity Log ──────────────────────────────────────────────────────────
 

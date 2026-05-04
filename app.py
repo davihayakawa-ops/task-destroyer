@@ -26,7 +26,7 @@ from modules.exporter import Exporter
 from modules.checker import Checker
 from modules.bulk_pack_generator import BulkPackGenerator
 from modules.mode_registry import list_modes, get_mode
-from modules.permissions import get_current_role, can_view_page, filter_nav_items, DEV_ROLE_OPTIONS, can_perform_action
+from modules.permissions import get_current_role, can_view_page, filter_nav_items, DEV_ROLE_OPTIONS, can_perform_action, can_generate_core
 
 # ── i18n ─────────────────────────────────────────────────────────────────────
 
@@ -1235,6 +1235,14 @@ def page_product_input():
                 "assignee": assignee,
                 "final_reviewer": reviewer,
             }
+            # Preserve existing prep approval fields so save doesn't reset approval status
+            _exist = svc["storage"].load_product(product_id) or {}
+            for _pk in ("product_prep_status", "product_prep_approved",
+                        "product_prep_approved_by", "product_prep_approved_at",
+                        "product_prep_review_note", "product_prep_submitted_by",
+                        "product_prep_submitted_at"):
+                if _pk in _exist:
+                    new_info[_pk] = _exist[_pk]
             st.session_state["product_info"] = new_info
             st.session_state["assignee"] = assignee
             st.session_state["reviewer"] = reviewer
@@ -1242,6 +1250,56 @@ def page_product_input():
             svc["storage"].log_activity(product_id, "商品情報保存", name, assignee)
             st.markdown('<div class="cs-success">✅ ' + t("product_input.saved_msg") + '</div>',
                         unsafe_allow_html=True)
+
+    # ── 商品準備ステータス（Phase 3 承認ゲート） ──────────────────────────────
+    _pi_pid = st.session_state.get("product_id", "")
+    if _pi_pid:
+        _pi_is_ja = st.session_state.get("lang", "ja") == "ja"
+        try:
+            _pi_proj = svc["storage"].load_product(_pi_pid) or {}
+        except Exception:
+            _pi_proj = {}
+        _pi_status = _pi_proj.get("product_prep_status", "draft")
+        _pi_role   = get_current_role()
+
+        st.markdown("---")
+        _status_map = {
+            "draft":          ("📝 下書き",        "📝 Rascunho"),
+            "waiting_review": ("⏳ Davi確認待ち",   "⏳ Aguardando revisão"),
+            "approved":       ("✅ 承認済み",       "✅ Aprovado"),
+            "rejected":       ("❌ 差し戻し",       "❌ Recusado"),
+        }
+        _s_ja, _s_pt = _status_map.get(_pi_status, ("📝 下書き", "📝 Rascunho"))
+        st.markdown(
+            f"**{'商品準備ステータス' if _pi_is_ja else 'Status da Preparação'}**: "
+            f"{_s_ja if _pi_is_ja else _s_pt}"
+        )
+
+        if _pi_status == "rejected" and _pi_proj.get("product_prep_review_note"):
+            st.warning(
+                ("**差し戻しコメント**: " if _pi_is_ja else "**Comentário de revisão**: ")
+                + _pi_proj["product_prep_review_note"]
+            )
+
+        if _pi_role == "product_researcher" and _pi_status in ("draft", "rejected"):
+            if can_perform_action("product_prep_done") and st.button(
+                "📤 " + ("商品準備完了として提出" if _pi_is_ja else "Enviar para revisão"),
+                type="primary", key="pi_submit_prep",
+            ):
+                if not can_perform_action("product_prep_done"):
+                    st.warning("この操作は許可されていません。" if _pi_is_ja else "Operação não permitida.")
+                    st.rerun()
+                svc["storage"].submit_product_prep(_pi_pid, get_current_user())
+                st.success("Daviに提出しました。" if _pi_is_ja else "Enviado para revisão.")
+                st.rerun()
+        elif _pi_status == "waiting_review":
+            st.info("管理者が確認中です。" if _pi_is_ja else "Aguardando revisão do administrador.")
+        elif _pi_status == "approved":
+            st.success(
+                ("承認者: " if _pi_is_ja else "Aprovado por: ")
+                + _pi_proj.get("product_prep_approved_by", "")
+                + "  (" + _pi_proj.get("product_prep_approved_at", "") + ")"
+            )
 
 
 # ── Page: Core Generation ──────────────────────────────────────────────────────
@@ -1254,6 +1312,28 @@ def page_core_generation():
     product_info = st.session_state.get("product_info", {})
     if not product_info.get("name"):
         st.markdown('<div class="cs-warning">⚠️ ' + t("common.no_product_warning") + '</div>',
+                    unsafe_allow_html=True)
+        return
+
+    # ── 承認ゲート UI層（Phase 3） ────────────────────────────────────────────
+    _cg_pid = st.session_state.get("product_id", "")
+    try:
+        _cg_project = svc["storage"].load_product(_cg_pid) or {}
+    except Exception:
+        _cg_project = {}
+    if not can_generate_core(_cg_project):
+        _cg_status = _cg_project.get("product_prep_status", "draft")
+        _cg_msgs = {
+            "draft":          ("⚠️ 商品準備が未提出です。Iagoが商品準備を提出し、承認されるまでCore生成はできません。",
+                               "⚠️ A preparação do produto não foi enviada. Core generation requires approved product prep."),
+            "waiting_review": ("⏳ 商品準備が承認待ちです。承認後にCore生成が可能になります。",
+                               "⏳ A preparação está aguardando revisão. Core generation will be available after approval."),
+            "rejected":       ("❌ 商品準備が差し戻されました。Iagoが修正・再提出し、承認されるまでCore生成はできません。",
+                               "❌ A preparação foi recusada. Core generation requires approved product prep."),
+        }
+        _cg_msg_ja, _cg_msg_pt = _cg_msgs.get(_cg_status,
+            ("⚠️ 商品準備が承認されるまでCore生成はできません。", "⚠️ Core generation requires approved product prep."))
+        st.markdown(f'<div class="cs-warning">{_cg_msg_ja if is_ja else _cg_msg_pt}</div>',
                     unsafe_allow_html=True)
         return
 
@@ -1301,6 +1381,9 @@ def page_core_generation():
         col_gen, col_regen = st.columns([2, 1])
         with col_gen:
             if st.button("✨ " + t("core.generate_btn"), type="primary", use_container_width=True):
+                if not can_generate_core(_cg_project):
+                    st.warning("商品準備が承認されるまでCore生成はできません。" if is_ja else "Core generation requires approved product prep.")
+                    st.rerun()
                 with st.spinner(t("core.generating_msg")):
                     result = svc["core_engine"].generate_from_product(product_info)
                     st.session_state["core_text"] = result
@@ -1382,6 +1465,9 @@ def page_core_generation():
 
         with col5:
             if st.button("🔄 " + ("再生成" if is_ja else "Regerar"), use_container_width=True):
+                if not can_generate_core(_cg_project):
+                    st.warning("商品準備が承認されるまでCore生成はできません。" if is_ja else "Core generation requires approved product prep.")
+                    st.rerun()
                 with st.spinner(t("core.generating_msg")):
                     result = svc["core_engine"].generate_from_product(product_info)
                     st.session_state["core_text"] = result
@@ -3654,6 +3740,60 @@ def page_saved_data():
                                 st.session_state.pop("confirm_delete_file_path", None)
                                 st.session_state.pop("confirm_delete_name", None)
                                 st.rerun()
+
+                    # ── 商品準備ステータス（Phase 3 承認ゲート） ──────────────────────
+                    if not is_empty:
+                        _sd_status = p.get("product_prep_status", "draft")
+                        _sd_status_map = {
+                            "draft":          ("📝 下書き",        "📝 Rascunho"),
+                            "waiting_review": ("⏳ Davi確認待ち",   "⏳ Aguardando revisão"),
+                            "approved":       ("✅ 承認済み",       "✅ Aprovado"),
+                            "rejected":       ("❌ 差し戻し",       "❌ Recusado"),
+                        }
+                        _sd_s_ja, _sd_s_pt = _sd_status_map.get(_sd_status, ("📝 下書き", "📝 Rascunho"))
+                        st.markdown("---")
+                        st.markdown(
+                            f"**{'商品準備ステータス' if is_ja else 'Status da Preparação'}**: "
+                            f"{_sd_s_ja if is_ja else _sd_s_pt}"
+                        )
+                        if _sd_status == "rejected" and p.get("product_prep_review_note"):
+                            st.warning(
+                                ("**差し戻しコメント**: " if is_ja else "**Comentário de revisão**: ")
+                                + p["product_prep_review_note"]
+                            )
+                        if _sd_status == "approved" and p.get("product_prep_approved_by"):
+                            st.caption(
+                                ("承認者: " if is_ja else "Aprovado por: ")
+                                + p["product_prep_approved_by"]
+                                + "  (" + p.get("product_prep_approved_at", "") + ")"
+                            )
+                        # Admin approve/reject UI (shown only when waiting_review)
+                        if get_current_role() == "admin" and _sd_status == "waiting_review":
+                            st.markdown("**" + ("承認・差し戻し" if is_ja else "Aprovar / Recusar") + "**")
+                            _apv_col1, _apv_col2 = st.columns(2)
+                            with _apv_col1:
+                                if st.button(
+                                    "✅ " + ("承認する" if is_ja else "Aprovar"),
+                                    key=f"approve_prep_{pid}", type="primary",
+                                    use_container_width=True,
+                                ):
+                                    svc["storage"].approve_product_prep(pid, get_current_user())
+                                    st.success("承認しました。" if is_ja else "Aprovado.")
+                                    st.rerun()
+                            with _apv_col2:
+                                _rej_note = st.text_input(
+                                    "差し戻しコメント" if is_ja else "Motivo da recusa",
+                                    key=f"rej_note_{pid}",
+                                    placeholder="理由を入力..." if is_ja else "Digite o motivo...",
+                                )
+                                if st.button(
+                                    "❌ " + ("差し戻す" if is_ja else "Recusar"),
+                                    key=f"reject_prep_{pid}",
+                                    use_container_width=True,
+                                ):
+                                    svc["storage"].reject_product_prep(pid, get_current_user(), _rej_note)
+                                    st.success("差し戻しました。" if is_ja else "Recusado.")
+                                    st.rerun()
 
     with tab2:
         pid = ensure_product_id()
