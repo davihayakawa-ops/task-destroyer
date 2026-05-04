@@ -526,8 +526,14 @@ init_state()
 
 # ── Services (cached per session) ─────────────────────────────────────────────
 
+# Bump this string whenever new methods are added to any service class.
+# Changing it invalidates the @st.cache_resource cache on Streamlit Cloud,
+# forcing fresh service objects that reflect the latest code.
+_SERVICES_VER = "20260504-p4"
+
+
 @st.cache_resource
-def get_services():
+def get_services(_v=_SERVICES_VER):
     llm = LLMClient()
     storage = Storage()
     return {
