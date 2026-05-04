@@ -33,12 +33,22 @@ _TRANSLATABLE_FIELDS = (
     "name", "description", "price", "category", "target",
     "use_scenes", "notes", "competitor_urls", "weaknesses",
     "features", "product_prep_review_note",
+    "age", "gender", "prohibited", "brand_tone",
+)
+
+# Product fields that the Core engine consumes (non-metadata)
+_CORE_FIELDS = (
+    "name", "category", "price", "target", "gender", "age",
+    "product_url", "features", "weaknesses", "brand_tone",
+    "prohibited", "description", "use_scenes", "competitor_urls",
+    "notes", "assignee", "final_reviewer",
 )
 
 _TRANSLATION_DEFAULTS = {
     "input_original_language": "pt-BR",
     "input_original":          {},
     "input_ja":                {},
+    "core_source_data":        {},
     "translation_status":      "not_translated",
     "translated_at":           "",
     "translated_by":           "",
@@ -281,11 +291,19 @@ class Storage:
     # ── Product Input Translation ─────────────────────────────────────────────
 
     def save_product_translation(self, product_id: str, input_ja: dict, translated_by: str) -> bool:
-        """Save Japanese translation of product fields. Never touches original product fields."""
+        """Save Japanese translation and build core_source_data for Core generation.
+
+        input_original is never touched. core_source_data is a merged copy of
+        all Core-relevant product fields with Japanese translations overlaid.
+        """
         data = self.load_product(product_id)
         if not data:
             return False
         data["input_ja"] = input_ja
+        # Build core_source_data: Core-relevant fields with translations applied
+        core_source = {k: data.get(k, "") for k in _CORE_FIELDS}
+        core_source.update({k: v for k, v in input_ja.items() if k in _CORE_FIELDS and v})
+        data["core_source_data"] = core_source
         data["translation_status"] = "translated"
         data["translated_at"] = _now()
         data["translated_by"] = translated_by

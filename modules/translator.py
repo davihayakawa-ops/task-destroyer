@@ -75,6 +75,10 @@ _FIELD_LABELS = {
     "weaknesses":               "競合分析メモ",
     "features":                 "差別化ポイント",
     "product_prep_review_note": "差し戻しコメント",
+    "age":                      "年齢層",
+    "gender":                   "性別",
+    "prohibited":               "禁止表現",
+    "brand_tone":               "ブランドトーン",
 }
 
 

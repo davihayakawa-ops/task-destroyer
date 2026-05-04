@@ -529,7 +529,7 @@ init_state()
 # Bump this string whenever new methods are added to any service class.
 # Changing it invalidates the @st.cache_resource cache on Streamlit Cloud,
 # forcing fresh service objects that reflect the latest code.
-_SERVICES_VER = "20260504-p4"
+_SERVICES_VER = "20260504-p4b"
 
 
 @st.cache_resource
@@ -1252,17 +1252,20 @@ def page_product_input():
             # ── Phase 4: capture input_original snapshot and preserve translation state ──
             _P4_FIELDS = ("name", "description", "price", "category", "target",
                           "use_scenes", "notes", "competitor_urls", "weaknesses",
-                          "features", "product_prep_review_note")
+                          "features", "product_prep_review_note",
+                          "age", "gender", "prohibited", "brand_tone")
             new_info["input_original"] = {k: new_info.get(k, "") for k in _P4_FIELDS}
             new_info["input_original_language"] = (
                 "pt-BR" if st.session_state.get("lang", "ja") == "pt" else "ja"
             )
-            # product_researcher saves reset translation status (original may have changed)
-            # admin saves keep existing translation status
+            # product_researcher saves: reset translation (original may have changed)
+            # admin saves: keep existing translation state
             if get_current_role() == "product_researcher":
                 new_info["translation_status"] = "not_translated"
+                new_info["core_source_data"] = {}  # stale after content change
             else:
                 new_info["translation_status"] = _exist.get("translation_status", "not_translated")
+                new_info["core_source_data"] = _exist.get("core_source_data", {})
             # Always preserve translation output across saves
             for _tk in ("input_ja", "translated_at", "translated_by"):
                 new_info[_tk] = _exist.get(_tk, {} if _tk == "input_ja" else "")
@@ -1360,6 +1363,19 @@ def page_core_generation():
                     unsafe_allow_html=True)
         return
 
+    # ── 翻訳データゲート（Phase 4） ───────────────────────────────────────────
+    _cg_core_source = _cg_project.get("core_source_data") or {}
+    if not _cg_core_source:
+        _cg_tr_status = _cg_project.get("translation_status", "not_translated")
+        if _cg_tr_status == "not_translated":
+            _cg_tr_warn = ("⚠️ Core生成前に、保存データ画面でこのプロジェクトを開き「日本語に変換」を実行してください。"
+                           if is_ja else "⚠️ Please translate product data to Japanese before generating Core.")
+        else:
+            _cg_tr_warn = ("⚠️ Core生成用の日本語データが見つかりません。保存データ画面から「日本語に変換」を再実行してください。"
+                           if is_ja else "⚠️ Japanese data for Core not found. Please re-translate from saved data.")
+        st.markdown(f'<div class="cs-warning">{_cg_tr_warn}</div>', unsafe_allow_html=True)
+        return
+
     # Core method selection
     st.markdown("#### " + t("core_method.title"))
     method_col1, method_col2, method_col3, method_col4 = st.columns(4)
@@ -1408,7 +1424,7 @@ def page_core_generation():
                     st.warning("商品準備が承認されるまでCore生成はできません。" if is_ja else "Core generation requires approved product prep.")
                     st.rerun()
                 with st.spinner(t("core.generating_msg")):
-                    result = svc["core_engine"].generate_from_product(product_info)
+                    result = svc["core_engine"].generate_from_product(_cg_core_source)
                     st.session_state["core_text"] = result
                     st.session_state["core_status"] = "ai_generated"
                     pid = ensure_product_id()
@@ -1492,7 +1508,7 @@ def page_core_generation():
                     st.warning("商品準備が承認されるまでCore生成はできません。" if is_ja else "Core generation requires approved product prep.")
                     st.rerun()
                 with st.spinner(t("core.generating_msg")):
-                    result = svc["core_engine"].generate_from_product(product_info)
+                    result = svc["core_engine"].generate_from_product(_cg_core_source)
                     st.session_state["core_text"] = result
                     st.session_state["core_status"] = "ai_generated"
                     st.rerun()
@@ -3831,6 +3847,10 @@ def page_saved_data():
                                 "notes": "商品メモ", "competitor_urls": "競合URLメモ",
                                 "weaknesses": "競合分析メモ", "features": "差別化ポイント",
                                 "product_prep_review_note": "差し戻しコメント",
+                                "age": "年齢層", "gender": "性別",
+                                "prohibited": "禁止表現", "brand_tone": "ブランドトーン",
+                                "product_url": "商品URL", "assignee": "担当者",
+                                "final_reviewer": "最終確認者",
                             }
                             st.markdown("---")
                             st.markdown("**🌐 " + ("日本語確認用翻訳" if is_ja else "Tradução para revisão") + "**")
@@ -3856,10 +3876,19 @@ def page_saved_data():
                                 )
                                 if _tr_ja:
                                     with st.expander(
-                                        "🇯🇵 " + ("日本語訳" if is_ja else "Tradução japonesa"),
-                                        expanded=True,
+                                        "🇯🇵 " + ("日本語確認用訳" if is_ja else "Tradução japonesa"),
+                                        expanded=False,
                                     ):
                                         for _fk, _fv in _tr_ja.items():
+                                            if _fv and str(_fv).strip():
+                                                st.markdown(f"**{_TRANS_LABELS.get(_fk, _fk)}**: {_fv}")
+                                _tr_core_src = p.get("core_source_data") or {}
+                                if _tr_core_src:
+                                    with st.expander(
+                                        "⚙️ " + ("Core生成用データ（日本語）" if is_ja else "Dados para Core (japonês)"),
+                                        expanded=False,
+                                    ):
+                                        for _fk, _fv in _tr_core_src.items():
                                             if _fv and str(_fv).strip():
                                                 st.markdown(f"**{_TRANS_LABELS.get(_fk, _fk)}**: {_fv}")
                             elif _tr_status == "failed":
