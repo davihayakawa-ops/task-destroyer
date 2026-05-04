@@ -28,6 +28,30 @@ _ERROR_PATTERNS = [
 ]
 
 
+# Fields captured as input_original snapshot on every product save
+_TRANSLATABLE_FIELDS = (
+    "name", "description", "price", "category", "target",
+    "use_scenes", "notes", "competitor_urls", "weaknesses",
+    "features", "product_prep_review_note",
+)
+
+_TRANSLATION_DEFAULTS = {
+    "input_original_language": "pt-BR",
+    "input_original":          {},
+    "input_ja":                {},
+    "translation_status":      "not_translated",
+    "translated_at":           "",
+    "translated_by":           "",
+}
+
+
+def _fill_translation_defaults(data: dict) -> dict:
+    for k, v in _TRANSLATION_DEFAULTS.items():
+        if k not in data:
+            data[k] = v
+    return data
+
+
 _PREP_DEFAULTS = {
     "product_prep_status":       "draft",
     "product_prep_approved":     False,
@@ -88,7 +112,7 @@ class Storage:
         path = DATA_DIR / "projects" / f"{product_id}.json"
         if not path.exists():
             return None
-        return _fill_prep_defaults(json.loads(path.read_text()))
+        return _fill_translation_defaults(_fill_prep_defaults(json.loads(path.read_text())))
 
     def list_products(self) -> List[dict]:
         result = []
@@ -109,7 +133,7 @@ class Storage:
                 entry = {
                     "id": p.stem,
                     "file_path": str(p.resolve()),  # absolute path → reliable deletion
-                    **_fill_prep_defaults(data),
+                    **_fill_translation_defaults(_fill_prep_defaults(data)),
                 }
                 result.append(entry)
             except Exception:
@@ -252,6 +276,21 @@ class Storage:
         data["product_prep_review_note"] = note
         self.save_product(product_id, data)
         self.log_activity(product_id, "商品準備差し戻し", "rejected", rejected_by)
+        return True
+
+    # ── Product Input Translation ─────────────────────────────────────────────
+
+    def save_product_translation(self, product_id: str, input_ja: dict, translated_by: str) -> bool:
+        """Save Japanese translation of product fields. Never touches original product fields."""
+        data = self.load_product(product_id)
+        if not data:
+            return False
+        data["input_ja"] = input_ja
+        data["translation_status"] = "translated"
+        data["translated_at"] = _now()
+        data["translated_by"] = translated_by
+        self.save_product(product_id, data)
+        self.log_activity(product_id, "日本語翻訳", "translated", translated_by)
         return True
 
     # ── Activity Log ──────────────────────────────────────────────────────────

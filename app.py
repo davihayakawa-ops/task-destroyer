@@ -1243,6 +1243,23 @@ def page_product_input():
                         "product_prep_submitted_at"):
                 if _pk in _exist:
                     new_info[_pk] = _exist[_pk]
+            # ── Phase 4: capture input_original snapshot and preserve translation state ──
+            _P4_FIELDS = ("name", "description", "price", "category", "target",
+                          "use_scenes", "notes", "competitor_urls", "weaknesses",
+                          "features", "product_prep_review_note")
+            new_info["input_original"] = {k: new_info.get(k, "") for k in _P4_FIELDS}
+            new_info["input_original_language"] = (
+                "pt-BR" if st.session_state.get("lang", "ja") == "pt" else "ja"
+            )
+            # product_researcher saves reset translation status (original may have changed)
+            # admin saves keep existing translation status
+            if get_current_role() == "product_researcher":
+                new_info["translation_status"] = "not_translated"
+            else:
+                new_info["translation_status"] = _exist.get("translation_status", "not_translated")
+            # Always preserve translation output across saves
+            for _tk in ("input_ja", "translated_at", "translated_by"):
+                new_info[_tk] = _exist.get(_tk, {} if _tk == "input_ja" else "")
             st.session_state["product_info"] = new_info
             st.session_state["assignee"] = assignee
             st.session_state["reviewer"] = reviewer
@@ -3794,6 +3811,86 @@ def page_saved_data():
                                     svc["storage"].reject_product_prep(pid, get_current_user(), _rej_note)
                                     st.success("差し戻しました。" if is_ja else "Recusado.")
                                     st.rerun()
+
+                        # ── 日本語確認用翻訳（Phase 4） ──────────────────────────────────
+                        if get_current_role() == "admin":
+                            _tr_orig   = p.get("input_original") or {}
+                            _tr_ja     = p.get("input_ja") or {}
+                            _tr_status = p.get("translation_status", "not_translated")
+                            _tr_has_orig = any(str(v).strip() for v in _tr_orig.values() if v)
+                            _TRANS_LABELS = {
+                                "name": "商品名", "description": "商品説明",
+                                "price": "価格メモ", "category": "カテゴリ",
+                                "target": "ターゲット", "use_scenes": "使用シーン",
+                                "notes": "商品メモ", "competitor_urls": "競合URLメモ",
+                                "weaknesses": "競合分析メモ", "features": "差別化ポイント",
+                                "product_prep_review_note": "差し戻しコメント",
+                            }
+                            st.markdown("---")
+                            st.markdown("**🌐 " + ("日本語確認用翻訳" if is_ja else "Tradução para revisão") + "**")
+
+                            # 原文表示
+                            if _tr_has_orig:
+                                with st.expander(
+                                    "📄 " + ("原文 Português" if is_ja else "Original em Português"),
+                                    expanded=False,
+                                ):
+                                    for _fk, _fv in _tr_orig.items():
+                                        if _fv and str(_fv).strip():
+                                            st.markdown(f"**{_TRANS_LABELS.get(_fk, _fk)}**: {_fv}")
+                            else:
+                                st.caption("💡 " + ("原文データがありません。先に商品情報を保存してください。"
+                                                    if is_ja else "Nenhum dado original. Salve as informações primeiro."))
+
+                            # 翻訳ステータス表示
+                            if _tr_status == "translated":
+                                st.caption(
+                                    "✅ " + ("翻訳済み — " if is_ja else "Traduzido — ")
+                                    + p.get("translated_by", "") + "  " + p.get("translated_at", "")
+                                )
+                                if _tr_ja:
+                                    with st.expander(
+                                        "🇯🇵 " + ("日本語訳" if is_ja else "Tradução japonesa"),
+                                        expanded=True,
+                                    ):
+                                        for _fk, _fv in _tr_ja.items():
+                                            if _fv and str(_fv).strip():
+                                                st.markdown(f"**{_TRANS_LABELS.get(_fk, _fk)}**: {_fv}")
+                            elif _tr_status == "failed":
+                                st.caption("⚠️ " + ("翻訳失敗（再試行できます）"
+                                                     if is_ja else "Falha na tradução (tente novamente)"))
+                            else:
+                                st.caption("📝 " + ("未翻訳" if is_ja else "Não traduzido"))
+
+                            # 翻訳ボタン（管理者のみ）
+                            _btn_lbl = (
+                                ("🔄 再翻訳" if is_ja else "🔄 Retraduzir")
+                                if _tr_status == "translated"
+                                else ("🔄 日本語に変換" if is_ja else "🔄 Traduzir para japonês")
+                            )
+                            if _tr_has_orig and st.button(_btn_lbl, key=f"translate_{pid}"):
+                                _to_translate = {
+                                    k: v for k, v in _tr_orig.items()
+                                    if v and str(v).strip()
+                                }
+                                with st.spinner("翻訳中..." if is_ja else "Traduzindo..."):
+                                    try:
+                                        _translated = svc["translator"].translate_product_fields(_to_translate)
+                                        svc["storage"].save_product_translation(
+                                            pid, _translated, get_current_user()
+                                        )
+                                        st.success("翻訳が完了しました。" if is_ja else "Tradução concluída.")
+                                        st.rerun()
+                                    except Exception as _te:
+                                        _te_str = str(_te).lower()
+                                        if any(w in _te_str for w in ("credit", "balance", "low", "crédito")):
+                                            st.error("クレジット残高が不足しています。Anthropicアカウントを確認してください。"
+                                                     if is_ja else "Saldo de crédito insuficiente.")
+                                        else:
+                                            st.error(("翻訳に失敗しました: " if is_ja else "Falha: ") + str(_te)[:200])
+                                        svc["storage"].log_activity(
+                                            pid, "日本語翻訳失敗", str(_te)[:100], get_current_user()
+                                        )
 
     with tab2:
         pid = ensure_product_id()
