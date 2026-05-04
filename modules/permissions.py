@@ -1,7 +1,7 @@
 import streamlit as st
 
 # Pages accessible to product_researcher role
-_RESEARCHER_PAGES: frozenset[str] = frozenset({
+_RESEARCHER_PAGES = frozenset({
     "dashboard",
     "mode_selection",
     "product_input",
@@ -9,7 +9,7 @@ _RESEARCHER_PAGES: frozenset[str] = frozenset({
 })
 
 # Dev role switcher options: display label -> (user_name, role)
-DEV_ROLE_OPTIONS: dict[str, tuple[str, str]] = {
+DEV_ROLE_OPTIONS = {
     "Davi (admin)":               ("davi",  "admin"),
     "Sara (admin)":               ("sara",  "admin"),
     "Iago (product_researcher)":  ("iago",  "product_researcher"),
@@ -45,7 +45,7 @@ def filter_nav_items(items: list) -> list:
 
 
 # Actions allowed for product_researcher
-_RESEARCHER_ACTIONS: frozenset[str] = frozenset({
+_RESEARCHER_ACTIONS = frozenset({
     "save_product",
     "load_project",
     "product_prep_done",
