@@ -1299,6 +1299,22 @@ def page_product_input():
             _pi_proj = {}
         _pi_status = _pi_proj.get("product_prep_status", "draft")
         _pi_role   = get_current_role()
+        _PI_TR_FIELDS = (
+            "name", "description", "price", "category", "target",
+            "use_scenes", "notes", "competitor_urls", "weaknesses",
+            "features", "product_prep_review_note",
+            "age", "gender", "prohibited", "brand_tone",
+        )
+        _PI_LABELS = {
+            "name": "商品名", "description": "商品説明",
+            "price": "価格メモ", "category": "カテゴリ",
+            "target": "ターゲット", "use_scenes": "使用シーン",
+            "notes": "商品メモ", "competitor_urls": "競合URLメモ",
+            "weaknesses": "競合分析メモ", "features": "差別化ポイント",
+            "product_prep_review_note": "差し戻しコメント",
+            "age": "年齢層", "gender": "性別",
+            "prohibited": "禁止表現", "brand_tone": "ブランドトーン",
+        }
 
         st.markdown("---")
         _status_map = {
@@ -1320,16 +1336,69 @@ def page_product_input():
             )
 
         if _pi_role == "product_researcher" and _pi_status in ("draft", "rejected"):
-            if can_perform_action("product_prep_done") and st.button(
-                "📤 " + ("商品準備完了として提出" if _pi_is_ja else "Enviar para revisão"),
-                type="primary", key="pi_submit_prep",
-            ):
-                if not can_perform_action("product_prep_done"):
-                    st.warning("この操作は許可されていません。" if _pi_is_ja else "Operação não permitida.")
-                    st.rerun()
-                svc["storage"].submit_product_prep(_pi_pid, get_current_user())
-                st.success("Daviに提出しました。" if _pi_is_ja else "Enviado para revisão.")
-                st.rerun()
+            if can_perform_action("product_prep_done"):
+                _pi_not_saved = not (_pi_proj.get("name") or _pi_proj.get("description"))
+                _pi_sbcol1, _pi_sbcol2 = st.columns(2)
+                with _pi_sbcol1:
+                    if st.button(
+                        "📤 " + ("そのまま提出" if _pi_is_ja else "Enviar sem tradução"),
+                        key="pi_submit_prep", use_container_width=True,
+                    ):
+                        if _pi_not_saved:
+                            st.error("先に「保存」ボタンで商品情報を保存してください。"
+                                     if _pi_is_ja else "Salve as informações primeiro.")
+                        else:
+                            svc["storage"].submit_product_prep(_pi_pid, get_current_user())
+                            st.success("Daviに提出しました。" if _pi_is_ja else "Enviado para revisão.")
+                            st.rerun()
+                with _pi_sbcol2:
+                    if st.button(
+                        "🌐 " + ("日本語に変換して提出" if _pi_is_ja else "Traduzir e enviar"),
+                        type="primary", key="pi_translate_submit", use_container_width=True,
+                    ):
+                        if _pi_not_saved:
+                            st.error("先に「保存」ボタンで商品情報を保存してください。"
+                                     if _pi_is_ja else "Salve as informações primeiro.")
+                        else:
+                            _pi_tr_src = {
+                                k: v
+                                for k, v in (_pi_proj.get("input_original") or _pi_proj).items()
+                                if k in _PI_TR_FIELDS and v and str(v).strip()
+                            }
+                            if not _pi_tr_src:
+                                st.error("翻訳対象のテキストがありません。先に商品情報を保存してください。"
+                                         if _pi_is_ja else "Nenhum texto para traduzir. Salve primeiro.")
+                            else:
+                                with st.spinner("翻訳中..." if _pi_is_ja else "Traduzindo..."):
+                                    try:
+                                        _pi_tr_result = svc["translator"].translate_product_fields(
+                                            _pi_tr_src
+                                        )
+                                        _pi_save_ok = svc["storage"].save_product_translation(
+                                            _pi_pid, _pi_tr_result, get_current_user()
+                                        )
+                                        if _pi_save_ok:
+                                            svc["storage"].submit_product_prep(
+                                                _pi_pid, get_current_user()
+                                            )
+                                            st.success("翻訳・提出が完了しました。"
+                                                       if _pi_is_ja else "Traduzido e enviado.")
+                                            st.rerun()
+                                        else:
+                                            st.error("翻訳の保存に失敗しました。先に「保存」ボタンで保存してください。"
+                                                     if _pi_is_ja else "Falha ao salvar. Salve primeiro.")
+                                    except Exception as _pi_tre:
+                                        _pi_tre_str = str(_pi_tre).lower()
+                                        if any(w in _pi_tre_str for w in ("credit", "balance", "low")):
+                                            st.error("クレジット残高が不足しています。"
+                                                     if _pi_is_ja else "Saldo insuficiente.")
+                                        else:
+                                            st.error(("翻訳に失敗しました: " if _pi_is_ja else "Falha: ")
+                                                     + str(_pi_tre)[:200])
+                                        svc["storage"].log_activity(
+                                            _pi_pid, "日本語翻訳失敗（提出時）",
+                                            str(_pi_tre)[:100], get_current_user()
+                                        )
         elif _pi_status == "waiting_review":
             st.info("管理者が確認中です。" if _pi_is_ja else "Aguardando revisão do administrador.")
         elif _pi_status == "approved":
@@ -1339,51 +1408,72 @@ def page_product_input():
                 + "  (" + _pi_proj.get("product_prep_approved_at", "") + ")"
             )
 
-        # ── 日本語確認用翻訳（Phase 4c：商品入力ページ）──────────────────────
+        # ── 商品情報（日本語確認用）表示（Phase 4）──────────────────────────────
         if _pi_role == "admin":
             _pi_tr_status = _pi_proj.get("translation_status", "not_translated")
             _pi_input_ja  = _pi_proj.get("input_ja") or {}
             _pi_orig      = _pi_proj.get("input_original") or {}
-            _PI_LABELS = {
-                "name": "商品名", "description": "商品説明",
-                "price": "価格メモ", "category": "カテゴリ",
-                "target": "ターゲット", "use_scenes": "使用シーン",
-                "notes": "商品メモ", "competitor_urls": "競合URLメモ",
-                "weaknesses": "競合分析メモ", "features": "差別化ポイント",
-                "age": "年齢層", "gender": "性別",
-                "prohibited": "禁止表現", "brand_tone": "ブランドトーン",
-                "product_prep_review_note": "差し戻しコメント",
-            }
+            _pi_core_src  = _pi_proj.get("core_source_data") or {}
 
             st.markdown("---")
-            st.markdown("**🌐 " + ("日本語確認用翻訳" if _pi_is_ja else "Tradução para revisão") + "**")
+            st.markdown("**🌐 " + ("商品情報（日本語確認用）" if _pi_is_ja else "Dados do produto (revisão)") + "**")
 
-            # ステータス表示
+            # 翻訳ステータスバッジ
             if _pi_tr_status == "translated":
                 st.caption(
-                    "✅ " + ("翻訳済み — " if _pi_is_ja else "Traduzido — ")
-                    + _pi_proj.get("translated_by", "")
-                    + "  " + _pi_proj.get("translated_at", "")
+                    "✅ 翻訳済み — " + _pi_proj.get("translated_by", "")
+                    + ("  " + _pi_proj.get("translated_at", "") if _pi_proj.get("translated_at") else "")
+                    + "　📦 Core生成には日本語データを使用します"
                 )
-                st.caption("📦 " + ("Core生成には日本語データを使用します"
-                                    if _pi_is_ja else "Core será gerado com dados em japonês"))
+            elif _pi_tr_status == "not_needed":
+                st.caption("✅ 日本語入力　📦 Core生成には日本語データを使用します")
             else:
-                st.caption("📝 " + ("未翻訳 — Core生成前に翻訳してください"
-                                    if _pi_is_ja else "Não traduzido — traduza antes de gerar o Core"))
+                st.caption("📝 未翻訳 — Iagoが「日本語に変換して提出」を使うか、下のボタンで変換してください")
 
-            # 翻訳ボタン
+            # タブ切り替え（翻訳済みの場合）/ 原文のみ（未翻訳の場合）
+            if _pi_input_ja:
+                _pi_tab_ja, _pi_tab_pt = st.tabs(
+                    ["🇯🇵 日本語確認用" if _pi_is_ja else "🇯🇵 Japonês",
+                     "🇧🇷 原文 Português" if _pi_is_ja else "🇧🇷 Original"]
+                )
+                with _pi_tab_ja:
+                    for _fk in _PI_TR_FIELDS:
+                        _fv = _pi_input_ja.get(_fk, "")
+                        if _fv and str(_fv).strip():
+                            st.markdown(f"**{_PI_LABELS.get(_fk, _fk)}**: {_fv}")
+                    if _pi_core_src:
+                        st.caption("⚙️ Core生成用データも作成済みです")
+                with _pi_tab_pt:
+                    _pi_orig_disp = _pi_orig or {k: _pi_proj.get(k, "") for k in _PI_TR_FIELDS}
+                    for _fk in _PI_TR_FIELDS:
+                        _fv = _pi_orig_disp.get(_fk, "")
+                        if _fv and str(_fv).strip():
+                            st.markdown(f"**{_PI_LABELS.get(_fk, _fk)}**: {_fv}")
+                    st.caption("🗂️ 原文は保持されています（input_original）")
+            else:
+                _pi_orig_disp = _pi_orig or {k: _pi_proj.get(k, "") for k in _PI_TR_FIELDS}
+                if any(_pi_orig_disp.get(k) for k in _PI_TR_FIELDS):
+                    with st.expander(
+                        "📄 " + ("原文データ" if _pi_is_ja else "Dados originais"),
+                        expanded=False,
+                    ):
+                        for _fk in _PI_TR_FIELDS:
+                            _fv = _pi_orig_disp.get(_fk, "")
+                            if _fv and str(_fv).strip():
+                                st.markdown(f"**{_PI_LABELS.get(_fk, _fk)}**: {_fv}")
+
+            # 管理者による翻訳ボタン
             _pi_btn_lbl = (
                 ("🔄 再翻訳" if _pi_is_ja else "🔄 Retraduzir")
                 if _pi_tr_status == "translated"
                 else ("🔄 日本語に変換" if _pi_is_ja else "🔄 Traduzir para japonês")
             )
             if st.button(_pi_btn_lbl, key="pi_translate_btn"):
-                # input_original があればそこから、なければ _pi_proj のフィールドから直接取得
                 _pi_fields_src = (
                     {k: v for k, v in _pi_orig.items() if v and str(v).strip()}
                     if _pi_orig
                     else {k: v for k, v in _pi_proj.items()
-                          if k in _PI_LABELS and v and str(v).strip()}
+                          if k in _PI_TR_FIELDS and v and str(v).strip()}
                 )
                 if not _pi_fields_src:
                     st.warning("翻訳対象のテキストがありません。先に商品情報を保存してください。"
@@ -1411,18 +1501,6 @@ def page_product_input():
                             svc["storage"].log_activity(
                                 _pi_pid, "日本語翻訳失敗（商品入力）", str(_pi_te)[:100], get_current_user()
                             )
-
-            # 日本語版表示（翻訳済みの場合）
-            if _pi_tr_status == "translated" and _pi_input_ja:
-                with st.expander(
-                    "🇯🇵 " + ("日本語版を確認" if _pi_is_ja else "Ver versão em japonês"),
-                    expanded=True,
-                ):
-                    for _fk, _fv in _pi_input_ja.items():
-                        if _fv and str(_fv).strip():
-                            st.markdown(f"**{_PI_LABELS.get(_fk, _fk)}**: {_fv}")
-                st.caption("🗂️ " + ("原文 Português は保持されています（input_original）"
-                                    if _pi_is_ja else "Original em Português preservado (input_original)"))
 
 
 # ── Page: Core Generation ──────────────────────────────────────────────────────
@@ -4038,7 +4116,7 @@ def page_saved_data():
                                 if _tr_ja:
                                     with st.expander(
                                         "🇯🇵 " + ("日本語確認用訳" if is_ja else "Tradução japonesa"),
-                                        expanded=False,
+                                        expanded=True,
                                     ):
                                         for _fk, _fv in _tr_ja.items():
                                             if _fv and str(_fv).strip():
