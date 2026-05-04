@@ -12,7 +12,7 @@ _RESEARCHER_PAGES: frozenset[str] = frozenset({
 DEV_ROLE_OPTIONS: dict[str, tuple[str, str]] = {
     "Davi (admin)":               ("davi",  "admin"),
     "Sara (admin)":               ("sara",  "admin"),
-    "Lago (product_researcher)":  ("lago",  "product_researcher"),
+    "Iago (product_researcher)":  ("iago",  "product_researcher"),
 }
 
 
