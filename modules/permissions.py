@@ -42,3 +42,20 @@ def filter_nav_items(items: list) -> list:
     if role == "product_researcher":
         return [item for item in items if item[0] in _RESEARCHER_PAGES]
     return []
+
+
+# Actions allowed for product_researcher
+_RESEARCHER_ACTIONS: frozenset[str] = frozenset({
+    "save_product",
+    "load_project",
+    "product_prep_done",
+})
+
+
+def can_perform_action(action: str) -> bool:
+    role = get_current_role()
+    if role == "admin":
+        return True
+    if role == "product_researcher":
+        return action in _RESEARCHER_ACTIONS
+    return False

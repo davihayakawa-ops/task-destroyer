@@ -26,7 +26,7 @@ from modules.exporter import Exporter
 from modules.checker import Checker
 from modules.bulk_pack_generator import BulkPackGenerator
 from modules.mode_registry import list_modes, get_mode
-from modules.permissions import get_current_role, can_view_page, filter_nav_items, DEV_ROLE_OPTIONS
+from modules.permissions import get_current_role, can_view_page, filter_nav_items, DEV_ROLE_OPTIONS, can_perform_action
 
 # ── i18n ─────────────────────────────────────────────────────────────────────
 
@@ -3513,9 +3513,12 @@ def page_saved_data():
                            if is_ja else
                            f"{len(empty_products)} projeto(s) vazio(s) encontrado(s). Use o botão abaixo para limpar.")
             st.markdown(f'<div class="cs-warning">⚠️ {_empty_warn}</div>', unsafe_allow_html=True)
-            if st.button("🧹 " + ("空プロジェクトを整理する（ゴミ箱へ移動）" if is_ja
+            if can_perform_action("cleanup_empty") and st.button("🧹 " + ("空プロジェクトを整理する（ゴミ箱へ移動）" if is_ja
                                    else "Limpar projetos vazios (mover para lixeira)"),
                          type="secondary", use_container_width=False):
+                if not can_perform_action("cleanup_empty"):
+                    st.warning("この操作は許可されていません。" if is_ja else "Operação não permitida.")
+                    st.rerun()
                 from modules.storage import Storage as _Storage
                 _s = _Storage()
                 # Auto-backup before cleanup
@@ -3562,8 +3565,11 @@ def page_saved_data():
                                 st.success(f"'{p.get('name')}' " + ("を読み込みました" if is_ja else "carregado"))
                                 st.rerun()
 
-                        if st.button("🗑️ " + t("saved_data.delete_btn"), key=f"del_{pid}",
+                        if can_perform_action("delete_project") and st.button("🗑️ " + t("saved_data.delete_btn"), key=f"del_{pid}",
                                      use_container_width=True):
+                            if not can_perform_action("delete_project"):
+                                st.warning("この操作は許可されていません。" if is_ja else "Operação não permitida.")
+                                st.rerun()
                             st.session_state["confirm_delete_id"] = pid
                             st.session_state["confirm_delete_file_path"] = p.get("file_path", "")
                             st.session_state["confirm_delete_name"] = disp_name
@@ -3571,6 +3577,12 @@ def page_saved_data():
 
                     # Confirmation dialog
                     if st.session_state.get("confirm_delete_id") == pid:
+                        if not can_perform_action("delete_project"):
+                            st.warning("この操作は許可されていません。" if is_ja else "Operação não permitida.")
+                            st.session_state.pop("confirm_delete_id", None)
+                            st.session_state.pop("confirm_delete_file_path", None)
+                            st.session_state.pop("confirm_delete_name", None)
+                            st.rerun()
                         try:
                             from modules.storage import Storage as _Storage
                             _storage = _Storage()
@@ -3594,6 +3606,9 @@ def page_saved_data():
                             if st.button("🗑️ " + t("saved_data.delete_confirm_btn"),
                                          key=f"do_del_{pid}", type="primary",
                                          use_container_width=True):
+                                if not can_perform_action("delete_project"):
+                                    st.warning("この操作は許可されていません。" if is_ja else "Operação não permitida.")
+                                    st.rerun()
                                 file_path = st.session_state.get("confirm_delete_file_path",
                                                                   p.get("file_path", ""))
                                 result = _do_delete_project(pid, file_path, delete_reason)
@@ -3765,12 +3780,17 @@ def page_saved_data():
                  "Compacta todos os dados salvos em data/ como ZIP para download. "
                  "Chaves de API, .env e Secrets não são incluídos.")
             )
-            if st.button(
+            if not can_perform_action("backup"):
+                st.warning("バックアップ操作は管理者のみ利用できます。" if is_ja else "Backup é restrito a administradores.")
+            elif st.button(
                 "⚡ " + ("全保存データをバックアップ" if is_ja else "Gerar ZIP de Backup"),
                 type="primary",
                 key="saved_data_bk_generate",
                 use_container_width=False,
             ):
+                if not can_perform_action("backup"):
+                    st.warning("この操作は許可されていません。" if is_ja else "Operação não permitida.")
+                    st.rerun()
                 with st.spinner("バックアップ作成中..." if is_ja else "Criando backup..."):
                     try:
                         from modules.storage import Storage as _BkStorage2
@@ -3806,8 +3826,9 @@ def page_saved_data():
                     file_name=_bk_fname,
                     mime="application/zip",
                     key="saved_data_bk_download",
+                    disabled=not can_perform_action("backup"),
                 )
-                if st.button("🗑️ " + ("キャッシュをクリア" if is_ja else "Limpar cache"),
+                if can_perform_action("backup") and st.button("🗑️ " + ("キャッシュをクリア" if is_ja else "Limpar cache"),
                              key="saved_data_bk_clear"):
                     st.session_state.pop("_bk_ready_bytes", None)
                     st.session_state.pop("_bk_ready_fname", None)
@@ -3825,17 +3846,23 @@ def page_saved_data():
             "O estado atual será salvo automaticamente antes da restauração. O ZIP será extraído sobre data/."
         ) + '</div>', unsafe_allow_html=True)
 
-        _restore_upload = st.file_uploader(
+        _can_restore = can_perform_action("restore")
+        if not _can_restore:
+            st.warning("復元操作は管理者のみ利用できます。" if is_ja else "Restauração é restrita a administradores.")
+        _restore_upload = (st.file_uploader(
             "バックアップZIPをアップロード" if is_ja else "Enviar ZIP de backup",
             type=["zip"],
             key="saved_data_bk_upload",
-        )
+        ) if _can_restore else None)
         if _restore_upload:
             if st.button(
                 "🔄 " + ("このZIPで復元する" if is_ja else "Restaurar com este ZIP"),
                 type="primary",
                 key="saved_data_bk_restore_btn",
             ):
+                if not can_perform_action("restore"):
+                    st.warning("この操作は許可されていません。" if is_ja else "Operação não permitida.")
+                    st.rerun()
                 with st.spinner("復元中..." if is_ja else "Restaurando..."):
                     try:
                         from modules.storage import Storage as _RestoreStorage
@@ -3886,6 +3913,7 @@ def page_saved_data():
                             file_name=_bk_item["filename"],
                             mime="application/zip",
                             key=f"saved_data_bk_dl_{_bk_item['filename']}",
+                            disabled=not can_perform_action("backup"),
                         )
                     except Exception:
                         st.caption("ファイルが読み込めません" if is_ja else "Arquivo não legível")
@@ -3918,9 +3946,12 @@ def page_saved_data():
                         st.markdown(f"**{'理由' if is_ja else 'Motivo'}:** {item['reason'] or '—'}")
                         st.caption(f"ID: {item['product_id']} | 元ファイル: {item['original_path'] or '—'}")
                     with col_a:
-                        if st.button("↩️ " + ("復元" if is_ja else "Restaurar"),
+                        if can_perform_action("restore") and st.button("↩️ " + ("復元" if is_ja else "Restaurar"),
                                      key=f"tr_restore_{item['filename']}", use_container_width=True,
                                      type="primary"):
+                            if not can_perform_action("restore"):
+                                st.warning("この操作は許可されていません。" if is_ja else "Operação não permitida.")
+                                st.rerun()
                             res = _str.restore_from_trash(item["filename"])
                             if res["success"]:
                                 st.success(res["message"])
@@ -3928,8 +3959,11 @@ def page_saved_data():
                             else:
                                 st.error(res["message"])
 
-                        if st.button("💀 " + ("完全削除" if is_ja else "Excluir"),
+                        if can_perform_action("purge_trash") and st.button("💀 " + ("完全削除" if is_ja else "Excluir"),
                                      key=f"tr_purge_{item['filename']}", use_container_width=True):
+                            if not can_perform_action("purge_trash"):
+                                st.warning("この操作は許可されていません。" if is_ja else "Operação não permitida.")
+                                st.rerun()
                             st.session_state[f"confirm_purge_{item['filename']}"] = True
                             st.rerun()
 
@@ -3942,6 +3976,9 @@ def page_saved_data():
                             if st.button("🗑️ " + ("完全削除する" if is_ja else "Excluir definitivamente"),
                                          key=f"tr_do_purge_{item['filename']}", type="primary",
                                          use_container_width=True):
+                                if not can_perform_action("purge_trash"):
+                                    st.warning("この操作は許可されていません。" if is_ja else "Operação não permitida.")
+                                    st.rerun()
                                 res = _str.purge_trash(item["filename"])
                                 st.session_state.pop(f"confirm_purge_{item['filename']}", None)
                                 if res["success"]:
@@ -4492,14 +4529,17 @@ def page_new_dashboard():
                 st.download_button(
                     "⬇️ DL", data=(text or " ").encode("utf-8"),
                     file_name=_fname, mime="text/plain",
-                    key=f"nd_dl_{key}", disabled=not has_text,
+                    key=f"nd_dl_{key}", disabled=not has_text or not can_perform_action("export"),
                     use_container_width=True,
                 )
 
             # Regenerate → navigate to generation page
             with ab3:
-                if st.button("✨ " + ("再生成" if _is_ja else "Gerar"), key=f"nd_regen_{key}",
+                if can_perform_action("regenerate") and st.button("✨ " + ("再生成" if _is_ja else "Gerar"), key=f"nd_regen_{key}",
                              use_container_width=True):
+                    if not can_perform_action("regenerate"):
+                        st.warning("この操作は許可されていません。" if _is_ja else "Operação não permitida.")
+                        st.rerun()
                     st.session_state["page"] = regen_page
                     st.rerun()
 
@@ -4508,9 +4548,12 @@ def page_new_dashboard():
                 if apv_status == "approved":
                     st.button("✓ " + ("承認済" if _is_ja else "Aprovado"), key=f"nd_appr_{key}",
                               disabled=True, use_container_width=True)
-                elif has_text and _pid:
+                elif has_text and _pid and can_perform_action("approve"):
                     if st.button("🔐 " + ("承認" if _is_ja else "Aprovar"), key=f"nd_appr_{key}",
                                  use_container_width=True):
+                        if not can_perform_action("approve"):
+                            st.warning("この操作は許可されていません。" if _is_ja else "Operação não permitida.")
+                            st.rerun()
                         try:
                             svc["approval"].approve(_pid, aprv_key, user=st.session_state.get("assignee",""))
                         except Exception:
@@ -4605,7 +4648,10 @@ def page_new_dashboard():
                         st.success(f"'{pname}' " + ("を読み込みました" if _is_ja else "carregado"))
                         st.rerun()
                 with tc5:
-                    if st.button("🗑 " + ("削除" if _is_ja else "Excluir"), key=f"nd_del_{ppid}", use_container_width=True):
+                    if can_perform_action("delete_project") and st.button("🗑 " + ("削除" if _is_ja else "Excluir"), key=f"nd_del_{ppid}", use_container_width=True):
+                        if not can_perform_action("delete_project"):
+                            st.warning("この操作は許可されていません。" if _is_ja else "Operação não permitida.")
+                            st.rerun()
                         st.session_state["page"] = "saved_data"
                         st.session_state["confirm_delete_id"] = ppid
                         st.session_state["confirm_delete_file_path"] = p.get("file_path","")
@@ -4630,6 +4676,9 @@ def page_new_dashboard():
     # Tab 3: エクスポート＆連携 (real downloads connected)
     # ════════════════════════════════════════════════
     with tab_export:
+        _can_export = can_perform_action("export")
+        if not _can_export:
+            st.warning("出力操作は管理者のみ利用できます。" if _is_ja else "Operações de exportação são restritas a administradores.")
         st.markdown('<div class="nd-sec-lbl">' + ("エクスポート＆連携パネル" if _is_ja else "Painel de Exportação") + '</div>',
                     unsafe_allow_html=True)
 
@@ -4689,6 +4738,7 @@ def page_new_dashboard():
                             mime="text/plain",
                             key=f"nd_ex_{i}",
                             use_container_width=True,
+                            disabled=not _can_export,
                         )
                     elif wfn == "dl_json":
                         st.download_button(
@@ -4698,15 +4748,19 @@ def page_new_dashboard():
                             mime="application/json",
                             key=f"nd_ex_{i}",
                             use_container_width=True,
+                            disabled=not _can_export,
                         )
                     elif wfn == "shopify":
-                        if st.button("🛒 " + ("Shopifyページへ" if _is_ja else "Ver Shopify"), key=f"nd_ex_{i}",
+                        if _can_export and st.button("🛒 " + ("Shopifyページへ" if _is_ja else "Ver Shopify"), key=f"nd_ex_{i}",
                                      use_container_width=True):
                             st.session_state["page"] = "product_page"
                             st.rerun()
                     elif wfn == "output":
-                        if st.button("📤 " + ("出力センターへ" if _is_ja else "Centro de exportação"), key=f"nd_ex_{i}",
+                        if _can_export and st.button("📤 " + ("出力センターへ" if _is_ja else "Centro de exportação"), key=f"nd_ex_{i}",
                                      use_container_width=True):
+                            if not can_perform_action("export"):
+                                st.warning("この操作は許可されていません。" if _is_ja else "Operação não permitida.")
+                                st.rerun()
                             st.session_state["page"] = "output"
                             st.rerun()
 
