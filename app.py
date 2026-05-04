@@ -1380,11 +1380,15 @@ def page_product_input():
                     with st.spinner("翻訳中..." if _pi_is_ja else "Traduzindo..."):
                         try:
                             _pi_translated = svc["translator"].translate_product_fields(_pi_fields_src)
-                            svc["storage"].save_product_translation(
+                            _pi_save_ok = svc["storage"].save_product_translation(
                                 _pi_pid, _pi_translated, get_current_user()
                             )
-                            st.success("翻訳が完了しました。" if _pi_is_ja else "Tradução concluída.")
-                            st.rerun()
+                            if _pi_save_ok:
+                                st.success("翻訳が完了しました。" if _pi_is_ja else "Tradução concluída.")
+                                st.rerun()
+                            else:
+                                st.error("翻訳の保存に失敗しました。先に「保存」ボタンで商品情報を保存してから再度翻訳してください。"
+                                         if _pi_is_ja else "Falha ao salvar tradução. Salve as informações primeiro.")
                         except Exception as _pi_te:
                             _pi_te_str = str(_pi_te).lower()
                             if any(w in _pi_te_str for w in ("credit", "balance", "low")):
@@ -1446,6 +1450,26 @@ def page_core_generation():
 
     # ── 翻訳データゲート（Phase 4） ───────────────────────────────────────────
     _cg_core_source = _cg_project.get("core_source_data") or {}
+
+    # Recover: input_ja exists but core_source_data was lost → rebuild and save
+    if not _cg_core_source:
+        _cg_input_ja = _cg_project.get("input_ja") or {}
+        if _cg_input_ja:
+            svc["storage"].save_product_translation(
+                _cg_pid, _cg_input_ja,
+                _cg_project.get("translated_by", "system (auto-rebuild)")
+            )
+            _cg_project = svc["storage"].load_product(_cg_pid) or {}
+            _cg_core_source = _cg_project.get("core_source_data") or {}
+
+    # Debug display (temporary)
+    with st.expander("🔧 デバッグ情報（開発用）", expanded=False):
+        st.markdown(f"- **product_id (session)**: `{_cg_pid}`")
+        st.markdown(f"- **input_ja**: {'✅ あり (' + str(len(_cg_project.get('input_ja') or {})) + 'フィールド)' if _cg_project.get('input_ja') else '❌ なし'}")
+        st.markdown(f"- **core_source_data**: {'✅ あり (' + str(len(_cg_core_source)) + 'フィールド)' if _cg_core_source else '❌ なし'}")
+        st.markdown(f"- **translation_status**: `{_cg_project.get('translation_status', 'not set')}`")
+        st.markdown(f"- **Core生成に使用するデータ**: {'core_source_data' if _cg_core_source else '（なし — ゲートでブロック）'}")
+
     if not _cg_core_source:
         _cg_tr_status = _cg_project.get("translation_status", "not_translated")
         if _cg_tr_status == "not_translated":
@@ -3995,6 +4019,13 @@ def page_saved_data():
                                         svc["storage"].save_product_translation(
                                             pid, _translated, get_current_user()
                                         )
+                                        # Ensure Core generation reads this project
+                                        st.session_state["product_id"] = pid
+                                        _refreshed = svc["storage"].load_product(pid) or {}
+                                        st.session_state["product_info"] = {
+                                            k: v for k, v in _refreshed.items()
+                                            if k not in ("id", "file_path")
+                                        }
                                         st.success("翻訳が完了しました。" if is_ja else "Tradução concluída.")
                                         st.rerun()
                                     except Exception as _te:
