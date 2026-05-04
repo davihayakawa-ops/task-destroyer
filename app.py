@@ -1327,6 +1327,87 @@ def page_product_input():
                 + "  (" + _pi_proj.get("product_prep_approved_at", "") + ")"
             )
 
+        # ── 日本語確認用翻訳（Phase 4c：商品入力ページ）──────────────────────
+        if _pi_role == "admin":
+            _pi_tr_status = _pi_proj.get("translation_status", "not_translated")
+            _pi_input_ja  = _pi_proj.get("input_ja") or {}
+            _pi_orig      = _pi_proj.get("input_original") or {}
+            _PI_LABELS = {
+                "name": "商品名", "description": "商品説明",
+                "price": "価格メモ", "category": "カテゴリ",
+                "target": "ターゲット", "use_scenes": "使用シーン",
+                "notes": "商品メモ", "competitor_urls": "競合URLメモ",
+                "weaknesses": "競合分析メモ", "features": "差別化ポイント",
+                "age": "年齢層", "gender": "性別",
+                "prohibited": "禁止表現", "brand_tone": "ブランドトーン",
+                "product_prep_review_note": "差し戻しコメント",
+            }
+
+            st.markdown("---")
+            st.markdown("**🌐 " + ("日本語確認用翻訳" if _pi_is_ja else "Tradução para revisão") + "**")
+
+            # ステータス表示
+            if _pi_tr_status == "translated":
+                st.caption(
+                    "✅ " + ("翻訳済み — " if _pi_is_ja else "Traduzido — ")
+                    + _pi_proj.get("translated_by", "")
+                    + "  " + _pi_proj.get("translated_at", "")
+                )
+                st.caption("📦 " + ("Core生成には日本語データを使用します"
+                                    if _pi_is_ja else "Core será gerado com dados em japonês"))
+            else:
+                st.caption("📝 " + ("未翻訳 — Core生成前に翻訳してください"
+                                    if _pi_is_ja else "Não traduzido — traduza antes de gerar o Core"))
+
+            # 翻訳ボタン
+            _pi_btn_lbl = (
+                ("🔄 再翻訳" if _pi_is_ja else "🔄 Retraduzir")
+                if _pi_tr_status == "translated"
+                else ("🔄 日本語に変換" if _pi_is_ja else "🔄 Traduzir para japonês")
+            )
+            if st.button(_pi_btn_lbl, key="pi_translate_btn"):
+                # input_original があればそこから、なければ _pi_proj のフィールドから直接取得
+                _pi_fields_src = (
+                    {k: v for k, v in _pi_orig.items() if v and str(v).strip()}
+                    if _pi_orig
+                    else {k: v for k, v in _pi_proj.items()
+                          if k in _PI_LABELS and v and str(v).strip()}
+                )
+                if not _pi_fields_src:
+                    st.warning("翻訳対象のテキストがありません。先に商品情報を保存してください。"
+                               if _pi_is_ja else "Nenhum texto para traduzir. Salve primeiro.")
+                else:
+                    with st.spinner("翻訳中..." if _pi_is_ja else "Traduzindo..."):
+                        try:
+                            _pi_translated = svc["translator"].translate_product_fields(_pi_fields_src)
+                            svc["storage"].save_product_translation(
+                                _pi_pid, _pi_translated, get_current_user()
+                            )
+                            st.success("翻訳が完了しました。" if _pi_is_ja else "Tradução concluída.")
+                            st.rerun()
+                        except Exception as _pi_te:
+                            _pi_te_str = str(_pi_te).lower()
+                            if any(w in _pi_te_str for w in ("credit", "balance", "low")):
+                                st.error("クレジット残高が不足しています。Anthropicアカウントを確認してください。"
+                                         if _pi_is_ja else "Saldo de crédito insuficiente.")
+                            else:
+                                st.error(("翻訳に失敗しました: " if _pi_is_ja else "Falha: ") + str(_pi_te)[:200])
+                            svc["storage"].log_activity(
+                                _pi_pid, "日本語翻訳失敗（商品入力）", str(_pi_te)[:100], get_current_user()
+                            )
+
+            # 日本語版表示（翻訳済みの場合）
+            if _pi_tr_status == "translated" and _pi_input_ja:
+                with st.expander(
+                    "🇯🇵 " + ("日本語版を確認" if _pi_is_ja else "Ver versão em japonês"),
+                    expanded=True,
+                ):
+                    for _fk, _fv in _pi_input_ja.items():
+                        if _fv and str(_fv).strip():
+                            st.markdown(f"**{_PI_LABELS.get(_fk, _fk)}**: {_fv}")
+                st.caption("🗂️ " + ("原文 Português は保持されています（input_original）"
+                                    if _pi_is_ja else "Original em Português preservado (input_original)"))
+
 
 # ── Page: Core Generation ──────────────────────────────────────────────────────
 
