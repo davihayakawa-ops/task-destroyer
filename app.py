@@ -4,6 +4,7 @@ import os
 import uuid
 import zipfile
 import io
+import base64
 from pathlib import Path
 from datetime import datetime
 from dotenv import load_dotenv
@@ -107,24 +108,15 @@ st.markdown("""
 /* ── Header bar ── */
 .cs-header {
     display: flex;
-    align-items: center;
-    gap: 12px;
+    justify-content: center;
     padding: 0 0 20px 0;
     border-bottom: 1px solid #1e1e1e;
     margin-bottom: 24px;
 }
-.cs-logo {
-    width: 36px; height: 36px;
-    background: radial-gradient(circle at 40% 40%, #22c55e, #15803d);
-    border-radius: 50%;
-    display: inline-block;
-    border: 2px solid #16a34a;
-}
-.cs-title {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: #f0f0f0;
-    letter-spacing: 0.02em;
+.cs-logo-img {
+    width: 180px;
+    height: auto;
+    display: block;
 }
 
 /* ── Buttons ── */
@@ -688,12 +680,13 @@ _BREADCRUMB_MAP_PT = {
 
 def render_sidebar():
     with st.sidebar:
-        # ── Logo + title ──────────────────────────────────────────────────
+        # ── Logo ──────────────────────────────────────────────────────────
+        _logo_path = Path(__file__).parent / "static" / "td_logo.png"
+        _logo_b64 = base64.b64encode(_logo_path.read_bytes()).decode()
         st.markdown(
-            '<div class="cs-header">'
-            '<div class="cs-logo"></div>'
-            '<div class="cs-title">Task Destroyer</div>'
-            '</div>',
+            f'<div class="cs-header">'
+            f'<img class="cs-logo-img" src="data:image/png;base64,{_logo_b64}" alt="Task Destroyer">'
+            f'</div>',
             unsafe_allow_html=True,
         )
 
