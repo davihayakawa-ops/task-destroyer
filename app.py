@@ -107,16 +107,19 @@ st.markdown("""
 
 /* ── Header bar ── */
 .cs-header {
-    display: flex;
-    justify-content: center;
-    padding: 0 0 20px 0;
+    padding: 8px 0 16px 0;
     border-bottom: 1px solid #1e1e1e;
-    margin-bottom: 24px;
+    margin-bottom: 20px;
+    background: transparent;
 }
 .cs-logo-img {
-    width: 180px;
+    width: 160px;
     height: auto;
     display: block;
+    margin: 0 auto;
+    background: transparent;
+    border: none;
+    box-shadow: none;
 }
 
 /* ── Buttons ── */
