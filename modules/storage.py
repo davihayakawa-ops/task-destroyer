@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import Any, List, Optional
 import uuid
 
+from .generated_content import ITEM_COMPAT_KEYS, combine_generated_items
+
 DATA_DIR = Path(os.getenv("DATA_DIR", "data"))
 if not DATA_DIR.is_absolute():
     DATA_DIR = Path(__file__).resolve().parent.parent / DATA_DIR
@@ -224,9 +226,19 @@ class Storage:
             if not entry:
                 continue
             content = entry.get("content", {})
-            text = content.get("text", "") if isinstance(content, dict) else str(content)
+            text = ""
+            if isinstance(content, dict):
+                text = content.get("text", "")
+                items = content.get("items")
+                if not text and isinstance(items, dict):
+                    text = combine_generated_items(items)
+            else:
+                text = str(content)
             if text:
                 result[ct] = text
+                compat_key = ITEM_COMPAT_KEYS.get(ct)
+                if compat_key:
+                    result[compat_key] = text
         return result
 
     # ── Approval ──────────────────────────────────────────────────────────────
@@ -309,6 +321,19 @@ class Storage:
         data["translated_by"] = translated_by
         self.save_product(product_id, data)
         self.log_activity(product_id, "日本語翻訳", "translated", translated_by)
+        return True
+
+    def mark_product_translation_failed(self, product_id: str, failed_by: str,
+                                        error: str = "") -> bool:
+        data = self.load_product(product_id)
+        if not data:
+            return False
+        data["translation_status"] = "failed"
+        data["translated_at"] = _now()
+        data["translated_by"] = failed_by
+        data["translation_error"] = str(error)[:300]
+        self.save_product(product_id, data)
+        self.log_activity(product_id, "日本語翻訳失敗", data["translation_error"], failed_by)
         return True
 
     # ── Activity Log ──────────────────────────────────────────────────────────

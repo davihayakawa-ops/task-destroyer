@@ -1,1 +1,5 @@
 .env
+.env.*
+.streamlit/secrets.toml
+data/
+app.py.bak_*
