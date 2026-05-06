@@ -28,6 +28,9 @@ from modules.checker import Checker
 from modules.bulk_pack_generator import BulkPackGenerator
 from modules.mode_registry import list_modes, get_mode
 from modules.permissions import get_current_role, get_current_user, can_view_page, filter_nav_items, DEV_ROLE_OPTIONS, can_perform_action, can_generate_core
+from modules.product_input_logic import PRODUCT_FIELD_LABELS_JA, PRODUCT_TRANSLATABLE_FIELDS, prepare_product_save_data, product_prep_status_label
+from modules.product_prep_ui import render_product_prep_ui
+from modules.selection_pages import page_ads_sns as render_page_ads_sns, page_image_prompt as render_page_image_prompt, page_video_script as render_page_video_script
 
 # ── i18n ─────────────────────────────────────────────────────────────────────
 
@@ -933,12 +936,6 @@ def page_product_input():
     other_i18n = load_i18n(other_lang)
 
     # ── 表示切り替え: 日本語確認用 / 原文 Português ──────────────────────────
-    _PI_TR_FIELDS_FORM = (
-        "name", "description", "price", "category", "target",
-        "use_scenes", "notes", "competitor_urls", "weaknesses",
-        "features", "product_prep_review_note",
-        "age", "gender", "prohibited", "brand_tone",
-    )
     _pi_input_ja_top = info.get("input_ja") or {}
     _pi_has_ja_top   = bool(_pi_input_ja_top)
     # Default to Japanese mode for admin when translation exists
@@ -1276,72 +1273,19 @@ def page_product_input():
                 "assignee": assignee,
                 "final_reviewer": reviewer,
             }
-            # Preserve existing prep approval fields so save doesn't reset approval status
             _exist = svc["storage"].load_product(product_id) or {}
-            for _pk in ("product_prep_status", "product_prep_approved",
-                        "product_prep_approved_by", "product_prep_approved_at",
-                        "product_prep_review_note", "product_prep_submitted_by",
-                        "product_prep_submitted_at"):
-                if _pk in _exist:
-                    new_info[_pk] = _exist[_pk]
-            # ── Phase 4: capture input_original snapshot and set translation state ──
-            _P4_FIELDS = ("name", "description", "price", "category", "target",
-                          "use_scenes", "notes", "competitor_urls", "weaknesses",
-                          "features", "product_prep_review_note",
-                          "age", "gender", "prohibited", "brand_tone")
-            _CG_FIELDS_SAVE = ("name", "category", "price", "target", "gender", "age",
-                               "product_url", "features", "weaknesses", "brand_tone",
-                               "prohibited", "description", "use_scenes", "competitor_urls",
-                               "notes", "assignee", "final_reviewer")
             _save_lang     = st.session_state.get("lang", "ja")
             _pi_save_in_ja = (
                 st.session_state.get("pi_disp_mode") == "🇯🇵 日本語確認用"
                 and _pi_has_ja_top
             )
-
-            if get_current_role() == "product_researcher":
-                # Researcher always saves in Portuguese → translation needed
-                new_info["input_original"] = {k: new_info.get(k, "") for k in _P4_FIELDS}
-                new_info["input_original_language"] = "pt-BR"
-                new_info["translation_status"] = "not_translated"
-                new_info["core_source_data"] = {}
-                for _tk in ("input_ja", "translated_at", "translated_by"):
-                    new_info[_tk] = _exist.get(_tk, {} if _tk == "input_ja" else "")
-            elif _pi_save_in_ja:
-                # Admin saving in Japanese review mode:
-                # form fields contain Japanese text → save to input_ja, restore PT to main fields
-                _new_ja_vals = {k: new_info.get(k, "") for k in _P4_FIELDS if new_info.get(k)}
-                _updated_ja  = {**(_exist.get("input_ja") or {}), **_new_ja_vals}
-                _orig_data   = _exist.get("input_original") or {}
-                # Restore Portuguese to main fields (never overwrite with Japanese)
-                for _tk in _P4_FIELDS:
-                    new_info[_tk] = _orig_data.get(_tk, _exist.get(_tk, ""))
-                new_info["input_original"]         = _orig_data if _orig_data else {k: new_info.get(k, "") for k in _P4_FIELDS}
-                new_info["input_original_language"] = "pt-BR"
-                new_info["input_ja"]               = _updated_ja
-                new_info["translation_status"]     = "translated"
-                # Rebuild core_source_data: PT base with JA overlay
-                _cg_s = {k: new_info.get(k, "") for k in _CG_FIELDS_SAVE}
-                _cg_s.update({k: v for k, v in _updated_ja.items() if k in _CG_FIELDS_SAVE and v})
-                new_info["core_source_data"] = _cg_s
-                for _tk in ("translated_at", "translated_by"):
-                    new_info[_tk] = _exist.get(_tk, "")
-            elif _save_lang == "ja":
-                # Admin saving in Japanese → no translation needed, auto-build core_source_data
-                new_info["input_original"] = {k: new_info.get(k, "") for k in _P4_FIELDS}
-                new_info["input_original_language"] = "ja"
-                new_info["translation_status"] = "not_needed"
-                new_info["core_source_data"] = {k: new_info.get(k, "") for k in _CG_FIELDS_SAVE}
-                for _tk in ("input_ja", "translated_at", "translated_by"):
-                    new_info[_tk] = _exist.get(_tk, {} if _tk == "input_ja" else "")
-            else:
-                # Admin saving in Portuguese → preserve existing translation state
-                new_info["input_original"] = {k: new_info.get(k, "") for k in _P4_FIELDS}
-                new_info["input_original_language"] = "pt-BR"
-                new_info["translation_status"] = _exist.get("translation_status", "not_translated")
-                new_info["core_source_data"] = _exist.get("core_source_data", {})
-                for _tk in ("input_ja", "translated_at", "translated_by"):
-                    new_info[_tk] = _exist.get(_tk, {} if _tk == "input_ja" else "")
+            new_info = prepare_product_save_data(
+                new_info,
+                _exist,
+                get_current_role(),
+                _save_lang,
+                _pi_save_in_ja,
+            )
             st.session_state["product_info"] = new_info
             st.session_state["assignee"] = assignee
             st.session_state["reviewer"] = reviewer
@@ -1350,218 +1294,8 @@ def page_product_input():
             st.markdown('<div class="cs-success">✅ ' + t("product_input.saved_msg") + '</div>',
                         unsafe_allow_html=True)
 
-    # ── 商品準備ステータス（Phase 3 承認ゲート） ──────────────────────────────
-    _pi_pid = st.session_state.get("product_id", "")
-    if _pi_pid:
-        _pi_is_ja = st.session_state.get("lang", "ja") == "ja"
-        try:
-            _pi_proj = svc["storage"].load_product(_pi_pid) or {}
-        except Exception:
-            _pi_proj = {}
-        _pi_status = _pi_proj.get("product_prep_status", "draft")
-        _pi_role   = get_current_role()
-        _PI_TR_FIELDS = (
-            "name", "description", "price", "category", "target",
-            "use_scenes", "notes", "competitor_urls", "weaknesses",
-            "features", "product_prep_review_note",
-            "age", "gender", "prohibited", "brand_tone",
-        )
-        _PI_LABELS = {
-            "name": "商品名", "description": "商品説明",
-            "price": "価格メモ", "category": "カテゴリ",
-            "target": "ターゲット", "use_scenes": "使用シーン",
-            "notes": "商品メモ", "competitor_urls": "競合URLメモ",
-            "weaknesses": "競合分析メモ", "features": "差別化ポイント",
-            "product_prep_review_note": "差し戻しコメント",
-            "age": "年齢層", "gender": "性別",
-            "prohibited": "禁止表現", "brand_tone": "ブランドトーン",
-        }
-
-        st.markdown("---")
-        _status_map = {
-            "draft":          ("📝 下書き",        "📝 Rascunho"),
-            "waiting_review": ("⏳ Davi確認待ち",   "⏳ Aguardando revisão"),
-            "approved":       ("✅ 承認済み",       "✅ Aprovado"),
-            "rejected":       ("❌ 差し戻し",       "❌ Recusado"),
-        }
-        _s_ja, _s_pt = _status_map.get(_pi_status, ("📝 下書き", "📝 Rascunho"))
-        st.markdown(
-            f"**{'商品準備ステータス' if _pi_is_ja else 'Status da Preparação'}**: "
-            f"{_s_ja if _pi_is_ja else _s_pt}"
-        )
-
-        if _pi_status == "rejected" and _pi_proj.get("product_prep_review_note"):
-            st.warning(
-                ("**差し戻しコメント**: " if _pi_is_ja else "**Comentário de revisão**: ")
-                + _pi_proj["product_prep_review_note"]
-            )
-
-        if _pi_role == "product_researcher" and _pi_status in ("draft", "rejected"):
-            if can_perform_action("product_prep_done"):
-                _pi_not_saved = not (_pi_proj.get("name") or _pi_proj.get("description"))
-                _pi_sbcol1, _pi_sbcol2 = st.columns(2)
-                with _pi_sbcol1:
-                    if st.button(
-                        "📤 " + ("そのまま提出" if _pi_is_ja else "Enviar sem tradução"),
-                        key="pi_submit_prep", use_container_width=True,
-                    ):
-                        if _pi_not_saved:
-                            st.error("先に「保存」ボタンで商品情報を保存してください。"
-                                     if _pi_is_ja else "Salve as informações primeiro.")
-                        else:
-                            svc["storage"].submit_product_prep(_pi_pid, get_current_user())
-                            st.success("Daviに提出しました。" if _pi_is_ja else "Enviado para revisão.")
-                            st.rerun()
-                with _pi_sbcol2:
-                    if st.button(
-                        "🌐 " + ("日本語に変換して提出" if _pi_is_ja else "Traduzir e enviar"),
-                        type="primary", key="pi_translate_submit", use_container_width=True,
-                    ):
-                        if _pi_not_saved:
-                            st.error("先に「保存」ボタンで商品情報を保存してください。"
-                                     if _pi_is_ja else "Salve as informações primeiro.")
-                        else:
-                            _pi_tr_src = {
-                                k: v
-                                for k, v in (_pi_proj.get("input_original") or _pi_proj).items()
-                                if k in _PI_TR_FIELDS and v and str(v).strip()
-                            }
-                            if not _pi_tr_src:
-                                st.error("翻訳対象のテキストがありません。先に商品情報を保存してください。"
-                                         if _pi_is_ja else "Nenhum texto para traduzir. Salve primeiro.")
-                            else:
-                                with st.spinner("翻訳中..." if _pi_is_ja else "Traduzindo..."):
-                                    try:
-                                        _pi_tr_result = svc["translator"].translate_product_fields(
-                                            _pi_tr_src
-                                        )
-                                        _pi_save_ok = svc["storage"].save_product_translation(
-                                            _pi_pid, _pi_tr_result, get_current_user()
-                                        )
-                                        if _pi_save_ok:
-                                            svc["storage"].submit_product_prep(
-                                                _pi_pid, get_current_user()
-                                            )
-                                            st.success("翻訳・提出が完了しました。"
-                                                       if _pi_is_ja else "Traduzido e enviado.")
-                                            st.rerun()
-                                        else:
-                                            st.error("翻訳の保存に失敗しました。先に「保存」ボタンで保存してください。"
-                                                     if _pi_is_ja else "Falha ao salvar. Salve primeiro.")
-                                    except Exception as _pi_tre:
-                                        _pi_tre_str = str(_pi_tre).lower()
-                                        if any(w in _pi_tre_str for w in ("credit", "balance", "low")):
-                                            st.error("クレジット残高が不足しています。"
-                                                     if _pi_is_ja else "Saldo insuficiente.")
-                                        else:
-                                            st.error(("翻訳に失敗しました: " if _pi_is_ja else "Falha: ")
-                                                     + str(_pi_tre)[:200])
-                                        svc["storage"].log_activity(
-                                            _pi_pid, "日本語翻訳失敗（提出時）",
-                                            str(_pi_tre)[:100], get_current_user()
-                                        )
-        elif _pi_status == "waiting_review":
-            st.info("管理者が確認中です。" if _pi_is_ja else "Aguardando revisão do administrador.")
-        elif _pi_status == "approved":
-            st.success(
-                ("承認者: " if _pi_is_ja else "Aprovado por: ")
-                + _pi_proj.get("product_prep_approved_by", "")
-                + "  (" + _pi_proj.get("product_prep_approved_at", "") + ")"
-            )
-
-        # ── 商品情報（日本語確認用）表示（Phase 4）──────────────────────────────
-        if _pi_role == "admin":
-            _pi_tr_status = _pi_proj.get("translation_status", "not_translated")
-            _pi_input_ja  = _pi_proj.get("input_ja") or {}
-            _pi_orig      = _pi_proj.get("input_original") or {}
-            _pi_core_src  = _pi_proj.get("core_source_data") or {}
-
-            st.markdown("---")
-            st.markdown("**🌐 " + ("商品情報（日本語確認用）" if _pi_is_ja else "Dados do produto (revisão)") + "**")
-
-            # 翻訳ステータスバッジ
-            if _pi_tr_status == "translated":
-                st.caption(
-                    "✅ 翻訳済み — " + _pi_proj.get("translated_by", "")
-                    + ("  " + _pi_proj.get("translated_at", "") if _pi_proj.get("translated_at") else "")
-                    + "　📦 Core生成には日本語データを使用します"
-                )
-            elif _pi_tr_status == "not_needed":
-                st.caption("✅ 日本語入力　📦 Core生成には日本語データを使用します")
-            else:
-                st.caption("📝 未翻訳 — Iago/Kaueが「日本語に変換して提出」を使うか、下のボタンで変換してください")
-
-            # タブ切り替え（翻訳済みの場合）/ 原文のみ（未翻訳の場合）
-            if _pi_input_ja:
-                _pi_tab_ja, _pi_tab_pt = st.tabs(
-                    ["🇯🇵 日本語確認用" if _pi_is_ja else "🇯🇵 Japonês",
-                     "🇧🇷 原文 Português" if _pi_is_ja else "🇧🇷 Original"]
-                )
-                with _pi_tab_ja:
-                    for _fk in _PI_TR_FIELDS:
-                        _fv = _pi_input_ja.get(_fk, "")
-                        if _fv and str(_fv).strip():
-                            st.markdown(f"**{_PI_LABELS.get(_fk, _fk)}**: {_fv}")
-                    if _pi_core_src:
-                        st.caption("⚙️ Core生成用データも作成済みです")
-                with _pi_tab_pt:
-                    _pi_orig_disp = _pi_orig or {k: _pi_proj.get(k, "") for k in _PI_TR_FIELDS}
-                    for _fk in _PI_TR_FIELDS:
-                        _fv = _pi_orig_disp.get(_fk, "")
-                        if _fv and str(_fv).strip():
-                            st.markdown(f"**{_PI_LABELS.get(_fk, _fk)}**: {_fv}")
-                    st.caption("🗂️ 原文は保持されています（input_original）")
-            else:
-                _pi_orig_disp = _pi_orig or {k: _pi_proj.get(k, "") for k in _PI_TR_FIELDS}
-                if any(_pi_orig_disp.get(k) for k in _PI_TR_FIELDS):
-                    with st.expander(
-                        "📄 " + ("原文データ" if _pi_is_ja else "Dados originais"),
-                        expanded=False,
-                    ):
-                        for _fk in _PI_TR_FIELDS:
-                            _fv = _pi_orig_disp.get(_fk, "")
-                            if _fv and str(_fv).strip():
-                                st.markdown(f"**{_PI_LABELS.get(_fk, _fk)}**: {_fv}")
-
-            # 管理者による翻訳ボタン
-            _pi_btn_lbl = (
-                ("🔄 再翻訳" if _pi_is_ja else "🔄 Retraduzir")
-                if _pi_tr_status == "translated"
-                else ("🔄 日本語に変換" if _pi_is_ja else "🔄 Traduzir para japonês")
-            )
-            if st.button(_pi_btn_lbl, key="pi_translate_btn"):
-                _pi_fields_src = (
-                    {k: v for k, v in _pi_orig.items() if v and str(v).strip()}
-                    if _pi_orig
-                    else {k: v for k, v in _pi_proj.items()
-                          if k in _PI_TR_FIELDS and v and str(v).strip()}
-                )
-                if not _pi_fields_src:
-                    st.warning("翻訳対象のテキストがありません。先に商品情報を保存してください。"
-                               if _pi_is_ja else "Nenhum texto para traduzir. Salve primeiro.")
-                else:
-                    with st.spinner("翻訳中..." if _pi_is_ja else "Traduzindo..."):
-                        try:
-                            _pi_translated = svc["translator"].translate_product_fields(_pi_fields_src)
-                            _pi_save_ok = svc["storage"].save_product_translation(
-                                _pi_pid, _pi_translated, get_current_user()
-                            )
-                            if _pi_save_ok:
-                                st.success("翻訳が完了しました。" if _pi_is_ja else "Tradução concluída.")
-                                st.rerun()
-                            else:
-                                st.error("翻訳の保存に失敗しました。先に「保存」ボタンで商品情報を保存してから再度翻訳してください。"
-                                         if _pi_is_ja else "Falha ao salvar tradução. Salve as informações primeiro.")
-                        except Exception as _pi_te:
-                            _pi_te_str = str(_pi_te).lower()
-                            if any(w in _pi_te_str for w in ("credit", "balance", "low")):
-                                st.error("クレジット残高が不足しています。Anthropicアカウントを確認してください。"
-                                         if _pi_is_ja else "Saldo de crédito insuficiente.")
-                            else:
-                                st.error(("翻訳に失敗しました: " if _pi_is_ja else "Falha: ") + str(_pi_te)[:200])
-                            svc["storage"].log_activity(
-                                _pi_pid, "日本語翻訳失敗（商品入力）", str(_pi_te)[:100], get_current_user()
-                            )
+    # ── 商品準備ステータス + 翻訳確認UI（Phase 3 / 4）────────────────────────
+    render_product_prep_ui(svc, is_ja)
 
 
 # ── Page: Core Generation ──────────────────────────────────────────────────────
@@ -2359,458 +2093,16 @@ def page_product_page():
                         st.write("未生成キー:", missing)
 
 
-# ── Image / Video / Ads-SNS item definitions ─────────────────────────────────
-
-_IP_ITEMS = [  # (key, ja_label, pt_label)
-    ("main_visual",  "🖼️ 商品ページ メインビジュアル", "🖼️ Visual Principal da Página"),
-    ("product_only", "📦 商品単体画像",                "📦 Imagem do Produto"),
-    ("usage_scene",  "🌿 使用シーン画像",              "🌿 Cena de Uso"),
-    ("benefit",      "✨ ベネフィット訴求画像",          "✨ Imagem de Benefício"),
-    ("comparison",   "⚖️ 比較画像",                    "⚖️ Imagem de Comparação"),
-    ("ad_banner",    "📢 広告バナー画像",               "📢 Banner Publicitário"),
-    ("sns_post",     "📱 SNS投稿画像",                  "📱 Imagem para SNS"),
-    ("story",        "📖 ストーリー用画像",              "📖 Imagem para Stories"),
-]
-_IP_PRESETS = [  # (key, ja_name, pt_name, item_keys)
-    ("shopify", "🛒 Shopifyページ制作セット", "🛒 Set Shopify",
-     ["main_visual", "product_only", "usage_scene", "benefit"]),
-    ("sns",     "📱 SNS素材セット",           "📱 Set SNS",
-     ["sns_post", "story", "usage_scene"]),
-    ("ads",     "📢 広告運用セット",           "📢 Set Anúncios",
-     ["ad_banner", "comparison", "benefit"]),
-    ("full",    "⚡ フル生成",                 "⚡ Geração Completa",
-     [k for k, _, _ in _IP_ITEMS]),
-    ("custom",  "✏️ カスタム",                 "✏️ Personalizado", []),
-]
-
-_VS_ITEMS = [
-    ("script_15s", "⏱️ 15秒動画台本",             "⏱️ Vídeo 15s"),
-    ("script_30s", "⏱️ 30秒動画台本",             "⏱️ Vídeo 30s"),
-    ("script_45s", "⏱️ 45秒動画台本",             "⏱️ Vídeo 45s"),
-    ("script_60s", "⏱️ 60秒動画台本",             "⏱️ Vídeo 60s"),
-    ("tiktok",     "🎵 TikTok用台本",              "🎵 TikTok"),
-    ("reels",      "📸 Instagram Reels用台本",     "📸 Instagram Reels"),
-    ("yt_shorts",  "▶️ YouTube Shorts用台本",       "▶️ YouTube Shorts"),
-    ("narration",  "🎤 読み上げ用ナレーション",    "🎤 Narração"),
-    ("timeline",   "📋 秒数別構成",               "📋 Cronograma"),
-    ("telop",      "💬 テロップ版",                "💬 Versão Legendada"),
-    ("shooting",   "🎬 撮影指示付き台本",          "🎬 Com Direção de Filmagem"),
-]
-_VS_PRESETS = [
-    ("sns",    "📱 SNS投稿セット",   "📱 Set SNS",
-     ["script_15s", "script_30s", "tiktok", "reels"]),
-    ("ads",    "📢 広告運用セット",   "📢 Set Anúncios",
-     ["script_30s", "script_60s", "shooting", "timeline"]),
-    ("full",   "⚡ フル生成",         "⚡ Geração Completa",
-     [k for k, _, _ in _VS_ITEMS]),
-    ("custom", "✏️ カスタム",         "✏️ Personalizado", []),
-]
-
-_AS_MEDIA = [  # (key, label)
-    ("instagram",  "Instagram"),
-    ("tiktok",     "TikTok"),
-    ("yt_shorts",  "YouTube Shorts"),
-    ("facebook",   "Facebook"),
-    ("x",          "X (Twitter)"),
-    ("line",       "LINE"),
-    ("shopify_ad", "Shopify広告文"),
-    ("google_ad",  "Google広告"),
-]
-_AS_TYPES = [  # (key, ja_label, pt_label)
-    ("post",         "投稿文",         "Postagem"),
-    ("ad_copy",      "広告コピー",     "Copy Publicitário"),
-    ("caption",      "キャプション",   "Legenda"),
-    ("hashtag",      "ハッシュタグ",   "Hashtags"),
-    ("cta",          "CTA",            "CTA"),
-    ("hook",         "短いフック",     "Gancho Curto"),
-    ("comment_bait", "コメント誘導文", "Indutor de Comentários"),
-]
-_AS_PRESETS = [  # (key, ja_name, pt_name, [(media,type),...])
-    ("sns", "📱 SNS投稿セット", "📱 Set SNS",
-     [("instagram","post"),("tiktok","post"),("instagram","hashtag"),
-      ("tiktok","hashtag"),("instagram","cta"),("tiktok","cta")]),
-    ("ads", "📢 広告運用セット", "📢 Set Anúncios",
-     [("instagram","ad_copy"),("tiktok","ad_copy"),("instagram","cta"),
-      ("google_ad","ad_copy"),("facebook","ad_copy")]),
-    ("custom", "✏️ カスタム", "✏️ Personalizado", []),
-]
-
-
-def _load_category_state(category_key: str):
-    """Load per-item results from storage if not already in session_state."""
-    if category_key in st.session_state:
-        return
-    pid = st.session_state.get("product_id", "")
-    if pid:
-        try:
-            saved = svc["storage"].load_generated(pid, category_key)
-            if saved and isinstance(saved.get("content"), dict):
-                st.session_state[category_key] = saved["content"].get("items", {})
-                return
-        except Exception:
-            pass
-    st.session_state[category_key] = {}
-
-
-def _save_category_state(category_key: str, compat_key: str):
-    """Persist items to storage and update backward-compat combined text for dashboard."""
-    items = st.session_state.get(category_key, {})
-    pid = ensure_product_id()
-    svc["storage"].save_generated(pid, category_key, {"items": items})
-    combined = "\n\n---\n\n".join(f"## {k}\n{v}" for k, v in items.items() if v)
-    if combined:
-        st.session_state["generated"][compat_key] = combined
-
-
-def _render_item_card(category_key: str, item_key: str, label: str, content: str,
-                      regen_fn, is_ja: bool, compat_key: str):
-    """Render an editable result card for one generated item."""
-    pid = ensure_product_id()
-    try:
-        approval = svc["approval"].get_status(pid, f"{category_key}_{item_key}")
-        badge = status_badge(approval.get("status", "draft"))
-    except Exception:
-        badge = status_badge("draft")
-
-    with st.expander(f"✅ {label}", expanded=True):
-        st.markdown(badge, unsafe_allow_html=True)
-        new_content = st.text_area(
-            "",
-            value=content,
-            height=300,
-            key=f"ta_{category_key}_{item_key}",
-            label_visibility="collapsed",
-        )
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            if st.button("💾 " + ("保存" if is_ja else "Salvar"),
-                         key=f"save_{category_key}_{item_key}",
-                         use_container_width=True, type="primary"):
-                st.session_state[category_key][item_key] = new_content
-                _save_category_state(category_key, compat_key)
-                st.success("✅ " + ("保存しました" if is_ja else "Salvo!"))
-        with col2:
-            if st.button("🔄 " + ("再生成" if is_ja else "Regenerar"),
-                         key=f"regen_{category_key}_{item_key}",
-                         use_container_width=True):
-                with st.spinner("⏳ " + ("生成中..." if is_ja else "Gerando...")):
-                    result = regen_fn(item_key)
-                    st.session_state[category_key][item_key] = result
-                    _save_category_state(category_key, compat_key)
-                st.rerun()
-        with col3:
-            safe_fname = item_key.replace("::", "_").replace("/", "_")
-            st.download_button(
-                "⬇️ " + ("ダウンロード" if is_ja else "Baixar"),
-                data=content.encode("utf-8"),
-                file_name=f"{safe_fname}.md",
-                mime="text/markdown",
-                key=f"dl_{category_key}_{item_key}",
-                use_container_width=True,
-            )
-
-
-# ── Page: Image Prompts ───────────────────────────────────────────────────────
-
 def page_image_prompt():
-    is_ja = st.session_state.get("lang", "ja") == "ja"
-    st.markdown('<div class="section-header">🖼️ ' + t("image_prompt.title") + '</div>',
-                unsafe_allow_html=True)
+    render_page_image_prompt(svc, t, ensure_product_id, status_badge)
 
-    if not st.session_state.get("core_text"):
-        st.markdown('<div class="cs-warning">⚠️ ' + t("common.no_core_warning") + '</div>',
-                    unsafe_allow_html=True)
-        if st.button("✨ " + ("Core生成画面へ" if is_ja else "Ir para Gerar Core")):
-            st.session_state["page"] = "core_generation"
-            st.rerun()
-        return
-
-    _load_category_state("image_prompts")
-    core = st.session_state["core_text"]
-    product_info = st.session_state.get("product_info", {})
-    product_name = product_info.get("name", "")
-    category = product_info.get("category", "")
-
-    # ── STEP 1: Preset ────────────────────────────────────────────────────────
-    st.markdown("### " + ("STEP 1: プリセット選択" if is_ja else "STEP 1: Selecionar Preset"))
-    preset_cols = st.columns(len(_IP_PRESETS))
-    for i, (pk, pja, ppt, pitems) in enumerate(_IP_PRESETS):
-        with preset_cols[i]:
-            if st.button(pja if is_ja else ppt, key=f"ip_preset_{pk}", use_container_width=True):
-                for k, _, _ in _IP_ITEMS:
-                    st.session_state[f"chk_ip_{k}"] = (k in pitems)
-                st.rerun()
-
-    # ── STEP 2: Item selection ────────────────────────────────────────────────
-    st.markdown("### " + ("STEP 2: 生成項目を選択" if is_ja else "STEP 2: Selecionar Itens"))
-    selected = []
-    cols = st.columns(2)
-    for i, (k, ja_lbl, pt_lbl) in enumerate(_IP_ITEMS):
-        with cols[i % 2]:
-            default = st.session_state.get(f"chk_ip_{k}", False)
-            if st.checkbox(ja_lbl if is_ja else pt_lbl, value=default, key=f"chk_ip_{k}"):
-                selected.append(k)
-
-    # ── STEP 3: Generate ──────────────────────────────────────────────────────
-    st.markdown("---")
-    n = len(selected)
-    btn_label = (f"⚡ 選択した {n} 項目を生成" if is_ja else f"⚡ Gerar {n} item(s) selecionado(s)")
-    if st.button(btn_label, type="primary", disabled=(n == 0)):
-        prog = st.progress(0)
-        status = st.empty()
-        for i, k in enumerate(selected):
-            lbl = next((ja if is_ja else pt for kk, ja, pt in _IP_ITEMS if kk == k), k)
-            status.text(f"⏳ {lbl} ({i+1}/{n})")
-            result = svc["generator"].generate_image_prompt_item(k, core, product_name, category)
-            st.session_state["image_prompts"][k] = result
-            prog.progress((i + 1) / n)
-        status.empty()
-        prog.empty()
-        _save_category_state("image_prompts", "image_prompt")
-        pid = ensure_product_id()
-        svc["storage"].log_activity(pid, "画像プロンプト生成", f"{n}項目", "")
-        st.rerun()
-
-    # ── STEP 4: Results ───────────────────────────────────────────────────────
-    items_data = st.session_state.get("image_prompts", {})
-    has_results = any(items_data.get(k) for k, _, _ in _IP_ITEMS)
-    if has_results:
-        st.markdown("### " + ("生成結果" if is_ja else "Resultados"))
-        for k, ja_lbl, pt_lbl in _IP_ITEMS:
-            content = items_data.get(k)
-            if not content:
-                continue
-            label = ja_lbl if is_ja else pt_lbl
-
-            def _make_regen_fn_ip(item_key):
-                def _regen(_):
-                    return svc["generator"].generate_image_prompt_item(
-                        item_key, core, product_name, category)
-                return _regen
-
-            _render_item_card("image_prompts", k, label, content,
-                              _make_regen_fn_ip(k), is_ja, "image_prompt")
-    else:
-        st.markdown('<div class="cs-info">💡 ' + (
-            "上の項目を選択して生成ボタンを押してください。" if is_ja
-            else "Selecione os itens acima e clique em Gerar."
-        ) + '</div>', unsafe_allow_html=True)
-
-
-# ── Page: Video Script ────────────────────────────────────────────────────────
 
 def page_video_script():
-    is_ja = st.session_state.get("lang", "ja") == "ja"
-    st.markdown('<div class="section-header">🎬 ' + t("video_script.title") + '</div>',
-                unsafe_allow_html=True)
+    render_page_video_script(svc, t, ensure_product_id, status_badge)
 
-    if not st.session_state.get("core_text"):
-        st.markdown('<div class="cs-warning">⚠️ ' + t("common.no_core_warning") + '</div>',
-                    unsafe_allow_html=True)
-        if st.button("✨ " + ("Core生成画面へ" if is_ja else "Ir para Gerar Core")):
-            st.session_state["page"] = "core_generation"
-            st.rerun()
-        return
-
-    _load_category_state("video_scripts")
-    core = st.session_state["core_text"]
-    product_info = st.session_state.get("product_info", {})
-    product_name = product_info.get("name", "")
-
-    # ── STEP 1: Preset ────────────────────────────────────────────────────────
-    st.markdown("### " + ("STEP 1: プリセット選択" if is_ja else "STEP 1: Selecionar Preset"))
-    preset_cols = st.columns(len(_VS_PRESETS))
-    for i, (pk, pja, ppt, pitems) in enumerate(_VS_PRESETS):
-        with preset_cols[i]:
-            if st.button(pja if is_ja else ppt, key=f"vs_preset_{pk}", use_container_width=True):
-                for k, _, _ in _VS_ITEMS:
-                    st.session_state[f"chk_vs_{k}"] = (k in pitems)
-                st.rerun()
-
-    # ── STEP 2: Item selection ────────────────────────────────────────────────
-    st.markdown("### " + ("STEP 2: 生成項目を選択" if is_ja else "STEP 2: Selecionar Itens"))
-    selected = []
-    cols = st.columns(2)
-    for i, (k, ja_lbl, pt_lbl) in enumerate(_VS_ITEMS):
-        with cols[i % 2]:
-            default = st.session_state.get(f"chk_vs_{k}", False)
-            if st.checkbox(ja_lbl if is_ja else pt_lbl, value=default, key=f"chk_vs_{k}"):
-                selected.append(k)
-
-    # ── STEP 3: Generate ──────────────────────────────────────────────────────
-    st.markdown("---")
-    n = len(selected)
-    btn_label = (f"⚡ 選択した {n} 項目を生成" if is_ja else f"⚡ Gerar {n} item(s) selecionado(s)")
-    if st.button(btn_label, type="primary", disabled=(n == 0), key="vs_gen_btn"):
-        prog = st.progress(0)
-        status = st.empty()
-        for i, k in enumerate(selected):
-            lbl = next((ja if is_ja else pt for kk, ja, pt in _VS_ITEMS if kk == k), k)
-            status.text(f"⏳ {lbl} ({i+1}/{n})")
-            result = svc["generator"].generate_video_script_item(k, core, product_name)
-            st.session_state["video_scripts"][k] = result
-            prog.progress((i + 1) / n)
-        status.empty()
-        prog.empty()
-        _save_category_state("video_scripts", "video_script")
-        pid = ensure_product_id()
-        svc["storage"].log_activity(pid, "動画台本生成", f"{n}項目", "")
-        st.rerun()
-
-    # ── STEP 4: Results ───────────────────────────────────────────────────────
-    items_data = st.session_state.get("video_scripts", {})
-    has_results = any(items_data.get(k) for k, _, _ in _VS_ITEMS)
-    if has_results:
-        st.markdown("### " + ("生成結果" if is_ja else "Resultados"))
-        for k, ja_lbl, pt_lbl in _VS_ITEMS:
-            content = items_data.get(k)
-            if not content:
-                continue
-            label = ja_lbl if is_ja else pt_lbl
-
-            def _make_regen_fn_vs(item_key):
-                def _regen(_):
-                    return svc["generator"].generate_video_script_item(item_key, core, product_name)
-                return _regen
-
-            _render_item_card("video_scripts", k, label, content,
-                              _make_regen_fn_vs(k), is_ja, "video_script")
-    else:
-        st.markdown('<div class="cs-info">💡 ' + (
-            "上の項目を選択して生成ボタンを押してください。" if is_ja
-            else "Selecione os itens acima e clique em Gerar."
-        ) + '</div>', unsafe_allow_html=True)
-
-
-# ── Page: Ads / SNS ───────────────────────────────────────────────────────────
 
 def page_ads_sns():
-    is_ja = st.session_state.get("lang", "ja") == "ja"
-    st.markdown('<div class="section-header">📣 ' + t("ads_sns.title") + '</div>',
-                unsafe_allow_html=True)
-
-    if not st.session_state.get("core_text"):
-        st.markdown('<div class="cs-warning">⚠️ ' + t("common.no_core_warning") + '</div>',
-                    unsafe_allow_html=True)
-        if st.button("✨ " + ("Core生成画面へ" if is_ja else "Ir para Gerar Core")):
-            st.session_state["page"] = "core_generation"
-            st.rerun()
-        return
-
-    _load_category_state("ads_sns_items")
-    core = st.session_state["core_text"]
-    product_info = st.session_state.get("product_info", {})
-    product_name = product_info.get("name", "")
-
-    # ── STEP 1: Preset ────────────────────────────────────────────────────────
-    st.markdown("### " + ("STEP 1: プリセット選択" if is_ja else "STEP 1: Selecionar Preset"))
-    preset_cols = st.columns(len(_AS_PRESETS))
-    for i, (pk, pja, ppt, pcombos) in enumerate(_AS_PRESETS):
-        with preset_cols[i]:
-            if st.button(pja if is_ja else ppt, key=f"as_preset_{pk}", use_container_width=True):
-                if pcombos:
-                    preset_media = list({m for m, _ in pcombos})
-                    preset_types = list({ct for _, ct in pcombos})
-                    st.session_state["as_sel_media"] = preset_media
-                    st.session_state["as_sel_types"] = preset_types
-                    st.session_state["as_preset_combos"] = {f"{m}::{ct}" for m, ct in pcombos}
-                else:
-                    st.session_state["as_sel_media"] = []
-                    st.session_state["as_sel_types"] = []
-                    st.session_state["as_preset_combos"] = set()
-                st.rerun()
-
-    # ── STEP 2: Media & type selection ───────────────────────────────────────
-    st.markdown("### " + ("STEP 2: 媒体と生成タイプを選択" if is_ja
-                          else "STEP 2: Selecionar Mídia e Tipo"))
-    col_media, col_type = st.columns(2)
-
-    media_options = [m for m, _ in _AS_MEDIA]
-    media_labels = [lbl for _, lbl in _AS_MEDIA]
-    type_options = [k for k, _, _ in _AS_TYPES]
-    type_ja_labels = [ja for _, ja, _ in _AS_TYPES]
-    type_pt_labels = [pt for _, _, pt in _AS_TYPES]
-
-    with col_media:
-        st.markdown("**" + ("媒体" if is_ja else "Mídia") + "**")
-        sel_media_keys = st.session_state.get("as_sel_media", [])
-        selected_media = []
-        for mk, ml in zip(media_options, media_labels):
-            default = mk in sel_media_keys
-            if st.checkbox(ml, value=default, key=f"chk_as_m_{mk}"):
-                selected_media.append(mk)
-        st.session_state["as_sel_media"] = selected_media
-
-    with col_type:
-        st.markdown("**" + ("生成タイプ" if is_ja else "Tipo de Conteúdo") + "**")
-        sel_type_keys = st.session_state.get("as_sel_types", [])
-        selected_types = []
-        for tk, tja, tpt in _AS_TYPES:
-            default = tk in sel_type_keys
-            if st.checkbox(tja if is_ja else tpt, value=default, key=f"chk_as_t_{tk}"):
-                selected_types.append(tk)
-        st.session_state["as_sel_types"] = selected_types
-
-    # ── STEP 3: Generate ──────────────────────────────────────────────────────
-    st.markdown("---")
-    combos = [(m, ct) for m in selected_media for ct in selected_types]
-    n = len(combos)
-    if n > 0:
-        media_labels_map = {mk: ml for mk, ml in _AS_MEDIA}
-        type_labels_map = {k: (ja if is_ja else pt) for k, ja, pt in _AS_TYPES}
-        st.info(("生成する組み合わせ: " if is_ja else "Combinações a gerar: ") +
-                ", ".join(f"{media_labels_map[m]}/{type_labels_map[ct]}" for m, ct in combos))
-    btn_label = (f"⚡ {n} 組み合わせを生成" if is_ja else f"⚡ Gerar {n} combinação(ões)")
-    if st.button(btn_label, type="primary", disabled=(n == 0), key="as_gen_btn"):
-        prog = st.progress(0)
-        status = st.empty()
-        media_labels_map2 = {mk: ml for mk, ml in _AS_MEDIA}
-        type_labels_map2 = {k: (ja if is_ja else pt) for k, ja, pt in _AS_TYPES}
-        for i, (m, ct) in enumerate(combos):
-            combo_label = f"{media_labels_map2[m]} / {type_labels_map2[ct]}"
-            status.text(f"⏳ {combo_label} ({i+1}/{n})")
-            result = svc["generator"].generate_ads_sns_item(m, ct, core, product_name)
-            st.session_state["ads_sns_items"][f"{m}::{ct}"] = result
-            prog.progress((i + 1) / n)
-        status.empty()
-        prog.empty()
-        _save_category_state("ads_sns_items", "ads_sns")
-        pid = ensure_product_id()
-        svc["storage"].log_activity(pid, "広告・SNS生成", f"{n}組み合わせ", "")
-        st.rerun()
-
-    # ── STEP 4: Results (grouped by media) ───────────────────────────────────
-    items_data = st.session_state.get("ads_sns_items", {})
-    if items_data:
-        st.markdown("### " + ("生成結果" if is_ja else "Resultados"))
-        media_labels_map3 = {mk: ml for mk, ml in _AS_MEDIA}
-        type_labels_map3 = {k: (ja if is_ja else pt) for k, ja, pt in _AS_TYPES}
-
-        # Group by media
-        for mk, ml in _AS_MEDIA:
-            media_items = {k: v for k, v in items_data.items()
-                           if k.startswith(f"{mk}::") and v}
-            if not media_items:
-                continue
-            st.markdown(f"#### {ml}")
-            for item_key, content in media_items.items():
-                parts = item_key.split("::", 1)
-                ct = parts[1] if len(parts) == 2 else item_key
-                label = f"{ml} - {type_labels_map3.get(ct, ct)}"
-
-                def _make_regen_fn_as(media_key, content_type_key):
-                    def _regen(_):
-                        return svc["generator"].generate_ads_sns_item(
-                            media_key, content_type_key, core, product_name)
-                    return _regen
-
-                _render_item_card("ads_sns_items", item_key, label, content,
-                                  _make_regen_fn_as(mk, ct), is_ja, "ads_sns")
-    else:
-        st.markdown('<div class="cs-info">💡 ' + (
-            "上の媒体と生成タイプを選択して生成ボタンを押してください。" if is_ja
-            else "Selecione mídia e tipo acima e clique em Gerar."
-        ) + '</div>', unsafe_allow_html=True)
+    render_page_ads_sns(svc, t, ensure_product_id, status_badge)
 
 
 # ── Page: Bulk Pack ────────────────────────────────────────────────────────────
@@ -4083,13 +3375,7 @@ def page_saved_data():
                     # ── 商品準備ステータス（Phase 3 承認ゲート） ──────────────────────
                     if not is_empty:
                         _sd_status = p.get("product_prep_status", "draft")
-                        _sd_status_map = {
-                            "draft":          ("📝 下書き",        "📝 Rascunho"),
-                            "waiting_review": ("⏳ Davi確認待ち",   "⏳ Aguardando revisão"),
-                            "approved":       ("✅ 承認済み",       "✅ Aprovado"),
-                            "rejected":       ("❌ 差し戻し",       "❌ Recusado"),
-                        }
-                        _sd_s_ja, _sd_s_pt = _sd_status_map.get(_sd_status, ("📝 下書き", "📝 Rascunho"))
+                        _sd_s_ja, _sd_s_pt = product_prep_status_label(_sd_status)
                         st.markdown("---")
                         st.markdown(
                             f"**{'商品準備ステータス' if is_ja else 'Status da Preparação'}**: "
@@ -4140,18 +3426,6 @@ def page_saved_data():
                             _tr_ja     = p.get("input_ja") or {}
                             _tr_status = p.get("translation_status", "not_translated")
                             _tr_has_orig = any(str(v).strip() for v in _tr_orig.values() if v)
-                            _TRANS_LABELS = {
-                                "name": "商品名", "description": "商品説明",
-                                "price": "価格メモ", "category": "カテゴリ",
-                                "target": "ターゲット", "use_scenes": "使用シーン",
-                                "notes": "商品メモ", "competitor_urls": "競合URLメモ",
-                                "weaknesses": "競合分析メモ", "features": "差別化ポイント",
-                                "product_prep_review_note": "差し戻しコメント",
-                                "age": "年齢層", "gender": "性別",
-                                "prohibited": "禁止表現", "brand_tone": "ブランドトーン",
-                                "product_url": "商品URL", "assignee": "担当者",
-                                "final_reviewer": "最終確認者",
-                            }
                             st.markdown("---")
                             st.markdown("**🌐 " + ("日本語確認用翻訳" if is_ja else "Tradução para revisão") + "**")
 
@@ -4163,7 +3437,7 @@ def page_saved_data():
                                 ):
                                     for _fk, _fv in _tr_orig.items():
                                         if _fv and str(_fv).strip():
-                                            st.markdown(f"**{_TRANS_LABELS.get(_fk, _fk)}**: {_fv}")
+                                            st.markdown(f"**{PRODUCT_FIELD_LABELS_JA.get(_fk, _fk)}**: {_fv}")
                             else:
                                 st.caption("💡 " + ("原文データがありません。先に商品情報を保存してください。"
                                                     if is_ja else "Nenhum dado original. Salve as informações primeiro."))
@@ -4181,7 +3455,7 @@ def page_saved_data():
                                     ):
                                         for _fk, _fv in _tr_ja.items():
                                             if _fv and str(_fv).strip():
-                                                st.markdown(f"**{_TRANS_LABELS.get(_fk, _fk)}**: {_fv}")
+                                                st.markdown(f"**{PRODUCT_FIELD_LABELS_JA.get(_fk, _fk)}**: {_fv}")
                                 _tr_core_src = p.get("core_source_data") or {}
                                 if _tr_core_src:
                                     with st.expander(
@@ -4190,7 +3464,7 @@ def page_saved_data():
                                     ):
                                         for _fk, _fv in _tr_core_src.items():
                                             if _fv and str(_fv).strip():
-                                                st.markdown(f"**{_TRANS_LABELS.get(_fk, _fk)}**: {_fv}")
+                                                st.markdown(f"**{PRODUCT_FIELD_LABELS_JA.get(_fk, _fk)}**: {_fv}")
                             elif _tr_status == "failed":
                                 st.caption("⚠️ " + ("翻訳失敗（再試行できます）"
                                                      if is_ja else "Falha na tradução (tente novamente)"))
@@ -4230,6 +3504,9 @@ def page_saved_data():
                                                      if is_ja else "Saldo de crédito insuficiente.")
                                         else:
                                             st.error(("翻訳に失敗しました: " if is_ja else "Falha: ") + str(_te)[:200])
+                                        svc["storage"].mark_product_translation_failed(
+                                            pid, get_current_user(), str(_te)
+                                        )
                                         svc["storage"].log_activity(
                                             pid, "日本語翻訳失敗", str(_te)[:100], get_current_user()
                                         )
