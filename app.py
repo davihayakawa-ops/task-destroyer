@@ -456,7 +456,7 @@ init_state()
 # Bump this string whenever new methods are added to any service class.
 # Changing it invalidates the @st.cache_resource cache on Streamlit Cloud,
 # forcing fresh service objects that reflect the latest code.
-_SERVICES_VER = "20260513-shop-storage"
+_SERVICES_VER = "20260513-video-combo-v2"
 
 
 @st.cache_resource
