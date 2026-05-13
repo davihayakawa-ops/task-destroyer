@@ -14,7 +14,6 @@
     "bulk_pack": "一括生成パック",
     "refinement": "日本語補正・翻訳",
     "check": "チェック",
-    "approval": "承認フロー",
     "output": "出力",
     "saved_data": "保存データ",
     "instruction_sheet": "制作指示書",
@@ -109,10 +108,6 @@
     "save_btn": "保存",
     "copy_btn": "コピー",
     "edit_btn": "編集",
-    "pending_btn": "確認待ちにする",
-    "approve_btn": "承認する",
-    "revision_btn": "修正依頼する",
-    "hold_btn": "保留する",
     "finalize_btn": "最終版にする",
     "concept": "商品の一言コンセプト",
     "main_target": "メインターゲット",
@@ -144,7 +139,6 @@
     "ai_completed": "AI補完項目",
     "human_check": "人間が確認すべき項目",
     "saved_msg": "Coreを保存しました",
-    "pending_msg": "確認待ちにしました",
     "generating_msg": "Coreを生成中..."
   },
   "external_core": {
@@ -190,31 +184,6 @@
     "after": "補正後",
     "refining_msg": "補正中..."
   },
-  "approval": {
-    "title": "承認フロー",
-    "status": {
-      "draft": "下書き",
-      "ai_generated": "AI生成済み",
-      "edited": "担当者編集済み",
-      "pending": "確認待ち",
-      "revision_requested": "修正依頼",
-      "approved": "承認済み",
-      "ready": "公開準備OK",
-      "published": "公開済み"
-    },
-    "ai_generated_step": "AI生成",
-    "ai_generated_desc": "AIがCoreと各コンテンツを生成しました",
-    "edit_step": "担当者編集",
-    "edit_desc": "担当者が内容を編集・調整します",
-    "pending_step": "確認待ち",
-    "pending_desc": "内容の確認を待っています",
-    "approved_step": "承認済み",
-    "approved_desc": "承認されると出力可能になります",
-    "comment_label": "コメント（修正依頼の場合は内容を記入）",
-    "approve_btn": "承認する",
-    "revision_btn": "修正依頼する",
-    "hold_btn": "保留する"
-  },
   "status": {
     "label": "ステータス",
     "created_by": "作成者",
@@ -227,8 +196,7 @@
     "copy_text": "テキストをコピー",
     "download_md": "Markdownでダウンロード",
     "download_json": "JSONでダウンロード",
-    "download_html": "HTMLでダウンロード",
-    "approved_only": "承認済みのみ出力"
+    "download_html": "HTMLでダウンロード"
   },
   "bulk_pack": {
     "title": "一括生成パック",
@@ -237,7 +205,6 @@
     "sns_pack": "SNS投稿パック",
     "image_pack": "画像生成パック",
     "video_pack": "動画生成パック",
-    "approval_pack": "承認用確認パック",
     "improvement_pack": "改善・テストパック",
     "generate_btn": "パックを生成",
     "generating_msg": "パックを生成中..."
@@ -256,7 +223,6 @@
     "delete_reason_label": "削除理由（任意）",
     "delete_confirm_btn": "削除する",
     "delete_cancel_btn": "キャンセル",
-    "approved_warning": "このプロジェクトには承認済みコンテンツが含まれています。削除しても問題ないか確認してください。",
     "deleted_msg": "プロジェクトを削除しました",
     "products_tab": "商品プロジェクト",
     "cores_tab": "Coreライブラリ"
@@ -273,9 +239,6 @@
     "cancel_label": "キャンセル",
     "ai_badge": "AI補完",
     "human_badge": "人間が編集",
-    "approved_badge": "承認済み",
-    "pending_badge": "確認待ち",
-    "revision_badge": "修正依頼",
     "draft_badge": "下書き"
   }
 }

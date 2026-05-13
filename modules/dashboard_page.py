@@ -2,9 +2,8 @@ import json
 import streamlit as st
 
 from .i18n import t, tl
-from .permissions import get_current_role, get_current_user, can_perform_action
+from .permissions import can_perform_action
 from .project_utils import is_empty_project_entry, load_project_session, status_badge
-from .product_input_logic import product_prep_status_label
 
 
 # ── Page: New Dashboard (Phase 1 — dummy data) ────────────────────────────────
@@ -198,86 +197,9 @@ _ND_CSS = """
 </style>
 """
 
-# ── Dummy data for Phase 1 (replace with real data in Phase 2) ──
-
-_ND_DUMMY_PROJECTS = [
-    {"name":"APEXDRIVE PRO", "updated":"2026-04-30 18:42", "formats":"商品文 / Shopify / 画像","status":"approved","id":"a1b2c3d4"},
-    {"name":"PulseZen Sinso スキンケア", "updated":"2026-04-29 11:17", "formats":"商品文 / 広告SNS","status":"pending","id":"e5f6a7b8"},
-    {"name":"NeoCellar ワインセラー", "updated":"2026-04-28 09:03", "formats":"商品文","status":"ai_generated","id":"c9d0e1f2"},
-    {"name":"ArcBlade ゲーミングマウス", "updated":"2026-04-26 22:55", "formats":"商品文 / Shopify / 動画","status":"revision","id":"f3a4b5c6"},
-    {"name":"SilkFlow タオルセット", "updated":"2026-04-25 14:30", "formats":"商品文 / 画像","status":"draft","id":"d7e8f9a0"},
-]
-
-_ND_DUMMY_CONTENT = [
-    {
-        "key":"product_page","icon":"📄","title":"商品ページ文章","tag":"JA",
-        "status":"approved","words":312,
-        "preview":(
-            "APEXDRIVE PRO — 次世代ドライビングシューズ\n\n"
-            "スピードを求める者へ。35年のレーシングノウハウを\n"
-            "デイリーユースへと昇華した革命的フットウェア。\n\n"
-            "■ カーボンナノファイバーソール — 0.3mm のグリップ精度\n"
-            "■ アダプティブフィットシステム — 走行中も最適な締め付けを維持\n"
-            "■ 耐熱コーティング — 260℃環境でも変形なし"
-        ),
-    },
-    {
-        "key":"shopify_code","icon":"🛒","title":"Shopify Custom Liquid","tag":"CODE",
-        "status":"ai_generated","words":9,
-        "preview":(
-            '<!-- HERO SECTION: APEXDRIVE PRO -->\n'
-            '<section class="apex-hero">\n'
-            '  <div class="apex-eyebrow">PERFORMANCE SERIES 2025</div>\n'
-            '  <h1 class="apex-headline">速度を、履く。</h1>\n'
-            '  <p>35年のレーシングDNAが生んだ究極のシューズ。</p>\n'
-            '</section>'
-        ),
-    },
-    {
-        "key":"image_prompt","icon":"🖼️","title":"画像プロンプト","tag":"EN",
-        "status":"ai_generated","words":48,
-        "preview":(
-            "[Shot 1 — Hero]\n"
-            "Ultra-sharp product photo, APEXDRIVE PRO, 45° angle.\n"
-            "Carbon fiber texture on sole. Matte black studio,\n"
-            "single LED strip. Precision engineering aesthetic.\n\n"
-            "[Shot 2 — Lifestyle]\n"
-            "Driver's hand in luxury sports car cockpit, morning light."
-        ),
-    },
-    {
-        "key":"video_script","icon":"🎬","title":"動画台本","tag":"JA",
-        "status":"pending","words":180,
-        "preview":(
-            "【Opening: 3s】 BLACK SCREEN → LED flicker\n"
-            "SE: 高級EV起動音\n"
-            'TEXT: "35年間、ピットで磨かれた技術が"\n\n'
-            "【Scene 1: 5s】 スローモーション\n"
-            "ソールがペダルに触れる瞬間\n"
-            'VO: "0.3mmの精度が、タイムを変える"'
-        ),
-    },
-    {
-        "key":"ads_sns","icon":"📣","title":"広告 / SNS","tag":"JA",
-        "status":"draft","words":95,
-        "preview":(
-            "【Google 検索広告】\n"
-            "見出し1: 速さを履く — APEXDRIVE PRO\n"
-            "見出し2: レーシング技術をデイリーに\n"
-            "見出し3: 限定200足 ¥29,800（税込）\n\n"
-            "【Instagram】\n"
-            "⚡ 速度を、履く。\n"
-            "#APEXDRIVE #ドライビングシューズ #カーボン"
-        ),
-    },
-]
-
 _ND_BADGE_HTML = {
-    "approved":    '<span class="nd-b nd-b-ok">✓ 承認済</span>',
-    "ai_generated":'<span class="nd-b nd-b-ai">⚡ AI生成</span>',
-    "pending":     '<span class="nd-b nd-b-pnd">⏳ 確認待ち</span>',
-    "revision":    '<span class="nd-b nd-b-rev">↩ 修正依頼</span>',
-    "draft":       '<span class="nd-b nd-b-dft">○ 下書き</span>',
+    "ai_generated": '<span class="nd-b nd-b-ai">⚡ 生成済み</span>',
+    "draft":        '<span class="nd-b nd-b-dft">○ 未生成</span>',
 }
 
 
@@ -309,23 +231,14 @@ def page_new_dashboard(svc: dict) -> None:
     def _content(key):
         return _shopify_text if key == "shopify_code" else str(_gen.get(key) or "")
 
-    # Content spec: key / approval_key / icon / title / tag / regen_page / lang_code
+    # Content spec: key / icon / title / tag / regen_page
     _SPECS = [
-        ("product_page",  "product_page",         "📄", "商品ページ文章",         "TEXT", "product_page"),
-        ("shopify_code",  "shopify_sections",      "🛒", "Shopify Custom Liquid",   "CODE", "product_page"),
-        ("image_prompt",  "image_prompt",          "🖼️", "画像プロンプト",          "EN",   "image_prompt"),
-        ("video_script",  "video_script",          "🎬", "動画台本",               "JA",   "video_script"),
-        ("ads_sns",       "ads_sns",               "📣", "広告 / SNS",             "JA",   "ads_sns"),
+        ("product_page",  "📄", "商品ページ文章",         "TEXT", "product_page"),
+        ("shopify_code",  "🛒", "Shopify Custom Liquid",   "CODE", "product_page"),
+        ("image_prompt",  "🖼️", "画像プロンプト",          "EN",   "image_prompt"),
+        ("video_script",  "🎬", "動画台本",               "JA",   "video_script"),
+        ("ads_sns",       "📣", "広告 / SNS",             "JA",   "ads_sns"),
     ]
-
-    # Approval statuses (try-except for stale cache safety)
-    _aprv = {}
-    if _pid:
-        for key, aprv_key, *_ in _SPECS:
-            try:
-                _aprv[key] = svc["approval"].get_status(_pid, aprv_key).get("status", "draft")
-            except Exception:
-                _aprv[key] = "draft"
 
     # KPI counts (real)
     try:
@@ -333,8 +246,7 @@ def page_new_dashboard(svc: dict) -> None:
     except Exception:
         _all_projs = []
     _gen_count      = sum(1 for key, *_ in _SPECS if _content(key).strip())
-    _approved_count = sum(1 for k, v in _aprv.items() if v == "approved")
-    _pending_count  = sum(1 for k, v in _aprv.items() if v in ("pending", "revision_requested"))
+    _remaining_count = max(len(_SPECS) - _gen_count, 0)
 
     _product_name = _pinfo.get("name") or ("商品未選択" if _is_ja else "No product selected")
 
@@ -370,8 +282,8 @@ def page_new_dashboard(svc: dict) -> None:
     _kpis = [
         ("📦", str(len(_all_projs)), "総プロジェクト" if _is_ja else "Projetos",    "#22c55e"),
         ("⚡", str(_gen_count),      "生成コンテンツ" if _is_ja else "Conteúdos",   "#818cf8"),
-        ("✓",  str(_approved_count),"承認済み"       if _is_ja else "Aprovados",   "#22c55e"),
-        ("🔄", str(_pending_count), "確認待ち"       if _is_ja else "Pendentes",   "#f59e0b"),
+        ("🧠", "1" if _has_core else "0", "Core" if _is_ja else "Core", "#22c55e"),
+        ("📝", str(_remaining_count), "未生成" if _is_ja else "Pendentes", "#f59e0b"),
     ]
     for col, (ico, val, lbl, color) in zip([k1, k2, k3, k4], _kpis):
         with col:
@@ -440,11 +352,10 @@ def page_new_dashboard(svc: dict) -> None:
 
         st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
 
-        for key, aprv_key, icon, title, tag, regen_page in _SPECS:
+        for key, icon, title, tag, regen_page in _SPECS:
             text       = _content(key)
             has_text   = bool(text.strip())
-            apv_status = _aprv.get(key, "draft")
-            badge_html = _ND_BADGE_HTML.get(apv_status, _ND_BADGE_HTML["draft"])
+            badge_html = _ND_BADGE_HTML["ai_generated"] if has_text else _ND_BADGE_HTML["draft"]
 
             # Preview text (HTML-escaped so raw content is safe)
             if has_text:
@@ -481,7 +392,7 @@ def page_new_dashboard(svc: dict) -> None:
             )
 
             # ── Action buttons ────────────────────────────────────────────────
-            ab1, ab2, ab3, ab4, _ = st.columns([1, 1, 1, 1, 3])
+            ab1, ab2, ab3, _ = st.columns([1, 1, 1, 4])
 
             # Copy: toggle st.code() below card (Streamlit built-in copy button)
             with ab1:
@@ -509,26 +420,6 @@ def page_new_dashboard(svc: dict) -> None:
                         st.rerun()
                     st.session_state["page"] = regen_page
                     st.rerun()
-
-            # Approve
-            with ab4:
-                if apv_status == "approved":
-                    st.button("✓ " + ("承認済" if _is_ja else "Aprovado"), key=f"nd_appr_{key}",
-                              disabled=True, use_container_width=True)
-                elif has_text and _pid and can_perform_action("approve"):
-                    if st.button("🔐 " + ("承認" if _is_ja else "Aprovar"), key=f"nd_appr_{key}",
-                                 use_container_width=True):
-                        if not can_perform_action("approve"):
-                            st.warning("この操作は許可されていません。" if _is_ja else "Operação não permitida.")
-                            st.rerun()
-                        try:
-                            svc["approval"].approve(_pid, aprv_key, user=st.session_state.get("assignee",""))
-                        except Exception:
-                            pass
-                        st.rerun()
-                else:
-                    st.button("🔐 " + ("承認" if _is_ja else "Aprovar"), key=f"nd_appr_{key}",
-                              disabled=True, use_container_width=True)
 
             # Show copy code block when toggled
             if st.session_state.get(f"nd_copy_open_{key}") and has_text:
@@ -576,20 +467,7 @@ def page_new_dashboard(svc: dict) -> None:
                 pname = p.get("name") or "—"
                 pupdated = p.get("updated_at", "-")
                 ppid = p["id"]
-                # Determine overall status from approval
                 row_status = "draft"
-                if ppid:
-                    try:
-                        _pp_apv = [svc["approval"].get_status(ppid, s[1]).get("status","draft")
-                                   for s in _SPECS]
-                        if all(s == "approved" for s in _pp_apv):
-                            row_status = "approved"
-                        elif any(s in ("pending","revision_requested") for s in _pp_apv):
-                            row_status = "pending"
-                        elif any(s == "ai_generated" for s in _pp_apv):
-                            row_status = "ai_generated"
-                    except Exception:
-                        pass
                 badge = _ND_BADGE_HTML.get(row_status, _ND_BADGE_HTML["draft"])
 
                 tc1, tc2, tc3, tc4, tc5 = st.columns([3, 2, 1.5, 1, 1])
@@ -651,7 +529,7 @@ def page_new_dashboard(svc: dict) -> None:
 
         # Build combined text bundle for bulk download
         _all_text_parts = []
-        for key, _, icon, title, *_ in _SPECS:
+        for key, icon, title, *_ in _SPECS:
             txt = _content(key)
             if txt.strip():
                 _all_text_parts.append(f"{'='*60}\n{title}\n{'='*60}\n{txt}")
@@ -670,7 +548,7 @@ def page_new_dashboard(svc: dict) -> None:
             ("🛒", "Shopify セクション表示" if _is_ja else "Ver Seções Shopify",
                    "Shopifyコードを確認・コピー" if _is_ja else "Verificar e copiar código Shopify", "live", False, "shopify"),
             ("📋", "出力センターへ" if _is_ja else "Centro de Exportação",
-                   "承認済みコンテンツの出力・管理" if _is_ja else "Gerenciar conteúdos aprovados", "live", False, "output"),
+                   "生成済みコンテンツの出力・管理" if _is_ja else "Gerenciar conteúdos gerados", "live", False, "output"),
             ("📁", "Google Drive に保存" if _is_ja else "Salvar no Google Drive",
                    "Google Driveへ自動アップロード" if _is_ja else "Upload automático ao Google Drive", "soon", True,  None),
             ("📝", "Word Docs に出力" if _is_ja else "Exportar para Word",

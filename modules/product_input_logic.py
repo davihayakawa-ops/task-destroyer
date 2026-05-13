@@ -4,16 +4,6 @@ These helpers keep the Portuguese original, Japanese review data, and Core
 source data rules in one place so the Streamlit page can stay focused on UI.
 """
 
-PREP_FIELDS = (
-    "product_prep_status",
-    "product_prep_approved",
-    "product_prep_approved_by",
-    "product_prep_approved_at",
-    "product_prep_review_note",
-    "product_prep_submitted_by",
-    "product_prep_submitted_at",
-)
-
 PRODUCT_TRANSLATABLE_FIELDS = (
     "name",
     "description",
@@ -25,7 +15,6 @@ PRODUCT_TRANSLATABLE_FIELDS = (
     "competitor_urls",
     "weaknesses",
     "features",
-    "product_prep_review_note",
     "age",
     "gender",
     "prohibited",
@@ -65,7 +54,6 @@ PRODUCT_FIELD_LABELS_JA = {
     "competitor_urls": "競合URLメモ",
     "weaknesses": "競合分析メモ",
     "features": "差別化ポイント",
-    "product_prep_review_note": "差し戻しコメント",
     "age": "年齢層",
     "gender": "性別",
     "prohibited": "禁止表現",
@@ -74,20 +62,6 @@ PRODUCT_FIELD_LABELS_JA = {
     "assignee": "担当者",
     "final_reviewer": "最終確認者",
 }
-
-PRODUCT_PREP_STATUS_LABELS = {
-    "draft": ("📝 下書き", "📝 Rascunho"),
-    "waiting_review": ("⏳ Davi確認待ち", "⏳ Aguardando revisão"),
-    "approved": ("✅ 承認済み", "✅ Aprovado"),
-    "rejected": ("❌ 差し戻し", "❌ Recusado"),
-}
-
-
-def product_prep_status_label(status: str) -> tuple:
-    return PRODUCT_PREP_STATUS_LABELS.get(
-        status, PRODUCT_PREP_STATUS_LABELS["draft"]
-    )
-
 
 def _copy_translation_meta(target: dict, existing: dict):
     for key in TRANSLATION_META_FIELDS:
@@ -104,21 +78,6 @@ def prepare_product_save_data(
     """Return product data with prep and translation metadata applied."""
     data = dict(new_info)
     existing = existing or {}
-
-    for key in PREP_FIELDS:
-        if key in existing:
-            data[key] = existing[key]
-
-    if role == "product_researcher":
-        # Researcher always saves in Portuguese; Japanese review data is created later.
-        data["input_original"] = {
-            k: data.get(k, "") for k in PRODUCT_TRANSLATABLE_FIELDS
-        }
-        data["input_original_language"] = "pt-BR"
-        data["translation_status"] = "not_translated"
-        data["core_source_data"] = {}
-        _copy_translation_meta(data, existing)
-        return data
 
     if save_in_ja_review:
         # Admin is editing Japanese review data. Keep the Portuguese main fields intact.

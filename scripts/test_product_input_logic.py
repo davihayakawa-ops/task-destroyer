@@ -9,7 +9,7 @@ sys.path.insert(0, str(ROOT))
 from modules.product_input_logic import prepare_product_save_data
 
 
-def test_researcher_save_preserves_prep_and_requires_translation():
+def test_portuguese_save_requires_translation():
     base = {
         "name": "Produto",
         "description": "Descricao",
@@ -17,19 +17,12 @@ def test_researcher_save_preserves_prep_and_requires_translation():
         "assignee": "Iago",
         "final_reviewer": "Davi",
     }
-    existing = {
-        "product_prep_status": "approved",
-        "product_prep_approved": True,
-        "input_ja": {"name": "古い訳"},
-        "translated_at": "old",
-        "translated_by": "Davi",
-    }
+    existing = {"input_ja": {"name": "古い訳"}, "translated_at": "old", "translated_by": "Davi"}
 
     result = prepare_product_save_data(
-        base, existing, "product_researcher", "pt", False
+        base, existing, "admin", "pt", False
     )
 
-    assert result["product_prep_status"] == "approved"
     assert result["input_original_language"] == "pt-BR"
     assert result["translation_status"] == "not_translated"
     assert result["core_source_data"] == {}
@@ -71,7 +64,7 @@ def test_admin_review_save_keeps_portuguese_main_fields():
 
 
 def main():
-    test_researcher_save_preserves_prep_and_requires_translation()
+    test_portuguese_save_requires_translation()
     test_admin_japanese_save_builds_core_source()
     test_admin_review_save_keeps_portuguese_main_fields()
     print("product input logic tests ok")

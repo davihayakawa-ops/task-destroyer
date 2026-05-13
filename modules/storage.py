@@ -16,7 +16,7 @@ if not DATA_DIR.is_absolute():
 
 # Directories included in backup ZIPs (secrets/env files are never included)
 _BACKUP_DIRS = [
-    "projects", "core_library", "approvals", "activity_logs",
+    "projects", "core_library", "activity_logs",
     "delete_logs", "bulk_packs", "ab_tests", "reviews",
     "performance_notes", "category_templates", "trash",
 ]
@@ -34,8 +34,7 @@ _ERROR_PATTERNS = [
 _TRANSLATABLE_FIELDS = (
     "name", "description", "price", "category", "target",
     "use_scenes", "notes", "competitor_urls", "weaknesses",
-    "features", "product_prep_review_note",
-    "age", "gender", "prohibited", "brand_tone",
+    "features", "age", "gender", "prohibited", "brand_tone",
 )
 
 # Product fields that the Core engine consumes (non-metadata)
@@ -64,25 +63,6 @@ def _fill_translation_defaults(data: dict) -> dict:
     return data
 
 
-_PREP_DEFAULTS = {
-    "product_prep_status":       "draft",
-    "product_prep_approved":     False,
-    "product_prep_approved_by":  "",
-    "product_prep_approved_at":  "",
-    "product_prep_review_note":  "",
-    "product_prep_submitted_by": "",
-    "product_prep_submitted_at": "",
-}
-
-
-def _fill_prep_defaults(data: dict) -> dict:
-    """Backfill missing approval fields so old saved data never causes KeyError."""
-    for k, v in _PREP_DEFAULTS.items():
-        if k not in data:
-            data[k] = v
-    return data
-
-
 def _is_empty_data(data: dict) -> bool:
     """Return True when a project has no meaningful content."""
     return (
@@ -106,7 +86,6 @@ class Storage:
     def __init__(self):
         _ensure_dir(DATA_DIR / "projects")
         _ensure_dir(DATA_DIR / "core_library")
-        _ensure_dir(DATA_DIR / "approvals")
         _ensure_dir(DATA_DIR / "activity_logs")
         _ensure_dir(DATA_DIR / "delete_logs")
         _ensure_dir(DATA_DIR / "backups")
@@ -124,7 +103,7 @@ class Storage:
         path = DATA_DIR / "projects" / f"{product_id}.json"
         if not path.exists():
             return None
-        return _fill_translation_defaults(_fill_prep_defaults(json.loads(path.read_text())))
+        return _fill_translation_defaults(json.loads(path.read_text()))
 
     def list_products(self) -> List[dict]:
         result = []
@@ -145,7 +124,7 @@ class Storage:
                 entry = {
                     "id": p.stem,
                     "file_path": str(p.resolve()),  # absolute path → reliable deletion
-                    **_fill_translation_defaults(_fill_prep_defaults(data)),
+                    **_fill_translation_defaults(data),
                 }
                 result.append(entry)
             except Exception:
@@ -241,65 +220,6 @@ class Storage:
                     result[compat_key] = text
         return result
 
-    # ── Approval ──────────────────────────────────────────────────────────────
-
-    def update_approval(self, product_id: str, content_type: str, status: str, comment: str = "") -> bool:
-        entry = {
-            "product_id": product_id,
-            "content_type": content_type,
-            "status": status,
-            "comment": comment,
-            "updated_at": _now(),
-        }
-        path = DATA_DIR / "approvals" / f"{product_id}_{content_type}.json"
-        path.write_text(json.dumps(entry, ensure_ascii=False, indent=2))
-        return True
-
-    def get_approval(self, product_id: str, content_type: str) -> Optional[dict]:
-        path = DATA_DIR / "approvals" / f"{product_id}_{content_type}.json"
-        if not path.exists():
-            return None
-        return json.loads(path.read_text())
-
-    # ── Product Prep Approval ─────────────────────────────────────────────────
-
-    def submit_product_prep(self, product_id: str, submitted_by: str) -> bool:
-        data = self.load_product(product_id)
-        if not data:
-            return False
-        data["product_prep_status"] = "waiting_review"
-        data["product_prep_submitted_by"] = submitted_by
-        data["product_prep_submitted_at"] = _now()
-        self.save_product(product_id, data)
-        self.log_activity(product_id, "商品準備提出", "waiting_review", submitted_by)
-        return True
-
-    def approve_product_prep(self, product_id: str, approved_by: str, note: str = "") -> bool:
-        data = self.load_product(product_id)
-        if not data:
-            return False
-        data["product_prep_status"] = "approved"
-        data["product_prep_approved"] = True
-        data["product_prep_approved_by"] = approved_by
-        data["product_prep_approved_at"] = _now()
-        data["product_prep_review_note"] = note
-        self.save_product(product_id, data)
-        self.log_activity(product_id, "商品準備承認", "approved", approved_by)
-        return True
-
-    def reject_product_prep(self, product_id: str, rejected_by: str, note: str) -> bool:
-        data = self.load_product(product_id)
-        if not data:
-            return False
-        data["product_prep_status"] = "rejected"
-        data["product_prep_approved"] = False
-        data["product_prep_approved_by"] = ""
-        data["product_prep_approved_at"] = _now()
-        data["product_prep_review_note"] = note
-        self.save_product(product_id, data)
-        self.log_activity(product_id, "商品準備差し戻し", "rejected", rejected_by)
-        return True
-
     # ── Product Input Translation ─────────────────────────────────────────────
 
     def save_product_translation(self, product_id: str, input_ja: dict, translated_by: str) -> bool:
@@ -363,16 +283,6 @@ class Storage:
         return entries
 
     # ── Delete ────────────────────────────────────────────────────────────────
-
-    def has_approved_content(self, product_id: str) -> bool:
-        for p in (DATA_DIR / "approvals").glob(f"{product_id}_*.json"):
-            try:
-                data = json.loads(p.read_text())
-                if data.get("status") in ("approved", "ready", "published"):
-                    return True
-            except Exception:
-                pass
-        return False
 
     def delete_project(self, product_id: str, deleted_by: str = "",
                        reason: str = "", file_path: str = "",
@@ -452,9 +362,6 @@ class Storage:
                 for p in list((DATA_DIR / "core_library").glob(f"{product_id}_*.json")):
                     deleted.append(str(p))
                     p.unlink()
-                for p in list((DATA_DIR / "approvals").glob(f"{product_id}_*.json")):
-                    deleted.append(str(p))
-                    p.unlink()
                 log_file = DATA_DIR / "activity_logs" / f"{product_id}.jsonl"
                 if log_file.exists():
                     deleted.append(str(log_file))
@@ -482,10 +389,6 @@ class Storage:
                 p.unlink()
 
             for p in list((DATA_DIR / "core_library").glob(f"{product_id}_*.json")):
-                deleted.append(str(p))
-                p.unlink()
-
-            for p in list((DATA_DIR / "approvals").glob(f"{product_id}_*.json")):
                 deleted.append(str(p))
                 p.unlink()
 

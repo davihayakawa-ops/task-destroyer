@@ -14,36 +14,24 @@ STATUS_BADGE_CLASS = {
     "draft": "badge-draft",
     "ai_generated": "badge-ai",
     "edited": "badge-ai",
-    "pending": "badge-pending",
-    "revision_requested": "badge-revision",
-    "approved": "badge-approved",
-    "ready": "badge-approved",
-    "published": "badge-approved",
-    "hold": "badge-draft",
+    "published": "badge-success",
+    "imported": "badge-ai",
 }
 
 STATUS_LABEL_JA = {
     "draft": "下書き",
     "ai_generated": "AI生成済み",
     "edited": "編集済み",
-    "pending": "確認待ち",
-    "revision_requested": "修正依頼",
-    "approved": "承認済み",
-    "ready": "公開準備OK",
     "published": "公開済み",
-    "hold": "保留",
+    "imported": "取り込み済み",
 }
 
 STATUS_LABEL_PT = {
     "draft": "Rascunho",
     "ai_generated": "Gerado pela IA",
     "edited": "Editado",
-    "pending": "Aguardando revisão",
-    "revision_requested": "Revisão solicitada",
-    "approved": "Aprovado",
-    "ready": "Pronto",
     "published": "Publicado",
-    "hold": "Suspenso",
+    "imported": "Importado",
 }
 
 

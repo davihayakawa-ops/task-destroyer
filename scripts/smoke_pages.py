@@ -18,7 +18,6 @@ PAGES = [
     "image_prompt",
     "video_script",
     "ads_sns",
-    "approval",
     "output",
 ]
 
@@ -28,8 +27,6 @@ BASE_PRODUCT = {
     "price": "1000",
     "description": "テスト商品です。",
     "features": "軽くて使いやすい",
-    "product_prep_status": "approved",
-    "product_prep_approved": True,
     "core_source_data": {
         "name": "Test Product",
         "description": "テスト商品です。",
@@ -49,8 +46,6 @@ def run_page(page: str):
     at.session_state["page"] = page
     at.session_state["mode"] = "commerce"
     at.session_state["lang"] = "ja"
-    at.session_state["dev_role"] = "admin"
-    at.session_state["dev_user"] = "Davi"
     at.session_state["product_id"] = "testpid"
     at.session_state["product_info"] = dict(BASE_PRODUCT)
     at.session_state["core_text"] = BASE_CORE

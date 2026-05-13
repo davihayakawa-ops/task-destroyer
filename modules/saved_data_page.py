@@ -1,11 +1,10 @@
 import streamlit as st
 
 from .i18n import t, tl
-from .permissions import get_current_role, get_current_user, can_perform_action
+from .permissions import get_current_user, can_perform_action
 from .product_input_logic import (
     PRODUCT_FIELD_LABELS_JA,
     PRODUCT_TRANSLATABLE_FIELDS,
-    product_prep_status_label,
 )
 from .project_utils import (
     is_empty_project_entry,
@@ -125,20 +124,9 @@ def page_saved_data(svc: dict) -> None:
                             st.session_state.pop("confirm_delete_file_path", None)
                             st.session_state.pop("confirm_delete_name", None)
                             st.rerun()
-                        try:
-                            from modules.storage import Storage as _Storage
-                            _storage = _Storage()
-                            has_approved = _storage.has_approved_content(pid)
-                        except Exception:
-                            has_approved = False
                         st.markdown("---")
                         st.markdown(f"**⚠️ {t('saved_data.confirm_delete_title')}**")
                         st.markdown(t("saved_data.confirm_delete_msg"))
-                        if has_approved:
-                            st.markdown(
-                                f'<div class="cs-warning">⚠️ {t("saved_data.approved_warning")}</div>',
-                                unsafe_allow_html=True,
-                            )
                         delete_reason = st.text_input(
                             t("saved_data.delete_reason_label"),
                             key=f"del_reason_{pid}",
@@ -197,63 +185,15 @@ def page_saved_data(svc: dict) -> None:
                                 st.session_state.pop("confirm_delete_name", None)
                                 st.rerun()
 
-                    # ── 商品準備ステータス（Phase 3 承認ゲート） ──────────────────────
-                    if not is_empty:
-                        _sd_status = p.get("product_prep_status", "draft")
-                        _sd_s_ja, _sd_s_pt = product_prep_status_label(_sd_status)
-                        st.markdown("---")
-                        st.markdown(
-                            f"**{'商品準備ステータス' if is_ja else 'Status da Preparação'}**: "
-                            f"{_sd_s_ja if is_ja else _sd_s_pt}"
-                        )
-                        if _sd_status == "rejected" and p.get("product_prep_review_note"):
-                            st.warning(
-                                ("**差し戻しコメント**: " if is_ja else "**Comentário de revisão**: ")
-                                + p["product_prep_review_note"]
-                            )
-                        if _sd_status == "approved" and p.get("product_prep_approved_by"):
-                            st.caption(
-                                ("承認者: " if is_ja else "Aprovado por: ")
-                                + p["product_prep_approved_by"]
-                                + "  (" + p.get("product_prep_approved_at", "") + ")"
-                            )
-                        # Admin approve/reject UI (shown only when waiting_review)
-                        if get_current_role() == "admin" and _sd_status == "waiting_review":
-                            st.markdown("**" + ("承認・差し戻し" if is_ja else "Aprovar / Recusar") + "**")
-                            _apv_col1, _apv_col2 = st.columns(2)
-                            with _apv_col1:
-                                if st.button(
-                                    "✅ " + ("承認する" if is_ja else "Aprovar"),
-                                    key=f"approve_prep_{pid}", type="primary",
-                                    use_container_width=True,
-                                ):
-                                    svc["storage"].approve_product_prep(pid, get_current_user())
-                                    st.success("承認しました。" if is_ja else "Aprovado.")
-                                    st.rerun()
-                            with _apv_col2:
-                                _rej_note = st.text_input(
-                                    "差し戻しコメント" if is_ja else "Motivo da recusa",
-                                    key=f"rej_note_{pid}",
-                                    placeholder="理由を入力..." if is_ja else "Digite o motivo...",
-                                )
-                                if st.button(
-                                    "❌ " + ("差し戻す" if is_ja else "Recusar"),
-                                    key=f"reject_prep_{pid}",
-                                    use_container_width=True,
-                                ):
-                                    svc["storage"].reject_product_prep(pid, get_current_user(), _rej_note)
-                                    st.success("差し戻しました。" if is_ja else "Recusado.")
-                                    st.rerun()
-
                         # ── 日本語確認用翻訳（Phase 4） ──────────────────────────────────
-                        if get_current_role() == "admin":
-                            _tr_orig   = p.get("input_original") or {}
-                            _tr_ja     = p.get("input_ja") or {}
-                            _tr_status = p.get("translation_status", "not_translated")
-                            _tr_has_orig = any(str(v).strip() for v in _tr_orig.values() if v)
-                            st.markdown("---")
-                            st.markdown("**🌐 " + ("日本語確認用翻訳" if is_ja else "Tradução para revisão") + "**")
+                        _tr_orig   = p.get("input_original") or {}
+                        _tr_ja     = p.get("input_ja") or {}
+                        _tr_status = p.get("translation_status", "not_translated")
+                        _tr_has_orig = any(str(v).strip() for v in _tr_orig.values() if v)
+                        st.markdown("---")
+                        st.markdown("**🌐 " + ("日本語確認用翻訳" if is_ja else "Tradução para revisão") + "**")
 
+                        if True:
                             # 原文表示
                             if _tr_has_orig:
                                 with st.expander(
@@ -296,7 +236,7 @@ def page_saved_data(svc: dict) -> None:
                             else:
                                 st.caption("📝 " + ("未翻訳" if is_ja else "Não traduzido"))
 
-                            # 翻訳ボタン（管理者のみ）
+                            # 翻訳ボタン
                             _btn_lbl = (
                                 ("🔄 再翻訳" if is_ja else "🔄 Retraduzir")
                                 if _tr_status == "translated"

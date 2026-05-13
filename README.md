@@ -50,7 +50,6 @@ core_studio/
 │   ├── translator.py         # 翻訳（PT⇔JA）
 │   ├── japanese_refiner.py   # 日本語補正
 │   ├── generator_engine.py   # コンテンツ生成エンジン
-│   ├── approval_flow.py      # 承認フロー
 │   ├── exporter.py           # 出力・エクスポート
 │   ├── checker.py            # 整合性・リスクチェック
 │   ├── bulk_pack_generator.py # 一括生成パック
@@ -86,8 +85,6 @@ core_studio/
 - [x] ポルトガル語→日本語変換
 - [x] 日本語→ポルトガル語変換
 - [x] 整合性チェック・リスク表現チェック
-- [x] 承認フロー（確認待ち / 承認 / 修正依頼 / 保留）
-- [x] 承認ステータス管理
 - [x] 作業ログ
 - [x] Markdown / JSON / HTML 出力
 - [x] 保存データ管理・プロジェクト読み込み
@@ -106,7 +103,6 @@ core_studio/
 - [ ] Shopify HTML出力（完全版）
 - [ ] Shopify CSV出力
 - [ ] 制作指示書出力
-- [ ] 承認済みロック機能
 - [ ] 商品ジャンル別テンプレート
 - [ ] NG表現・リスク表現の自動置き換え
 - [ ] 商品ページ完成度スコア
@@ -119,7 +115,6 @@ core_studio/
 - [ ] レビュー活用機能
 - [ ] FAQ強化機能
 - [ ] オファー設計機能
-- [ ] AI初稿・担当者編集版・承認版の比較
 
 ## Phase 4 TODO
 

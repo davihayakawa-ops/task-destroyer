@@ -22,14 +22,12 @@ from modules.core_importer import CoreImporter
 from modules.translator import Translator
 from modules.japanese_refiner import JapaneseRefiner
 from modules.generator_engine import GeneratorEngine
-from modules.approval_flow import ApprovalFlow
 from modules.exporter import Exporter
 from modules.checker import Checker
 from modules.bulk_pack_generator import BulkPackGenerator
 from modules.mode_registry import list_modes, get_mode
-from modules.permissions import get_current_role, get_current_user, can_view_page, filter_nav_items, DEV_ROLE_OPTIONS, can_perform_action, can_generate_core
-from modules.product_input_logic import PRODUCT_FIELD_LABELS_JA, PRODUCT_TRANSLATABLE_FIELDS, prepare_product_save_data, product_prep_status_label
-from modules.product_prep_ui import render_product_prep_ui
+from modules.permissions import filter_nav_items
+from modules.product_input_logic import PRODUCT_FIELD_LABELS_JA, PRODUCT_TRANSLATABLE_FIELDS, prepare_product_save_data
 from modules.selection_pages import page_ads_sns as render_page_ads_sns, page_image_prompt as render_page_image_prompt, page_video_script as render_page_video_script
 from modules.i18n import load_i18n, t, tl, resolve_option_index
 from modules.project_utils import (
@@ -149,9 +147,7 @@ st.markdown("""
     font-size: 0.75rem;
     font-weight: 600;
 }
-.badge-pending    { background: #451a03; color: #fb923c; border: 1px solid #7c2d12; }
-.badge-approved   { background: #052e16; color: #4ade80; border: 1px solid #166534; }
-.badge-revision   { background: #450a0a; color: #f87171; border: 1px solid #7f1d1d; }
+.badge-success    { background: #052e16; color: #4ade80; border: 1px solid #166534; }
 .badge-draft      { background: #1c1c1c; color: #9ca3af; border: 1px solid #374151; }
 .badge-ai         { background: #0c1a2e; color: #60a5fa; border: 1px solid #1e40af; }
 .badge-generated  { background: #052e16; color: #4ade80; border: 1px solid #166534; }
@@ -176,30 +172,6 @@ st.markdown("""
     color: #6b7280;
     margin-bottom: 24px;
 }
-
-/* ── Approval flow steps ── */
-.approval-step {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    padding: 12px;
-    border-radius: 8px;
-    margin-bottom: 8px;
-    background: #141414;
-    border: 1px solid #1e1e1e;
-}
-.step-icon {
-    width: 32px; height: 32px;
-    border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-    font-size: 14px;
-}
-.step-done  { background: #052e16; border: 2px solid #22c55e; color: #22c55e; }
-.step-active { background: #1c1917; border: 2px solid #f97316; color: #f97316; }
-.step-wait  { background: #1c1c1c; border: 2px solid #374151; color: #6b7280; }
-.step-info  h4 { margin: 0 0 4px; font-size: 0.875rem; color: #e8e8e8; }
-.step-info  p  { margin: 0; font-size: 0.75rem; color: #6b7280; }
 
 /* ── Inputs ── */
 [data-testid="stTextArea"] textarea,
@@ -367,14 +339,12 @@ hr {
     border-top: none;
 }
 
-/* ── APV / INS / ND cards: subtle inner grid glow on left accent ── */
-.apv-card,
+/* ── INS / ND cards: subtle inner grid glow on left accent ── */
 .ins-card,
 .nd-card {
     position: relative;
     overflow: hidden;
 }
-.apv-card::after,
 .ins-card::after,
 .nd-card::after {
     content: '';
@@ -404,15 +374,6 @@ hr {
         transparent 100%
     );
     margin-bottom: 4px;
-}
-
-/* ── Approval page card hover ── */
-.apv-card {
-    transition: border-left-color 0.2s, box-shadow 0.2s;
-}
-.apv-card:hover {
-    box-shadow: 0 0 0 1px rgba(34,197,94,0.1),
-                inset 0 0 20px rgba(34,197,94,0.02);
 }
 
 /* ── Breadcrumb ── */
@@ -470,7 +431,6 @@ def init_state():
         "core_status": "draft",
         "external_core_text": "",
         "generated": {},
-        "approval": {},
         "assignee": "",
         "reviewer": "",
         "nav_mode": "simple",
@@ -509,7 +469,6 @@ def get_services(_v=_SERVICES_VER):
         "translator": Translator(llm),
         "refiner": JapaneseRefiner(llm),
         "generator": GeneratorEngine(llm),
-        "approval": ApprovalFlow(storage),
         "exporter": Exporter(),
         "checker": Checker(llm),
         "bulk": BulkPackGenerator(llm),
@@ -529,7 +488,7 @@ _NAV_GROUPS = [
         ("dashboard",       "🏠 ダッシュボード",   "🏠 Painel",          "dash"),
         ("mode_selection",  "🗂️ モード選択",       "🗂️ Seleção de Modo", "mode"),
     ]),
-    ("product", "📦 商品準備", "📦 Produto", [
+    ("product", "📦 商品", "📦 Produto", [
         ("product_input",   "📦 商品入力",         "📦 Entrada do Produto",  "pi"),
         ("external_core",   "📥 外部Core取り込み", "📥 Importar Core",        "ec"),
     ]),
@@ -548,7 +507,6 @@ _NAV_GROUPS = [
     ("review", "✅ 確認", "✅ Verificação", [
         ("refinement",      "✍️ 日本語補正・翻訳", "✍️ Refinar/Traduzir",  "rf"),
         ("check",           "✅ チェック",          "✅ Verificação",        "ck"),
-        ("approval",        "🔐 承認フロー",        "🔐 Aprovação",          "ap"),
     ]),
     ("output", "📤 出力・管理", "📤 Saída / Gestão", [
         ("export_center",     "⚡ 生成＆エクスポート","⚡ Gerar & Exportar",   "exc"),
@@ -561,8 +519,8 @@ _NAV_GROUPS = [
 _BREADCRUMB_MAP_JA = {
     "dashboard":        ("🏠 ホーム",      "ダッシュボード"),
     "mode_selection":   ("🏠 ホーム",      "モード選択"),
-    "product_input":    ("📦 商品準備",    "商品入力"),
-    "external_core":    ("📦 商品準備",    "外部Core取り込み"),
+    "product_input":    ("📦 商品",        "商品入力"),
+    "external_core":    ("📦 商品",        "外部Core取り込み"),
     "core_generation":  ("✨ Core",        "Core生成・編集"),
     "product_page":     ("⚡ 生成",        "商品ページ"),
     "image_prompt":     ("⚡ 生成",        "画像プロンプト"),
@@ -571,7 +529,6 @@ _BREADCRUMB_MAP_JA = {
     "bulk_pack":        ("⚡ 生成",        "一括生成"),
     "refinement":       ("✅ 確認",        "日本語補正・翻訳"),
     "check":            ("✅ 確認",        "チェック"),
-    "approval":         ("✅ 確認",        "承認フロー"),
     "export_center":    ("📤 出力・管理",  "生成＆エクスポート"),
     "output":           ("📤 出力・管理",  "出力"),
     "saved_data":       ("📤 出力・管理",  "保存データ"),
@@ -590,7 +547,6 @@ _BREADCRUMB_MAP_PT = {
     "bulk_pack":        ("⚡ Gerar",        "Geração em Lote"),
     "refinement":       ("✅ Verificação",  "Refinar/Traduzir"),
     "check":            ("✅ Verificação",  "Verificação"),
-    "approval":         ("✅ Verificação",  "Aprovação"),
     "export_center":    ("📤 Saída/Gestão", "Gerar & Exportar"),
     "output":           ("📤 Saída/Gestão", "Exportar"),
     "saved_data":       ("📤 Saída/Gestão", "Dados Salvos"),
@@ -667,26 +623,9 @@ def render_sidebar():
 
         st.markdown("---")
 
-        # ── Dev role switcher ─────────────────────────────────────────────
-        st.markdown(
-            f'<div class="sb-mode-label">{"👤 ロール（開発用）" if is_ja else "👤 Papel (dev)"}</div>',
-            unsafe_allow_html=True,
-        )
-        _dev_selected = st.selectbox(
-            "dev_role_label",
-            list(DEV_ROLE_OPTIONS.keys()),
-            key="dev_role_selectbox",
-            label_visibility="collapsed",
-        )
-        _dev_uname, _dev_rname = DEV_ROLE_OPTIONS[_dev_selected]
-        st.session_state["dev_user"] = _dev_uname
-        st.session_state["dev_role"] = _dev_rname
-
-        st.markdown("---")
-
         cur_page = st.session_state.get("page", "")
 
-        # ── Simple mode: 5 flat items (filtered by role) ──────────────────
+        # ── Simple mode: 5 flat items ─────────────────────────────────────
         if st.session_state["nav_mode"] == "simple":
             simple_items = [
                 ("product_input",   "📦 " + ("商品入力"         if is_ja else "Entrada do Produto")),
@@ -695,7 +634,6 @@ def render_sidebar():
                 ("export_center",   "⚡ " + ("生成＆エクスポート" if is_ja else "Gerar & Exportar")),
                 ("saved_data",      "💾 " + ("保存データ"        if is_ja else "Dados Salvos")),
             ]
-            simple_items = [item for item in simple_items if can_view_page(item[0])]
             for page_id, label in simple_items:
                 is_active = cur_page == page_id
                 if st.button(
@@ -707,7 +645,7 @@ def render_sidebar():
                     st.session_state["page"] = page_id
                     st.rerun()
 
-        # ── Full mode: grouped collapsible sections (filtered by role) ────
+        # ── Full mode: grouped collapsible sections ───────────────────────
         else:
             for group_id, grp_ja, grp_pt, items in _NAV_GROUPS:
                 filtered_items = filter_nav_items(items)
@@ -855,7 +793,7 @@ def page_product_input():
     _pi_input_ja_top = info.get("input_ja") or {}
     _pi_has_ja_top   = bool(_pi_input_ja_top)
     # Default to Japanese mode for admin when translation exists
-    if _pi_has_ja_top and get_current_role() == "admin":
+    if _pi_has_ja_top:
         if st.session_state.get("pi_disp_mode") not in ("🇯🇵 日本語確認用", "🇧🇷 原文 Português"):
             st.session_state["pi_disp_mode"] = "🇯🇵 日本語確認用"
     _pi_show_ja = (
@@ -1198,7 +1136,7 @@ def page_product_input():
             new_info = prepare_product_save_data(
                 new_info,
                 _exist,
-                get_current_role(),
+                "admin",
                 _save_lang,
                 _pi_save_in_ja,
             )
@@ -1209,9 +1147,6 @@ def page_product_input():
             svc["storage"].log_activity(product_id, "商品情報保存", name, assignee)
             st.markdown('<div class="cs-success">✅ ' + t("product_input.saved_msg") + '</div>',
                         unsafe_allow_html=True)
-
-    # ── 商品準備ステータス + 翻訳確認UI（Phase 3 / 4）────────────────────────
-    render_product_prep_ui(svc, is_ja)
 
 
 # ── Page: Core Generation ──────────────────────────────────────────────────────
@@ -1227,27 +1162,11 @@ def page_core_generation():
                     unsafe_allow_html=True)
         return
 
-    # ── 承認ゲート UI層（Phase 3） ────────────────────────────────────────────
     _cg_pid = st.session_state.get("product_id", "")
     try:
         _cg_project = svc["storage"].load_product(_cg_pid) or {}
     except Exception:
         _cg_project = {}
-    if not can_generate_core(_cg_project):
-        _cg_status = _cg_project.get("product_prep_status", "draft")
-        _cg_msgs = {
-            "draft":          ("⚠️ 商品準備が未提出です。Iago/Kaueが商品準備を提出し、承認されるまでCore生成はできません。",
-                               "⚠️ A preparação do produto não foi enviada. Core generation requires approved product prep."),
-            "waiting_review": ("⏳ 商品準備が承認待ちです。承認後にCore生成が可能になります。",
-                               "⏳ A preparação está aguardando revisão. Core generation will be available after approval."),
-            "rejected":       ("❌ 商品準備が差し戻されました。Iago/Kaueが修正・再提出し、承認されるまでCore生成はできません。",
-                               "❌ A preparação foi recusada. Core generation requires approved product prep."),
-        }
-        _cg_msg_ja, _cg_msg_pt = _cg_msgs.get(_cg_status,
-            ("⚠️ 商品準備が承認されるまでCore生成はできません。", "⚠️ Core generation requires approved product prep."))
-        st.markdown(f'<div class="cs-warning">{_cg_msg_ja if is_ja else _cg_msg_pt}</div>',
-                    unsafe_allow_html=True)
-        return
 
     # ── Core生成用データ解決（優先順位付き） ─────────────────────────────────
     _CG_CORE_FIELDS = ("name", "category", "price", "target", "gender", "age",
@@ -1301,30 +1220,23 @@ def page_core_generation():
         st.markdown(f"- **core_source_data**: {'✅ あり (' + str(len(_cg_core_source)) + 'フィールド)' if _cg_core_source else '❌ なし'}")
         st.markdown(f"- **input_original_language**: `{_cg_project.get('input_original_language', 'not set')}`")
         st.markdown(f"- **translation_status**: `{_cg_project.get('translation_status', 'not set')}`")
-        st.markdown(f"- **Core生成に使用するデータ**: {'core_source_data ✅' if _cg_core_source else '（なし — ゲートでブロック）'}")
+        st.markdown(f"- **Core生成に使用するデータ**: {'core_source_data ✅' if _cg_core_source else '現在の商品情報を自動使用'}")
 
-    # Priority 5: すべて失敗 → ボタン + 警告
+    # Priority 5: すべて失敗 → 現在の商品情報をそのままCore生成に使う
     if not _cg_core_source:
-        _cg_lang2 = _cg_project.get("input_original_language", "")
-        _cg_tr_st2 = _cg_project.get("translation_status", "not_translated")
-        st.markdown("---")
-        if st.button("📋 現在の入力を日本語データとして使用", key="cg_use_current_as_ja"):
-            _cg_manual = {k: _cg_project.get(k, "") for k in _CG_CORE_FIELDS}
-            _cg_upd2   = dict(_cg_project)
-            _cg_upd2["core_source_data"]       = _cg_manual
-            _cg_upd2["translation_status"]     = "not_needed"
-            _cg_upd2["input_original_language"] = "ja"
+        _fallback_source = {}
+        for k in _CG_CORE_FIELDS:
+            _fallback_source[k] = (
+                _cg_project.get(k)
+                or product_info.get(k)
+                or st.session_state.get(k, "")
+            )
+        _cg_core_source = {k: v for k, v in _fallback_source.items() if v}
+        if _cg_pid:
+            _cg_upd2 = dict(_cg_project)
+            _cg_upd2["core_source_data"] = _cg_core_source
+            _cg_upd2["translation_status"] = _cg_upd2.get("translation_status", "not_needed")
             svc["storage"].save_product(_cg_pid, _cg_upd2)
-            st.success("現在の入力を日本語データとして保存しました。")
-            st.rerun()
-        if _cg_lang2 == "ja" or _cg_tr_st2 == "not_needed":
-            _cg_tr_warn = "ℹ️ 現在の入力を日本語データとして使用できます。上のボタンを押してください。"
-        else:
-            _cg_tr_warn = ("⚠️ Core生成前に日本語確認用データを作成してください。"
-                           "保存データ画面から「日本語に変換」を実行するか、"
-                           "上のボタンで現在の入力をそのまま使用してください。")
-        st.markdown(f'<div class="cs-warning">{_cg_tr_warn}</div>', unsafe_allow_html=True)
-        return
 
     # Core method selection
     st.markdown("#### " + t("core_method.title"))
@@ -1370,16 +1282,12 @@ def page_core_generation():
         col_gen, col_regen = st.columns([2, 1])
         with col_gen:
             if st.button("✨ " + t("core.generate_btn"), type="primary", use_container_width=True):
-                if not can_generate_core(_cg_project):
-                    st.warning("商品準備が承認されるまでCore生成はできません。" if is_ja else "Core generation requires approved product prep.")
-                    st.rerun()
                 with st.spinner(t("core.generating_msg")):
                     result = svc["core_engine"].generate_from_product(_cg_core_source)
                     st.session_state["core_text"] = result
                     st.session_state["core_status"] = "ai_generated"
                     pid = ensure_product_id()
                     svc["storage"].save_core(pid, {"text": result, "status": "ai_generated"}, "v1 AI初稿")
-                    svc["approval"].mark_ai_generated(pid, "core")
                     svc["storage"].log_activity(pid, "Core生成", "auto", st.session_state.get("assignee", ""))
                     st.rerun()
 
@@ -1419,7 +1327,7 @@ def page_core_generation():
         )
 
         # Action buttons
-        col1, col2, col3, col4, col5 = st.columns(5)
+        col1, col2, col3, col4 = st.columns(4)
         with col1:
             if st.button("💾 " + t("core.save_btn"), type="primary", use_container_width=True):
                 st.session_state["core_text"] = edited_core
@@ -1430,19 +1338,10 @@ def page_core_generation():
                 st.success(t("core.saved_msg"))
 
         with col2:
-            if st.button("⏳ " + t("core.pending_btn"), use_container_width=True):
-                st.session_state["core_text"] = edited_core
-                st.session_state["core_status"] = "pending"
-                pid = ensure_product_id()
-                svc["approval"].set_pending(pid, "core", st.session_state.get("assignee", ""))
-                st.success(t("core.pending_msg"))
-                st.rerun()
-
-        with col3:
             if st.button("📋 " + ("コピー" if is_ja else "Copiar"), use_container_width=True):
                 st.code(edited_core, language="")
 
-        with col4:
+        with col3:
             md_content = svc["exporter"].core_to_markdown(edited_core, product_info.get("name", ""))
             st.download_button(
                 "⬇️ MD",
@@ -1452,11 +1351,8 @@ def page_core_generation():
                 use_container_width=True,
             )
 
-        with col5:
+        with col4:
             if st.button("🔄 " + ("再生成" if is_ja else "Regerar"), use_container_width=True):
-                if not can_generate_core(_cg_project):
-                    st.warning("商品準備が承認されるまでCore生成はできません。" if is_ja else "Core generation requires approved product prep.")
-                    st.rerun()
                 with st.spinner(t("core.generating_msg")):
                     result = svc["core_engine"].generate_from_product(_cg_core_source)
                     st.session_state["core_text"] = result
@@ -1507,7 +1403,6 @@ def page_external_core():
                     {"text": result, "status": "ai_generated", "source": source},
                     "外部取り込み"
                 )
-                svc["approval"].mark_ai_generated(pid, "core")
                 svc["storage"].log_activity(pid, "外部Core取り込み", source, "")
                 st.rerun()
 
@@ -1560,31 +1455,16 @@ def render_generated_page(page_key: str, title: str, generate_fn, icon: str = "�
     product_info = st.session_state.get("product_info", {})
     core = st.session_state["core_text"]
 
-    # Generate button
-    col1, col2 = st.columns([2, 1])
-    with col1:
-        if st.button(f"✨ {t(f'{page_key}.generate_btn')}", type="primary", use_container_width=True):
-            with st.spinner(t(f"{page_key}.generating_msg")):
-                result = generate_fn(core, product_info)
-                st.session_state["generated"][page_key] = result
-                pid = ensure_product_id()
-                svc["storage"].save_generated(pid, page_key, {"text": result})
-                svc["approval"].mark_ai_generated(pid, page_key)
-                svc["storage"].log_activity(pid, f"{title}生成", "", st.session_state.get("assignee", ""))
-                st.rerun()
+    if st.button(f"✨ {t(f'{page_key}.generate_btn')}", type="primary", use_container_width=True):
+        with st.spinner(t(f"{page_key}.generating_msg")):
+            result = generate_fn(core, product_info)
+            st.session_state["generated"][page_key] = result
+            pid = ensure_product_id()
+            svc["storage"].save_generated(pid, page_key, {"text": result})
+            svc["storage"].log_activity(pid, f"{title}生成", "", st.session_state.get("assignee", ""))
+            st.rerun()
 
-    with col2:
-        if st.session_state["generated"].get(page_key):
-            if st.button("⏳ " + ("確認待ちにする" if is_ja else "Enviar p/ revisão"), use_container_width=True):
-                pid = ensure_product_id()
-                svc["approval"].set_pending(pid, page_key, st.session_state.get("assignee", ""))
-                st.success("確認待ちにしました" if is_ja else "Enviado para revisão")
-
-    # Approval status
     pid = ensure_product_id()
-    approval = svc["approval"].get_status(pid, page_key)
-    st.markdown(f'<div style="margin-bottom:12px;">{status_badge(approval["status"])}</div>',
-                unsafe_allow_html=True)
 
     # Content tabs
     if st.session_state["generated"].get(page_key):
@@ -1652,26 +1532,14 @@ def page_product_page():
 
     # ── Tab 1: 商品ページ文章 ────────────────────────────────────────────
     with tab_text:
-        col1, col2 = st.columns([2, 1])
-        with col1:
-            if st.button("✨ " + t("product_page.generate_btn"), type="primary",
-                         use_container_width=True, key="gen_product_text"):
-                with st.spinner(t("product_page.generating_msg")):
-                    result = svc["generator"].generate_product_page(core, product_info)
-                    st.session_state["generated"]["product_page"] = result
-                    svc["storage"].save_generated(pid, "product_page", {"text": result})
-                    svc["approval"].mark_ai_generated(pid, "product_page")
-                    svc["storage"].log_activity(pid, "商品ページ文章生成", "", st.session_state.get("assignee", ""))
-                    st.rerun()
-        with col2:
-            if st.session_state["generated"].get("product_page"):
-                if st.button("⏳ " + ("確認待ちにする" if is_ja else "Enviar p/ revisão"), use_container_width=True, key="pend_product_text"):
-                    svc["approval"].set_pending(pid, "product_page", st.session_state.get("assignee", ""))
-                    st.success("確認待ちにしました" if is_ja else "Enviado para revisão")
-
-        approval = svc["approval"].get_status(pid, "product_page")
-        st.markdown(f'<div style="margin-bottom:12px;">{status_badge(approval["status"])}</div>',
-                    unsafe_allow_html=True)
+        if st.button("✨ " + t("product_page.generate_btn"), type="primary",
+                     use_container_width=True, key="gen_product_text"):
+            with st.spinner(t("product_page.generating_msg")):
+                result = svc["generator"].generate_product_page(core, product_info)
+                st.session_state["generated"]["product_page"] = result
+                svc["storage"].save_generated(pid, "product_page", {"text": result})
+                svc["storage"].log_activity(pid, "商品ページ文章生成", "", st.session_state.get("assignee", ""))
+                st.rerun()
 
         if st.session_state["generated"].get("product_page"):
             content = st.session_state["generated"]["product_page"]
@@ -1825,7 +1693,6 @@ def page_product_page():
                             if code:
                                 svc["storage"].save_generated(pid, s["key"], {"text": code})
                         st.session_state["generated"] = gen
-                        svc["approval"].mark_ai_generated(pid, "shopify_sections")
                         svc["storage"].log_activity(pid, "Shopifyセクション生成", "",
                                                     st.session_state.get("assignee", ""))
                         st.rerun()
@@ -1840,7 +1707,6 @@ def page_product_page():
                     gen["shopify_custom_liquid"] = result
                     st.session_state["generated"] = gen
                     svc["storage"].save_generated(pid, "shopify_custom_liquid", {"text": result})
-                    svc["approval"].mark_ai_generated(pid, "shopify_custom_liquid")
                     svc["storage"].log_activity(pid, "Custom Liquid生成（全体）", "",
                                                 st.session_state.get("assignee", ""))
                     st.rerun()
@@ -2233,176 +2099,6 @@ def page_check():
                         unsafe_allow_html=True)
 
 
-# ── Page: Approval Flow ────────────────────────────────────────────────────────
-
-def page_approval():
-    st.markdown(_APV_CSS, unsafe_allow_html=True)
-    st.markdown('<div class="section-header">🔐 ' + t("approval.title") + '</div>',
-                unsafe_allow_html=True)
-
-    is_ja = st.session_state.get("lang", "ja") == "ja"
-    pid = ensure_product_id()
-    product_info = st.session_state.get("product_info", {})
-    product_name = product_info.get("name") or ("未設定" if is_ja else "Não definido")
-    gen = st.session_state.get("generated", {})
-
-    _SHOPIFY_KEYS = [
-        "shopify_common_css", "shopify_hero_section_code", "shopify_about_section_code",
-        "shopify_problem_section_code", "shopify_features_section_code",
-        "shopify_usage_scene_section_code", "shopify_comparison_section_code",
-        "shopify_faq_section_code", "shopify_cta_section_code",
-    ]
-
-    content_specs = [
-        ("core",             "Core / 核"           if is_ja else "Core",            "🧠"),
-        ("product_page",     "商品ページ"           if is_ja else "Página do Produto","📄"),
-        ("shopify_sections", "Shopify HTML",                                         "🛒"),
-        ("image_prompt",     "画像プロンプト"       if is_ja else "Prompts de Imagem","🖼️"),
-        ("video_script",     "動画台本"             if is_ja else "Roteiro de Vídeo", "🎬"),
-        ("ads_sns",          "広告・SNS"            if is_ja else "Anúncios/SNS",    "📣"),
-    ]
-
-    # Fetch all statuses once
-    statuses = {ct: svc["approval"].get_status(pid, ct) for ct, _, _ in content_specs}
-
-    approved_count = sum(
-        1 for s in statuses.values() if s["status"] in ("approved", "ready", "published")
-    )
-    pending_count = sum(1 for s in statuses.values() if s["status"] == "pending")
-    total = len(content_specs)
-    pct = int(approved_count / total * 100)
-
-    # ── Progress bar ──────────────────────────────────────────────
-    st.markdown(
-        f'<div class="apv-progress-wrap">'
-        f'<div class="apv-progress-label">{"承認進捗" if is_ja else "Progresso de aprovação"}　{approved_count} / {total}　{"完了" if is_ja else "concluído"} ({pct}%)</div>'
-        f'<div class="apv-progress-bar"><div class="apv-progress-fill" style="width:{pct}%"></div></div>'
-        f'</div>',
-        unsafe_allow_html=True,
-    )
-
-    # ── Bulk action buttons ───────────────────────────────────────
-    b_col1, b_col2, _ = st.columns([2, 2, 4])
-    with b_col1:
-        if st.button("⏳ " + ("全て確認待ちにする" if is_ja else "Enviar tudo p/ revisão"), use_container_width=True):
-            for ct, _, _ in content_specs:
-                if statuses[ct]["status"] not in ("approved", "ready", "published", "pending"):
-                    svc["approval"].set_pending(pid, ct, st.session_state.get("assignee", ""))
-            st.rerun()
-    with b_col2:
-        bulk_label = (f"✅ 確認待ち {pending_count} 件を一括承認" if pending_count else "✅ 一括承認") if is_ja else (f"✅ Aprovar {pending_count} pendente(s)" if pending_count else "✅ Aprovar tudo")
-        if st.button(bulk_label, use_container_width=True,
-                     type="primary" if pending_count else "secondary",
-                     disabled=(pending_count == 0)):
-            for ct, _, _ in content_specs:
-                if statuses[ct]["status"] == "pending":
-                    svc["approval"].approve(pid, ct, user=st.session_state.get("reviewer", "管理者"))
-                    svc["storage"].log_activity(pid, "承認", ct, st.session_state.get("reviewer", ""))
-            st.rerun()
-
-    st.markdown("---")
-
-    # ── Per-content cards ─────────────────────────────────────────
-    for ct, label, icon in content_specs:
-        approval  = statuses[ct]
-        status    = approval["status"]
-        comment   = approval.get("comment", "")
-
-        # Build preview text
-        if ct == "core":
-            raw_preview = st.session_state.get("core_text", "")
-        elif ct == "shopify_sections":
-            raw_preview = "\n".join(gen.get(k, "")[:80] for k in _SHOPIFY_KEYS if gen.get(k))
-        else:
-            raw_preview = str(gen.get(ct) or "")
-        preview_text = raw_preview[:160].strip()
-
-        badge_html   = status_badge(status)
-        preview_html = (
-            f'<div class="apv-preview">{preview_text}{"…" if len(raw_preview) > 160 else ""}</div>'
-            if preview_text
-            else f'<div class="apv-preview apv-empty">{"コンテンツ未生成" if is_ja else "Conteúdo não gerado"}</div>'
-        )
-        comment_html = (
-            f'<div class="apv-comment-box">💬 {comment}</div>' if comment else ""
-        )
-
-        st.markdown(
-            f'<div class="apv-card apv-card-{status}">'
-            f'<div class="apv-head">'
-            f'<span class="apv-icon">{icon}</span>'
-            f'<span class="apv-label">{label}</span>'
-            f'{badge_html}'
-            f'</div>'
-            f'{preview_html}'
-            f'{comment_html}'
-            f'</div>',
-            unsafe_allow_html=True,
-        )
-
-        # Action buttons row
-        a1, a2, a3, _ = st.columns([2, 2, 2, 4])
-        with a1:
-            if status in ("draft", "ai_generated", "edited", "revision_requested"):
-                if st.button("⏳ " + ("確認待ち" if is_ja else "Aguardar"), key=f"pend_{ct}", use_container_width=True):
-                    svc["approval"].set_pending(pid, ct, st.session_state.get("assignee", ""))
-                    st.rerun()
-        with a2:
-            if status == "pending":
-                if st.button("✅ " + ("承認" if is_ja else "Aprovar"), key=f"appr_{ct}", use_container_width=True, type="primary"):
-                    svc["approval"].approve(pid, ct, user=st.session_state.get("reviewer", "管理者"))
-                    svc["storage"].log_activity(pid, "承認", ct, st.session_state.get("reviewer", ""))
-                    st.rerun()
-        with a3:
-            if status in ("pending", "approved", "ready"):
-                rev_toggle_key = f"apv_rev_open_{ct}"
-                _rev_open = st.session_state.get(rev_toggle_key)
-                label_rev = ("🔄 修正依頼 ▲" if _rev_open else "🔄 修正依頼") if is_ja else ("🔄 Revisão ▲" if _rev_open else "🔄 Revisão")
-                if st.button(label_rev, key=f"rev_btn_{ct}", use_container_width=True):
-                    st.session_state[rev_toggle_key] = not st.session_state.get(rev_toggle_key, False)
-                    st.rerun()
-
-        # Inline revision panel (toggled)
-        rev_toggle_key = f"apv_rev_open_{ct}"
-        if st.session_state.get(rev_toggle_key, False):
-            rev_comment = st.text_input(
-                "修正内容" if is_ja else "Conteúdo da revisão",
-                key=f"rev_input_{ct}",
-                placeholder="修正してほしい内容を入力" if is_ja else "Descreva o que deve ser revisado",
-            )
-            rc1, rc2, _ = st.columns([1, 1, 4])
-            with rc1:
-                if st.button("送信" if is_ja else "Enviar", key=f"rev_send_{ct}", type="primary", use_container_width=True):
-                    svc["approval"].request_revision(
-                        pid, ct, rev_comment, st.session_state.get("reviewer", "")
-                    )
-                    st.session_state[rev_toggle_key] = False
-                    st.rerun()
-            with rc2:
-                if st.button("閉じる" if is_ja else "Fechar", key=f"rev_close_{ct}", use_container_width=True):
-                    st.session_state[rev_toggle_key] = False
-                    st.rerun()
-
-        st.markdown('<div style="height:6px"></div>', unsafe_allow_html=True)
-
-    # ── Activity log ──────────────────────────────────────────────
-    st.markdown("---")
-    with st.expander("📋 " + ("作業ログを見る" if is_ja else "Ver log de atividades")):
-        logs = svc["storage"].get_activity_log(pid)
-        if logs:
-            for log in reversed(logs[-20:]):
-                st.markdown(
-                    f'<div style="font-size:0.8rem;color:#9ca3af;padding:4px 0;">'
-                    f'[{log["timestamp"]}] <span style="color:#e8e8e8;">{log["action"]}</span> '
-                    f'<span style="color:#6b7280;">{log.get("detail","")}</span>'
-                    f' — {log.get("user","")}'
-                    f'</div>',
-                    unsafe_allow_html=True,
-                )
-        else:
-            st.markdown("ログがありません" if is_ja else "Sem registros")
-
-
 # ── Page: Output ──────────────────────────────────────────────────────────────
 
 def page_output():
@@ -2413,8 +2109,6 @@ def page_output():
     pid = ensure_product_id()
     product_info = st.session_state.get("product_info", {})
     product_name = product_info.get("name", "output")
-
-    approved_only = st.checkbox(t("output.approved_only"), value=False)
 
     content_map = {
         "Core / 核": ("core_text", None),
@@ -2437,18 +2131,9 @@ def page_output():
         if not content:
             continue
 
-        # Check approval if needed
-        if approved_only and content_type:
-            is_appr = svc["approval"].is_approved(pid, content_type)
-            if not is_appr:
-                continue
-
         export_data[label] = content
 
         with st.expander(f"📄 {label}", expanded=False):
-            if content_type:
-                approval = svc["approval"].get_status(pid, content_type)
-                st.markdown(f'{status_badge(approval["status"])}', unsafe_allow_html=True)
             st.text_area(label, value=content, height=200, key=f"out_{label}")
 
     if export_data:
@@ -2585,8 +2270,8 @@ def page_instruction_sheet():
         lines += ["", "## Core サマリー", ""]
         lines.append(core_text[:1000] if core_text else "（未生成）")
         lines += ["", "## コンテンツ状況", ""]
-        lines.append("| コンテンツ | 生成 | 承認ステータス |")
-        lines.append("|-----------|------|--------------|")
+        lines.append("| コンテンツ | 生成 |")
+        lines.append("|-----------|------|")
         for ct, label in content_specs:
             if ct == "core":
                 has_content = bool(core_text)
@@ -2594,9 +2279,7 @@ def page_instruction_sheet():
                 has_content = any(gen.get(k) for k in _SHOPIFY_KEYS)
             else:
                 has_content = bool(gen.get(ct))
-            appr = svc["approval"].get_status(pid, ct)
-            status_lbl = STATUS_LABEL_JA.get(appr["status"], appr["status"])
-            lines.append(f"| {label} | {'✓' if has_content else '—'} | {status_lbl} |")
+            lines.append(f"| {label} | {'✓' if has_content else '—'} |")
         notes = product_info.get("notes", "")
         if notes:
             lines += ["", "## 備考", "", notes]
@@ -2646,15 +2329,13 @@ def page_instruction_sheet():
     )
 
     # ── Core snapshot card ────────────────────────────────────────────────────
-    core_appr  = svc["approval"].get_status(pid, "core")
-    core_badge = status_badge(core_appr["status"])
     core_title = "Core スナップショット" if is_ja else "Snapshot do Core"
     core_preview = (core_text[:600] + ("…" if len(core_text) > 600 else "")) if core_text else (
         "（Coreはまだ生成されていません）" if is_ja else "（Core ainda não gerado）"
     )
     st.markdown(
         f'<div class="ins-card">'
-        f'<div class="ins-card-title">🧠 {core_title} &nbsp; {core_badge}</div>'
+        f'<div class="ins-card-title">🧠 {core_title}</div>'
         f'<div class="ins-core-block">{core_preview}</div>'
         f'</div>',
         unsafe_allow_html=True,
@@ -2664,8 +2345,6 @@ def page_instruction_sheet():
     tbl_title = "コンテンツ状況" if is_ja else "Status dos Conteúdos"
     th_name   = "コンテンツ"    if is_ja else "Conteúdo"
     th_gen    = "生成"          if is_ja else "Gerado"
-    th_status = "承認ステータス" if is_ja else "Aprovação"
-    th_upd    = "最終更新"      if is_ja else "Atualizado"
 
     rows = ""
     for ct, label in content_specs:
@@ -2676,16 +2355,11 @@ def page_instruction_sheet():
         else:
             has_content = bool(gen.get(ct))
 
-        appr     = svc["approval"].get_status(pid, ct)
-        badge    = status_badge(appr["status"])
-        upd_at   = appr.get("updated_at", "")
         gen_icon = f'<span class="ins-check">✓</span>' if has_content else f'<span class="ins-dash">—</span>'
         rows += (
             f"<tr>"
             f"<td>{label}</td>"
             f"<td style='text-align:center'>{gen_icon}</td>"
-            f"<td>{badge}</td>"
-            f"<td style='font-size:0.72rem;color:#4b5563'>{upd_at}</td>"
             f"</tr>"
         )
 
@@ -2693,7 +2367,7 @@ def page_instruction_sheet():
         f'<div class="ins-card">'
         f'<div class="ins-card-title">📊 {tbl_title}</div>'
         f'<table class="ins-tbl">'
-        f'<thead><tr><th>{th_name}</th><th>{th_gen}</th><th>{th_status}</th><th>{th_upd}</th></tr></thead>'
+        f'<thead><tr><th>{th_name}</th><th>{th_gen}</th></tr></thead>'
         f'<tbody>{rows}</tbody>'
         f'</table>'
         f'</div>',
@@ -2804,20 +2478,14 @@ def page_export_center():
     for tab_widget, (tab_label, gen_key, ct) in zip(tabs, TAB_DEFS):
         with tab_widget:
             content = gen.get(gen_key, "")
-            try:
-                appr = svc["approval"].get_status(pid, ct)
-            except Exception:
-                appr = {"status": "draft"}
-            status = appr.get("status", "draft")
 
-            # Status row + language toggle
+            # Header row + language toggle
             row_a, row_b = st.columns([3, 1])
             with row_a:
                 short_label = tab_label.split(" ", 1)[-1]
                 st.markdown(
                     f'<div style="margin:4px 0 12px">'
-                    f'<span style="font-weight:700;color:#e8e8e8;font-size:0.9rem">{short_label}</span>'
-                    f'&nbsp;&nbsp;{status_badge(status)}</div>',
+                    f'<span style="font-weight:700;color:#e8e8e8;font-size:0.9rem">{short_label}</span></div>',
                     unsafe_allow_html=True,
                 )
             with row_b:
@@ -2844,7 +2512,7 @@ def page_export_center():
                 st.markdown("")
 
                 # Action buttons
-                a1, a2, a3, a4, a5 = st.columns(5)
+                a1, a2, a3 = st.columns(3)
                 with a1:
                     copy_label = "📋 コピー" if is_ja else "📋 Copiar"
                     if st.button(copy_label, key=f"ec_copy_{ct}", use_container_width=True):
@@ -2864,21 +2532,6 @@ def page_export_center():
                     if st.button(edit_label, key=f"ec_edit_{ct}", use_container_width=True):
                         st.session_state["page"] = CT_PAGE.get(ct, "product_page")
                         st.rerun()
-                with a4:
-                    approve_label = "✅ 承認" if is_ja else "✅ Aprovar"
-                    if st.button(approve_label, key=f"ec_approve_{ct}", use_container_width=True):
-                        svc["approval"].approve(pid, ct,
-                                                user=st.session_state.get("reviewer", ""))
-                        st.success("承認しました" if is_ja else "Aprovado")
-                        st.rerun()
-                with a5:
-                    revise_label = "🔄 修正依頼" if is_ja else "🔄 Revisão"
-                    if st.button(revise_label, key=f"ec_revise_{ct}", use_container_width=True):
-                        svc["approval"].request_revision(
-                            pid, ct, user=st.session_state.get("assignee", ""))
-                        st.warning("修正依頼を送りました" if is_ja else "Revisão solicitada")
-                        st.rerun()
-
                 # Toggle copy area (st.code has built-in copy button)
                 if st.session_state.get(f"ec_show_copy_{ct}"):
                     st.code(content, language="text")
@@ -2913,14 +2566,7 @@ def page_export_center():
         if projects:
             rows_html = ""
             for p in list(reversed(projects))[:5]:
-                has_appr = False
-                try:
-                    has_appr = svc["storage"].has_approved_content(p["id"])
-                except Exception:
-                    pass
-                badge_html = ('<span class="badge badge-approved">完了</span>'
-                              if has_appr else
-                              '<span class="badge badge-draft">作業中</span>')
+                badge_html = '<span class="badge badge-draft">保存済み</span>'
                 rows_html += (
                     f'<tr>'
                     f'<td><div class="ec-proj-name">{p.get("name", p["id"])}</div>'
@@ -3049,52 +2695,6 @@ def page_export_center():
 # ── Page: Saved Data → moved to modules/saved_data_page.py ───────────────────
 
 
-# ── Page: Approval (Phase 4 CSS) ─────────────────────────────────────────────
-
-_APV_CSS = """
-<style>
-/* ════════════════════════════════════════════════════════════════
-   APPROVAL PAGE  — apv- prefix
-   ════════════════════════════════════════════════════════════════ */
-.apv-progress-wrap { margin: 0 0 18px 0; }
-.apv-progress-label { font-size:0.83rem; color:#9ca3af; margin-bottom:6px; }
-.apv-progress-bar { height:8px; background:#1f2937; border-radius:4px; overflow:hidden; }
-.apv-progress-fill {
-    height:100%; border-radius:4px;
-    background:linear-gradient(90deg,#22c55e,#16a34a);
-    transition:width .4s ease;
-}
-.apv-card {
-    background:#111827; border:1px solid #1f2937;
-    border-radius:10px; padding:14px 16px; margin-bottom:4px;
-    border-left:4px solid #374151;
-}
-.apv-card-approved,.apv-card-ready,.apv-card-published { border-left-color:#22c55e; }
-.apv-card-pending  { border-left-color:#f97316; }
-.apv-card-revision_requested { border-left-color:#ef4444; }
-.apv-card-ai_generated,.apv-card-edited { border-left-color:#3b82f6; }
-.apv-card-draft,.apv-card-hold { border-left-color:#374151; }
-.apv-head { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
-.apv-icon { font-size:1.1rem; }
-.apv-label { font-weight:600; color:#f3f4f6; font-size:0.95rem; flex:1; }
-.apv-preview {
-    font-size:0.75rem; color:#6b7280;
-    background:#0d1117; border-radius:4px;
-    padding:6px 10px; margin:4px 0 8px 0;
-    white-space:pre-wrap; word-break:break-all;
-    max-height:58px; overflow:hidden;
-    line-height:1.45;
-}
-.apv-empty { color:#374151; font-style:italic; }
-.apv-comment-box {
-    font-size:0.8rem; color:#fb923c;
-    background:#1c1410; border:1px solid #44220a;
-    border-radius:4px; padding:5px 10px; margin-top:4px;
-}
-</style>
-"""
-
-
 # ── Page: New Dashboard → moved to modules/dashboard_page.py ─────────────────
 
 
@@ -3146,26 +2746,6 @@ def main():
     page = st.session_state.get("page", "mode_selection")
     mode = st.session_state.get("mode", "commerce")
 
-    if not can_view_page(page):
-        role = get_current_role()
-        is_ja = st.session_state.get("lang", "ja") == "ja"
-        if role == "viewer":
-            st.warning(
-                "このアプリへのアクセス権限がありません。" if is_ja
-                else "Você não tem permissão para acessar este aplicativo."
-            )
-        else:
-            st.warning(
-                f"このページへのアクセス権限がありません。（現在のロール: {role}）" if is_ja
-                else f"Você não tem permissão para acessar esta página. (Papel atual: {role})"
-            )
-            if is_ja:
-                st.info("左のサイドバーからアクセス可能なページを選択してください。")
-            else:
-                st.info("Selecione uma página disponível no menu lateral.")
-        st.session_state["page"] = "product_input" if role == "product_researcher" else "mode_selection"
-        return
-
     if mode == "custom":
         page_custom_mode()
         return
@@ -3183,7 +2763,6 @@ def main():
         "bulk_pack": page_bulk_pack,
         "refinement": page_refinement,
         "check": page_check,
-        "approval": page_approval,
         "output": page_output,
         "saved_data": lambda: _page_saved_data(svc),
         "export_center": page_export_center,

@@ -44,14 +44,8 @@ def _render_item_card(svc: dict, ensure_product_id, status_badge,
                       regen_fn, is_ja: bool, compat_key: str):
     """Render an editable result card for one generated item."""
     pid = ensure_product_id()
-    try:
-        approval = svc["approval"].get_status(pid, f"{category_key}_{item_key}")
-        badge = status_badge(approval.get("status", "draft"))
-    except Exception:
-        badge = status_badge("draft")
 
     with st.expander(f"✅ {label}", expanded=True):
-        st.markdown(badge, unsafe_allow_html=True)
         new_content = st.text_area(
             "",
             value=content,

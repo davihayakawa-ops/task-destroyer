@@ -14,7 +14,6 @@
     "bulk_pack": "Pacote de Geração em Lote",
     "refinement": "Refinamento/Tradução",
     "check": "Verificação",
-    "approval": "Fluxo de Aprovação",
     "output": "Exportar",
     "saved_data": "Dados Salvos",
     "instruction_sheet": "Instrução de Produção",
@@ -109,10 +108,6 @@
     "save_btn": "Salvar",
     "copy_btn": "Copiar",
     "edit_btn": "Editar",
-    "pending_btn": "Enviar para revisão",
-    "approve_btn": "Aprovar",
-    "revision_btn": "Solicitar revisão",
-    "hold_btn": "Suspender",
     "finalize_btn": "Finalizar",
     "concept": "Conceito principal do produto",
     "main_target": "Público principal",
@@ -144,7 +139,6 @@
     "ai_completed": "Itens preenchidos pela IA",
     "human_check": "Itens para verificação humana",
     "saved_msg": "Core salvo",
-    "pending_msg": "Enviado para revisão",
     "generating_msg": "Gerando Core..."
   },
   "external_core": {
@@ -190,31 +184,6 @@
     "after": "Depois",
     "refining_msg": "Refinando..."
   },
-  "approval": {
-    "title": "Fluxo de Aprovação",
-    "status": {
-      "draft": "Rascunho",
-      "ai_generated": "Gerado pela IA",
-      "edited": "Editado pelo responsável",
-      "pending": "Aguardando revisão",
-      "revision_requested": "Revisão solicitada",
-      "approved": "Aprovado",
-      "ready": "Pronto para publicação",
-      "published": "Publicado"
-    },
-    "ai_generated_step": "Geração IA",
-    "ai_generated_desc": "A IA gerou o Core e os conteúdos",
-    "edit_step": "Edição do Responsável",
-    "edit_desc": "O responsável edita e ajusta o conteúdo",
-    "pending_step": "Aguardando revisão",
-    "pending_desc": "Aguardando confirmação do conteúdo",
-    "approved_step": "Aprovado",
-    "approved_desc": "Após aprovação, está disponível para exportação",
-    "comment_label": "Comentário (descreva o conteúdo para revisão)",
-    "approve_btn": "Aprovar",
-    "revision_btn": "Solicitar revisão",
-    "hold_btn": "Suspender"
-  },
   "status": {
     "label": "Status",
     "created_by": "Criado por",
@@ -227,8 +196,7 @@
     "copy_text": "Copiar texto",
     "download_md": "Baixar como Markdown",
     "download_json": "Baixar como JSON",
-    "download_html": "Baixar como HTML",
-    "approved_only": "Exportar apenas aprovados"
+    "download_html": "Baixar como HTML"
   },
   "bulk_pack": {
     "title": "Pacote de Geração em Lote",
@@ -237,7 +205,6 @@
     "sns_pack": "Pacote SNS",
     "image_pack": "Pacote de Imagens",
     "video_pack": "Pacote de Vídeos",
-    "approval_pack": "Pacote de Aprovação",
     "improvement_pack": "Pacote de Melhorias",
     "generate_btn": "Gerar Pacote",
     "generating_msg": "Gerando pacote..."
@@ -256,7 +223,6 @@
     "delete_reason_label": "Motivo da exclusão (opcional)",
     "delete_confirm_btn": "Excluir",
     "delete_cancel_btn": "Cancelar",
-    "approved_warning": "Este projeto contém conteúdo aprovado. Confirme antes de excluir.",
     "deleted_msg": "Projeto excluído com sucesso",
     "products_tab": "Projetos de produto",
     "cores_tab": "Biblioteca de Cores"
@@ -273,9 +239,6 @@
     "cancel_label": "Cancelar",
     "ai_badge": "Preenchido pela IA",
     "human_badge": "Editado por humano",
-    "approved_badge": "Aprovado",
-    "pending_badge": "Aguardando revisão",
-    "revision_badge": "Revisão solicitada",
     "draft_badge": "Rascunho"
   }
 }

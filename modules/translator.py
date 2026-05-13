@@ -74,7 +74,6 @@ _FIELD_LABELS = {
     "competitor_urls":          "競合URLメモ",
     "weaknesses":               "競合分析メモ",
     "features":                 "差別化ポイント",
-    "product_prep_review_note": "差し戻しコメント",
     "age":                      "年齢層",
     "gender":                   "性別",
     "prohibited":               "禁止表現",
