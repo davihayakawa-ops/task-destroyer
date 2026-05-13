@@ -171,6 +171,28 @@ class Storage:
         return shop
 
     @classmethod
+    def delete_shop(cls, shop_id: str) -> dict:
+        shop_id = _sanitize_shop_id(shop_id or "")
+        if shop_id == DEFAULT_SHOP_ID:
+            return {"success": False, "message": "共通ショップは削除できません。"}
+
+        shops = _read_shop_registry()
+        target = next((s for s in shops if s["id"] == shop_id), None)
+        if not target:
+            return {"success": False, "message": "ショップが見つかりません。"}
+
+        data_dir = _shop_data_dir(shop_id)
+        if data_dir.exists():
+            shutil.rmtree(data_dir)
+        remaining = [s for s in shops if s["id"] != shop_id]
+        _write_shop_registry(remaining)
+        return {
+            "success": True,
+            "message": f"{target['name']} を削除しました。",
+            "deleted_shop_id": shop_id,
+        }
+
+    @classmethod
     def get_shop_name(cls, shop_id: str) -> str:
         shop_id = _sanitize_shop_id(shop_id or DEFAULT_SHOP_ID)
         for shop in _read_shop_registry():
