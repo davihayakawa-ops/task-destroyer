@@ -659,33 +659,6 @@ def render_sidebar():
                 else:
                     st.warning("ショップ名を入力してください。" if is_ja else "Informe o nome da loja.")
 
-        if current_shop_id != "default":
-            with st.expander("🗑️ " + ("ショップ削除" if is_ja else "Excluir loja"), expanded=False):
-                st.caption(
-                    ("選択中ショップの保存データも削除されます。"
-                     if is_ja else
-                     "Os dados salvos da loja selecionada também serão excluídos.")
-                )
-                confirm_shop_delete = st.checkbox(
-                    ("このショップを削除する" if is_ja else "Excluir esta loja"),
-                    key=f"confirm_delete_shop_{current_shop_id}",
-                )
-                if st.button(
-                    "削除" if is_ja else "Excluir",
-                    key=f"delete_shop_{current_shop_id}",
-                    use_container_width=True,
-                    disabled=not confirm_shop_delete,
-                ):
-                    result = Storage.delete_shop(current_shop_id)
-                    if result.get("success"):
-                        st.session_state["shop_id"] = "default"
-                        st.session_state["shop_name"] = "共通"
-                        clear_active_product_context()
-                        st.success(result["message"])
-                        st.rerun()
-                    else:
-                        st.warning(result.get("message", "削除できませんでした。"))
-
         # ── Simple / Full mode toggle ─────────────────────────────────────
         st.markdown(
             f'<div class="sb-mode-label">{"表示モード" if is_ja else "Modo de exibição"}</div>',
@@ -782,6 +755,34 @@ def render_sidebar():
             '</div>',
             unsafe_allow_html=True,
         )
+
+        if current_shop_id != "default":
+            st.markdown("---")
+            with st.expander("🗑️ " + ("ショップ削除" if is_ja else "Excluir loja"), expanded=False):
+                st.caption(
+                    ("選択中ショップの保存データも削除されます。"
+                     if is_ja else
+                     "Os dados salvos da loja selecionada também serão excluídos.")
+                )
+                confirm_shop_delete = st.checkbox(
+                    ("このショップを削除する" if is_ja else "Excluir esta loja"),
+                    key=f"confirm_delete_shop_{current_shop_id}",
+                )
+                if st.button(
+                    "削除" if is_ja else "Excluir",
+                    key=f"delete_shop_{current_shop_id}",
+                    use_container_width=True,
+                    disabled=not confirm_shop_delete,
+                ):
+                    result = Storage.delete_shop(current_shop_id)
+                    if result.get("success"):
+                        st.session_state["shop_id"] = "default"
+                        st.session_state["shop_name"] = "共通"
+                        clear_active_product_context()
+                        st.success(result["message"])
+                        st.rerun()
+                    else:
+                        st.warning(result.get("message", "削除できませんでした。"))
 
 
 def render_breadcrumb():
