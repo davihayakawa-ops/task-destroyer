@@ -801,6 +801,76 @@ class GeneratorEngine:
         )
         return self.llm.generate_structured(prompt)
 
+    def generate_video_script_combo(self, duration_key: str, type_key: str,
+                                    core: str, product_name: str) -> str:
+        _duration_cfg = {
+            "15s": ("15秒", "0〜3秒: 強いフック / 4〜8秒: 悩み提示 / 9〜12秒: 商品ベネフィット / 13〜15秒: CTA"),
+            "30s": ("30秒", "0〜3秒: フック / 4〜10秒: 悩み・共感 / 11〜20秒: 商品紹介・ベネフィット / 21〜27秒: 安心材料 / 28〜30秒: CTA"),
+            "45s": ("45秒", "0〜4秒: フック / 5〜14秒: 悩み・背景 / 15〜30秒: ベネフィット詳細 / 31〜40秒: 使用シーン・安心材料 / 41〜45秒: CTA"),
+            "60s": ("60秒", "0〜5秒: フック / 6〜15秒: 悩み・共感 / 16〜35秒: 商品紹介・ベネフィット詳細 / 36〜50秒: 安心材料・FAQ / 51〜60秒: CTA"),
+        }
+        _type_cfg = {
+            "tiktok": ("TikTok用台本", "TikTokらしいテンポ、冒頭の違和感・共感フック、短いカット割り、テキストオーバーレイを重視。"),
+            "reels": ("Instagram Reels用台本", "見た目の清潔感、ブランド感、保存したくなるベネフィット整理、自然な導線を重視。"),
+            "yt_shorts": ("YouTube Shorts用台本", "短尺でも理解しやすい教育・比較・レビュー型の流れを重視。"),
+            "ad_script": ("広告用台本", "広告配信で使いやすい問題提起、商品理解、購入前不安の解消、CTAを重視。"),
+            "narration": ("読み上げナレーション", "音声収録しやすい自然な口語。映像指示よりも読み上げ本文を中心にする。"),
+            "timeline": ("秒数別構成", "秒数ごとの映像、テロップ、ナレーション、目的を表形式で整理する。"),
+            "shooting": ("撮影指示付き台本", "カメラアングル、手元カット、照明、小道具、商品の見せ方まで具体的に指示する。"),
+            "higgs_marketing_studio": (
+                "Higgs Marketing Studio用プロンプト",
+                "Higgs Marketing Studioに貼り付けて動画生成・広告素材生成に使える完成プロンプトを作る。"
+            ),
+        }
+        duration_label, duration_structure = _duration_cfg.get(duration_key, (duration_key, "選択された秒数に合わせて構成する。"))
+        type_label, type_instruction = _type_cfg.get(type_key, (type_key, "選択された生成タイプに合わせて作成する。"))
+
+        if type_key == "higgs_marketing_studio":
+            prompt = (
+                f"あなたはHiggs Marketing Studio向けの動画生成プロンプト設計者です。\n"
+                f"以下のCoreをもとに、{duration_label}の広告・SNS動画を作るための"
+                f"Marketing Studio用プロンプトを完成させてください。\n\n"
+                f"【Core】\n{core[:2200]}\n\n"
+                f"【商品情報】\n商品名: {product_name}\n\n"
+                f"【尺】{duration_label}\n"
+                f"【推奨構成】{duration_structure}\n\n"
+                f"【出力形式】\n"
+                f"## Higgs Marketing Studio Prompt\n"
+                f"- Objective:\n- Video Length:\n- Aspect Ratio:\n- Target Audience:\n"
+                f"- Main Hook:\n- Scene-by-scene Direction:\n- Visual Style:\n"
+                f"- Product Presentation:\n- On-screen Text:\n- Voiceover Script:\n"
+                f"- Music / Sound:\n- CTA:\n- Negative Instructions:\n\n"
+                f"Marketing Studioに貼り付けやすいよう、英語中心で具体的に書くこと。"
+                f"ただし日本語担当者向けの短い補足メモも最後に付けること。"
+                f"薬機法・景表法リスク表現は避ける。"
+            )
+            return self.llm.generate_structured(prompt)
+
+        prompt = (
+            f"あなたは動画台本の専門家です。\n"
+            f"以下のCoreをもとに、「{duration_label} × {type_label}」を作成してください。\n\n"
+            f"【Core】\n{core[:2200]}\n\n"
+            f"【商品情報】\n商品名: {product_name}\n\n"
+            f"【尺】{duration_label}\n"
+            f"【秒数構成】{duration_structure}\n"
+            f"【生成タイプ】{type_label}\n"
+            f"【タイプ別要件】{type_instruction}\n\n"
+            f"【出力形式】\n"
+            f"## {duration_label} × {type_label}\n\n"
+            f"### 狙い\n"
+            f"### 秒数別構成\n"
+            f"### 完成台本\n"
+            f"### ナレーション\n"
+            f"### テロップ\n"
+            f"### 映像・撮影指示\n"
+            f"### フック案 3つ\n"
+            f"### CTA案 3つ\n"
+            f"### NG表現・注意点\n\n"
+            f"重要：冒頭3秒のフックを特に強くする。自然で親しみやすい日本語。"
+            f"購買意欲を高めつつ押しつけがましくない。薬機法・景表法リスク表現は避ける。"
+        )
+        return self.llm.generate_structured(prompt)
+
     def generate_ads_sns_item(self, media: str, content_type: str,
                               core: str, product_name: str) -> str:
         _media_labels = {

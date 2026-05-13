@@ -47,6 +47,36 @@ VS_PRESETS = [
     ("custom", "✏️ カスタム", "✏️ Personalizado", []),
 ]
 
+VS_DURATIONS = [
+    ("15s", "15秒", "15s"),
+    ("30s", "30秒", "30s"),
+    ("45s", "45秒", "45s"),
+    ("60s", "60秒", "60s"),
+]
+
+VS_TYPES = [
+    ("tiktok", "🎵 TikTok用台本", "🎵 TikTok"),
+    ("reels", "📸 Instagram Reels用台本", "📸 Instagram Reels"),
+    ("yt_shorts", "▶️ YouTube Shorts用台本", "▶️ YouTube Shorts"),
+    ("ad_script", "📢 広告用台本", "📢 Roteiro de Anúncio"),
+    ("narration", "🎤 読み上げナレーション", "🎤 Narração"),
+    ("timeline", "📋 秒数別構成", "📋 Cronograma"),
+    ("shooting", "🎬 撮影指示付き台本", "🎬 Direção de Filmagem"),
+    ("higgs_marketing_studio", "🧪 Higgs Marketing Studio用プロンプト", "🧪 Prompt Higgs Marketing Studio"),
+]
+
+VS_COMBO_PRESETS = [
+    ("sns", "📱 SNS投稿セット", "📱 Set SNS",
+     ["15s", "30s"], ["tiktok", "reels", "narration"]),
+    ("ads", "📢 広告運用セット", "📢 Set Anúncios",
+     ["30s", "45s"], ["ad_script", "timeline", "shooting", "higgs_marketing_studio"]),
+    ("shorts", "▶️ Shorts制作セット", "▶️ Set Shorts",
+     ["30s", "60s"], ["yt_shorts", "timeline", "higgs_marketing_studio"]),
+    ("full", "⚡ フル生成", "⚡ Geração Completa",
+     [k for k, _, _ in VS_DURATIONS], [k for k, _, _ in VS_TYPES]),
+    ("custom", "✏️ カスタム", "✏️ Personalizado", [], []),
+]
+
 AS_MEDIA = [  # (key, label)
     ("instagram", "Instagram"),
     ("tiktok", "TikTok"),

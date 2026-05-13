@@ -7,8 +7,11 @@ from .selection_config import (
     AS_TYPES,
     IP_ITEMS,
     IP_PRESETS,
+    VS_COMBO_PRESETS,
+    VS_DURATIONS,
     VS_ITEMS,
     VS_PRESETS,
+    VS_TYPES,
 )
 
 
@@ -183,33 +186,48 @@ def page_video_script(svc: dict, t, ensure_product_id, status_badge):
     product_name = product_info.get("name", "")
 
     st.markdown("### " + ("STEP 1: プリセット選択" if is_ja else "STEP 1: Selecionar Preset"))
-    preset_cols = st.columns(len(VS_PRESETS))
-    for i, (pk, pja, ppt, pitems) in enumerate(VS_PRESETS):
+    preset_cols = st.columns(len(VS_COMBO_PRESETS))
+    for i, (pk, pja, ppt, durations, types) in enumerate(VS_COMBO_PRESETS):
         with preset_cols[i]:
             if st.button(pja if is_ja else ppt, key=f"vs_preset_{pk}", use_container_width=True):
-                for k, _, _ in VS_ITEMS:
-                    st.session_state[f"chk_vs_{k}"] = (k in pitems)
+                for k, _, _ in VS_DURATIONS:
+                    st.session_state[f"chk_vs_duration_{k}"] = (k in durations)
+                for k, _, _ in VS_TYPES:
+                    st.session_state[f"chk_vs_type_{k}"] = (k in types)
                 st.rerun()
 
-    st.markdown("### " + ("STEP 2: 生成項目を選択" if is_ja else "STEP 2: Selecionar Itens"))
-    selected = []
-    cols = st.columns(2)
-    for i, (k, ja_lbl, pt_lbl) in enumerate(VS_ITEMS):
-        with cols[i % 2]:
-            default = st.session_state.get(f"chk_vs_{k}", False)
-            if st.checkbox(ja_lbl if is_ja else pt_lbl, value=default, key=f"chk_vs_{k}"):
-                selected.append(k)
+    st.markdown("### " + ("STEP 2: 秒数を選択" if is_ja else "STEP 2: Selecionar Duração"))
+    selected_durations = []
+    duration_cols = st.columns(len(VS_DURATIONS))
+    for i, (k, ja_lbl, pt_lbl) in enumerate(VS_DURATIONS):
+        with duration_cols[i]:
+            default = st.session_state.get(f"chk_vs_duration_{k}", k in ("15s", "30s"))
+            if st.checkbox(ja_lbl if is_ja else pt_lbl, value=default, key=f"chk_vs_duration_{k}"):
+                selected_durations.append(k)
+
+    st.markdown("### " + ("STEP 3: 生成タイプを選択" if is_ja else "STEP 3: Selecionar Tipo"))
+    selected_types = []
+    type_cols = st.columns(2)
+    for i, (k, ja_lbl, pt_lbl) in enumerate(VS_TYPES):
+        with type_cols[i % 2]:
+            default = st.session_state.get(f"chk_vs_type_{k}", k in ("tiktok", "reels"))
+            if st.checkbox(ja_lbl if is_ja else pt_lbl, value=default, key=f"chk_vs_type_{k}"):
+                selected_types.append(k)
+
+    selected = [(d, tp) for d in selected_durations for tp in selected_types]
 
     st.markdown("---")
     n = len(selected)
-    btn_label = (f"⚡ 選択した {n} 項目を生成" if is_ja else f"⚡ Gerar {n} item(s) selecionado(s)")
+    btn_label = (f"⚡ 選択した {n} 組み合わせを生成" if is_ja else f"⚡ Gerar {n} combinação(ões)")
     if st.button(btn_label, type="primary", disabled=(n == 0), key="vs_gen_btn"):
         prog = st.progress(0)
         status = st.empty()
-        for i, k in enumerate(selected):
-            lbl = next((ja if is_ja else pt for kk, ja, pt in VS_ITEMS if kk == k), k)
+        for i, (duration_key, type_key) in enumerate(selected):
+            k = f"{duration_key}__{type_key}"
+            lbl = _video_combo_label(duration_key, type_key, is_ja)
             status.text(f"⏳ {lbl} ({i+1}/{n})")
-            result = svc["generator"].generate_video_script_item(k, core, product_name)
+            result = svc["generator"].generate_video_script_combo(
+                duration_key, type_key, core, product_name)
             st.session_state["video_scripts"][k] = result
             prog.progress((i + 1) / n)
         status.empty()
@@ -220,17 +238,21 @@ def page_video_script(svc: dict, t, ensure_product_id, status_badge):
         st.rerun()
 
     items_data = st.session_state.get("video_scripts", {})
-    has_results = any(items_data.get(k) for k, _, _ in VS_ITEMS)
+    has_results = bool(items_data)
     if has_results:
         st.markdown("### " + ("生成結果" if is_ja else "Resultados"))
-        for k, ja_lbl, pt_lbl in VS_ITEMS:
+        for k, content in items_data.items():
             content = items_data.get(k)
             if not content:
                 continue
-            label = ja_lbl if is_ja else pt_lbl
+            label = _video_item_label(k, is_ja)
 
             def _make_regen_fn_vs(item_key):
                 def _regen(_):
+                    if "__" in item_key:
+                        duration_key, type_key = item_key.split("__", 1)
+                        return svc["generator"].generate_video_script_combo(
+                            duration_key, type_key, core, product_name)
                     return svc["generator"].generate_video_script_item(item_key, core, product_name)
                 return _regen
 
@@ -239,9 +261,22 @@ def page_video_script(svc: dict, t, ensure_product_id, status_badge):
                               _make_regen_fn_vs(k), is_ja, "video_script")
     else:
         st.markdown('<div class="cs-info">💡 ' + (
-            "上の項目を選択して生成ボタンを押してください。" if is_ja
-            else "Selecione os itens acima e clique em Gerar."
+            "秒数と生成タイプを選択して生成ボタンを押してください。" if is_ja
+            else "Selecione duração e tipo, depois clique em Gerar."
         ) + '</div>', unsafe_allow_html=True)
+
+
+def _video_combo_label(duration_key: str, type_key: str, is_ja: bool) -> str:
+    duration = next((ja if is_ja else pt for k, ja, pt in VS_DURATIONS if k == duration_key), duration_key)
+    type_label = next((ja if is_ja else pt for k, ja, pt in VS_TYPES if k == type_key), type_key)
+    return f"{duration} × {type_label}"
+
+
+def _video_item_label(item_key: str, is_ja: bool) -> str:
+    if "__" in item_key:
+        duration_key, type_key = item_key.split("__", 1)
+        return _video_combo_label(duration_key, type_key, is_ja)
+    return next((ja if is_ja else pt for k, ja, pt in VS_ITEMS if k == item_key), item_key)
 
 
 def page_ads_sns(svc: dict, t, ensure_product_id, status_badge):
