@@ -644,21 +644,6 @@ def render_sidebar():
             clear_active_product_context()
             st.rerun()
 
-        with st.expander("➕ " + ("ショップ追加" if is_ja else "Adicionar loja"), expanded=False):
-            new_shop_name = st.text_input(
-                "ショップ名" if is_ja else "Nome da loja",
-                key="new_shop_name",
-            )
-            if st.button("作成" if is_ja else "Criar", key="create_shop", use_container_width=True):
-                if new_shop_name.strip():
-                    new_shop = Storage.create_shop(new_shop_name)
-                    st.session_state["shop_id"] = new_shop["id"]
-                    st.session_state["shop_name"] = new_shop["name"]
-                    clear_active_product_context()
-                    st.rerun()
-                else:
-                    st.warning("ショップ名を入力してください。" if is_ja else "Informe o nome da loja.")
-
         # ── Simple / Full mode toggle ─────────────────────────────────────
         st.markdown(
             f'<div class="sb-mode-label">{"表示モード" if is_ja else "Modo de exibição"}</div>',
@@ -756,8 +741,23 @@ def render_sidebar():
             unsafe_allow_html=True,
         )
 
+        st.markdown("---")
+        with st.expander("➕ " + ("ショップ追加" if is_ja else "Adicionar loja"), expanded=False):
+            new_shop_name = st.text_input(
+                "ショップ名" if is_ja else "Nome da loja",
+                key="new_shop_name",
+            )
+            if st.button("作成" if is_ja else "Criar", key="create_shop", use_container_width=True):
+                if new_shop_name.strip():
+                    new_shop = Storage.create_shop(new_shop_name)
+                    st.session_state["shop_id"] = new_shop["id"]
+                    st.session_state["shop_name"] = new_shop["name"]
+                    clear_active_product_context()
+                    st.rerun()
+                else:
+                    st.warning("ショップ名を入力してください。" if is_ja else "Informe o nome da loja.")
+
         if current_shop_id != "default":
-            st.markdown("---")
             with st.expander("🗑️ " + ("ショップ削除" if is_ja else "Excluir loja"), expanded=False):
                 st.caption(
                     ("選択中ショップの保存データも削除されます。"
