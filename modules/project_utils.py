@@ -99,7 +99,7 @@ def is_empty_project_entry(p: dict) -> bool:
 def do_delete_project(pid: str, file_path: str, delete_reason: str) -> dict:
     """Run delete_project via a fresh Storage instance; normalise the result."""
     from modules.storage import Storage as _Storage
-    storage = _Storage()
+    storage = _Storage(st.session_state.get("shop_id", "default"))
     deleted_by = st.session_state.get("assignee", "")
     try:
         result = storage.delete_project(pid, deleted_by, delete_reason, file_path=file_path)

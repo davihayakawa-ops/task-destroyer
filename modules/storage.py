@@ -14,6 +14,9 @@ DATA_DIR = Path(os.getenv("DATA_DIR", "data"))
 if not DATA_DIR.is_absolute():
     DATA_DIR = Path(__file__).resolve().parent.parent / DATA_DIR
 
+DEFAULT_SHOP_ID = "default"
+DEFAULT_SHOP_NAME = "共通"
+
 # Directories included in backup ZIPs (secrets/env files are never included)
 _BACKUP_DIRS = [
     "projects", "core_library", "activity_logs",
@@ -80,34 +83,129 @@ def _now() -> str:
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
+def _sanitize_shop_id(value: str) -> str:
+    raw = str(value or "").strip().lower()
+    chars = []
+    last_dash = False
+    for ch in raw:
+        if ch.isascii() and ch.isalnum():
+            chars.append(ch)
+            last_dash = False
+        elif not last_dash:
+            chars.append("-")
+            last_dash = True
+    cleaned = "".join(chars).strip("-")
+    return cleaned or f"shop-{str(uuid.uuid4())[:8]}"
+
+
+def _shop_data_dir(shop_id: str) -> Path:
+    shop_id = _sanitize_shop_id(shop_id)
+    if shop_id == DEFAULT_SHOP_ID:
+        return DATA_DIR
+    return DATA_DIR / "shops" / shop_id
+
+
+def _registry_path() -> Path:
+    return DATA_DIR / "shop_registry.json"
+
+
+def _read_shop_registry() -> list:
+    shops = [{"id": DEFAULT_SHOP_ID, "name": DEFAULT_SHOP_NAME}]
+    path = _registry_path()
+    if path.exists():
+        try:
+            loaded = json.loads(path.read_text())
+            if isinstance(loaded, list):
+                shops = loaded
+        except Exception:
+            pass
+
+    seen = set()
+    normalized = []
+    for shop in shops:
+        if not isinstance(shop, dict):
+            continue
+        shop_id = _sanitize_shop_id(shop.get("id") or shop.get("name") or "")
+        if not shop_id or shop_id in seen:
+            continue
+        seen.add(shop_id)
+        normalized.append({
+            "id": shop_id,
+            "name": str(shop.get("name") or shop_id),
+            "created_at": shop.get("created_at", ""),
+        })
+    if DEFAULT_SHOP_ID not in seen:
+        normalized.insert(0, {"id": DEFAULT_SHOP_ID, "name": DEFAULT_SHOP_NAME, "created_at": ""})
+    normalized.sort(key=lambda s: (s["id"] != DEFAULT_SHOP_ID, s["name"].lower()))
+    return normalized
+
+
+def _write_shop_registry(shops: list) -> None:
+    _ensure_dir(DATA_DIR)
+    _registry_path().write_text(json.dumps(shops, ensure_ascii=False, indent=2))
+
+
 class Storage:
     """JSON file-based storage. Swappable to Supabase by replacing this module."""
 
-    def __init__(self):
-        _ensure_dir(DATA_DIR / "projects")
-        _ensure_dir(DATA_DIR / "core_library")
-        _ensure_dir(DATA_DIR / "activity_logs")
-        _ensure_dir(DATA_DIR / "delete_logs")
-        _ensure_dir(DATA_DIR / "backups")
-        _ensure_dir(DATA_DIR / "trash")
+    @classmethod
+    def list_shops(cls) -> list:
+        return _read_shop_registry()
+
+    @classmethod
+    def create_shop(cls, name: str) -> dict:
+        clean_name = str(name or "").strip()
+        if not clean_name:
+            clean_name = "New Shop"
+        shops = _read_shop_registry()
+        existing_ids = {s["id"] for s in shops}
+        base_id = _sanitize_shop_id(clean_name)
+        shop_id = base_id
+        if shop_id == DEFAULT_SHOP_ID:
+            shop_id = f"{shop_id}-{str(uuid.uuid4())[:4]}"
+        while shop_id in existing_ids:
+            shop_id = f"{base_id}-{str(uuid.uuid4())[:4]}"
+        shop = {"id": shop_id, "name": clean_name, "created_at": _now()}
+        shops.append(shop)
+        _write_shop_registry(shops)
+        return shop
+
+    @classmethod
+    def get_shop_name(cls, shop_id: str) -> str:
+        shop_id = _sanitize_shop_id(shop_id or DEFAULT_SHOP_ID)
+        for shop in _read_shop_registry():
+            if shop["id"] == shop_id:
+                return shop["name"]
+        return DEFAULT_SHOP_NAME
+
+    def __init__(self, shop_id: str = DEFAULT_SHOP_ID):
+        self.shop_id = _sanitize_shop_id(shop_id or DEFAULT_SHOP_ID)
+        self.shop_name = self.get_shop_name(self.shop_id)
+        self.data_dir = _shop_data_dir(self.shop_id)
+        _ensure_dir(self.data_dir / "projects")
+        _ensure_dir(self.data_dir / "core_library")
+        _ensure_dir(self.data_dir / "activity_logs")
+        _ensure_dir(self.data_dir / "delete_logs")
+        _ensure_dir(self.data_dir / "backups")
+        _ensure_dir(self.data_dir / "trash")
 
     # ── Product Info ──────────────────────────────────────────────────────────
 
     def save_product(self, product_id: str, data: dict) -> str:
         data["updated_at"] = _now()
-        path = DATA_DIR / "projects" / f"{product_id}.json"
+        path = self.data_dir / "projects" / f"{product_id}.json"
         path.write_text(json.dumps(data, ensure_ascii=False, indent=2))
         return product_id
 
     def load_product(self, product_id: str) -> Optional[dict]:
-        path = DATA_DIR / "projects" / f"{product_id}.json"
+        path = self.data_dir / "projects" / f"{product_id}.json"
         if not path.exists():
             return None
         return _fill_translation_defaults(json.loads(path.read_text()))
 
     def list_products(self) -> List[dict]:
         result = []
-        proj_dir = DATA_DIR / "projects"
+        proj_dir = self.data_dir / "projects"
         for p in sorted(proj_dir.glob("*.json")):
             # Generated content files always have underscores in their stem
             # (pattern: {pid}_{content_type}_{id}.json).
@@ -143,13 +241,13 @@ class Storage:
             "status": core_data.get("status", "ai_generated"),
             "core": core_data,
         }
-        path = DATA_DIR / "core_library" / f"{product_id}_{core_id}.json"
+        path = self.data_dir / "core_library" / f"{product_id}_{core_id}.json"
         path.write_text(json.dumps(entry, ensure_ascii=False, indent=2))
         return core_id
 
     def list_cores(self, product_id: str) -> List[dict]:
         result = []
-        for p in sorted((DATA_DIR / "core_library").glob(f"{product_id}_*.json")):
+        for p in sorted((self.data_dir / "core_library").glob(f"{product_id}_*.json")):
             try:
                 result.append(json.loads(p.read_text()))
             except Exception:
@@ -174,12 +272,12 @@ class Storage:
             "status": "ai_generated",
             "content": content,
         }
-        path = DATA_DIR / "projects" / f"{product_id}_{content_type}_{content_id}.json"
+        path = self.data_dir / "projects" / f"{product_id}_{content_type}_{content_id}.json"
         path.write_text(json.dumps(entry, ensure_ascii=False, indent=2))
         return content_id
 
     def load_generated(self, product_id: str, content_type: str) -> Optional[dict]:
-        matches = sorted((DATA_DIR / "projects").glob(f"{product_id}_{content_type}_*.json"))
+        matches = sorted((self.data_dir / "projects").glob(f"{product_id}_{content_type}_*.json"))
         if not matches:
             return None
         try:
@@ -192,7 +290,7 @@ class Storage:
         Returns {content_type: text_string}."""
         # Collect unique content_types from file names {pid}_{ct}_{id}.json
         content_types = set()
-        for p in (DATA_DIR / "projects").glob(f"{product_id}_*.json"):
+        for p in (self.data_dir / "projects").glob(f"{product_id}_*.json"):
             parts = p.stem.split("_")
             if len(parts) >= 3:
                 ct = "_".join(parts[1:-1])  # everything between pid and trailing id
@@ -266,12 +364,12 @@ class Storage:
             "user": user,
             "timestamp": _now(),
         }
-        log_path = DATA_DIR / "activity_logs" / f"{product_id}.jsonl"
+        log_path = self.data_dir / "activity_logs" / f"{product_id}.jsonl"
         with open(log_path, "a", encoding="utf-8") as f:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
     def get_activity_log(self, product_id: str) -> List[dict]:
-        log_path = DATA_DIR / "activity_logs" / f"{product_id}.jsonl"
+        log_path = self.data_dir / "activity_logs" / f"{product_id}.jsonl"
         if not log_path.exists():
             return []
         entries = []
@@ -306,9 +404,7 @@ class Storage:
         # 2. Fall back: search all plausible locations
         if project_file is None:
             candidates = [
-                DATA_DIR / "projects" / f"{product_id}.json",
-                Path("data") / "projects" / f"{product_id}.json",
-                Path("data/projects") / f"{product_id}.json",
+                self.data_dir / "projects" / f"{product_id}.json",
             ]
             for c in candidates:
                 s = str(c.resolve())
@@ -320,10 +416,10 @@ class Storage:
 
         # ── Trash mode: move main file only, keep associated files intact ──────
         if use_trash and project_file is not None:
-            _ensure_dir(DATA_DIR / "trash")
+            _ensure_dir(self.data_dir / "trash")
             ts = datetime.now().strftime("%Y%m%d_%H%M%S")
             trash_name = f"{product_id}_deleted_{ts}.json"
-            trash_path = DATA_DIR / "trash" / trash_name
+            trash_path = self.data_dir / "trash" / trash_name
             try:
                 data = json.loads(project_file.read_text())
                 data["_trash_meta"] = {
@@ -356,13 +452,13 @@ class Storage:
             # Ghost entry: main file already gone (prev deployment or manual deletion).
             # Clean up any remaining associated files and treat as success.
             try:
-                for p in list((DATA_DIR / "projects").glob(f"{product_id}_*.json")):
+                for p in list((self.data_dir / "projects").glob(f"{product_id}_*.json")):
                     deleted.append(str(p))
                     p.unlink()
-                for p in list((DATA_DIR / "core_library").glob(f"{product_id}_*.json")):
+                for p in list((self.data_dir / "core_library").glob(f"{product_id}_*.json")):
                     deleted.append(str(p))
                     p.unlink()
-                log_file = DATA_DIR / "activity_logs" / f"{product_id}.jsonl"
+                log_file = self.data_dir / "activity_logs" / f"{product_id}.jsonl"
                 if log_file.exists():
                     deleted.append(str(log_file))
                     log_file.unlink()
@@ -388,11 +484,11 @@ class Storage:
                 deleted.append(str(p))
                 p.unlink()
 
-            for p in list((DATA_DIR / "core_library").glob(f"{product_id}_*.json")):
+            for p in list((self.data_dir / "core_library").glob(f"{product_id}_*.json")):
                 deleted.append(str(p))
                 p.unlink()
 
-            log_file = DATA_DIR / "activity_logs" / f"{product_id}.jsonl"
+            log_file = self.data_dir / "activity_logs" / f"{product_id}.jsonl"
             if log_file.exists():
                 deleted.append(str(log_file))
                 log_file.unlink()
@@ -417,7 +513,7 @@ class Storage:
         }
 
     def save_delete_log(self, product_id: str, deleted_by: str, reason: str, files: list):
-        _ensure_dir(DATA_DIR / "delete_logs")
+        _ensure_dir(self.data_dir / "delete_logs")
         entry = {
             "product_id": product_id,
             "deleted_by": deleted_by,
@@ -425,7 +521,7 @@ class Storage:
             "files": files,
             "deleted_at": _now(),
         }
-        path = DATA_DIR / "delete_logs" / f"{product_id}_{str(uuid.uuid4())[:8]}.json"
+        path = self.data_dir / "delete_logs" / f"{product_id}_{str(uuid.uuid4())[:8]}.json"
         path.write_text(json.dumps(entry, ensure_ascii=False, indent=2))
 
     # ── Backup ────────────────────────────────────────────────────────────────
@@ -434,7 +530,7 @@ class Storage:
         """Write all backup-eligible files into an open ZipFile. Returns file count."""
         count = 0
         for dir_name in _BACKUP_DIRS:
-            dir_path = DATA_DIR / dir_name
+            dir_path = self.data_dir / dir_name
             if not dir_path.exists():
                 continue
             for file_path in sorted(dir_path.rglob("*")):
@@ -443,21 +539,21 @@ class Storage:
                 name_lower = file_path.name.lower()
                 if name_lower in (".env", "secrets.toml") or "secret" in name_lower:
                     continue
-                arc_name = str(file_path.relative_to(DATA_DIR))
+                arc_name = str(file_path.relative_to(self.data_dir))
                 zf.write(file_path, arc_name)
                 count += 1
         return count
 
     def create_backup(self, label: str = "manual") -> Path:
         """Create a ZIP backup of all data directories. Returns path to the ZIP file.
-        Never includes .env, secrets, or files outside DATA_DIR."""
-        _ensure_dir(DATA_DIR / "backups")
+        Never includes .env, secrets, or files outside self.data_dir."""
+        _ensure_dir(self.data_dir / "backups")
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         if label == "manual":
             zip_name = f"task_destroyer_backup_{ts}.zip"
         else:
             zip_name = f"backup_before_{label}_{ts}.zip"
-        zip_path = DATA_DIR / "backups" / zip_name
+        zip_path = self.data_dir / "backups" / zip_name
         with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
             self._zip_data_dirs(zf)
         return zip_path
@@ -465,8 +561,8 @@ class Storage:
     def create_backup_bytes(self) -> tuple:
         """Create a ZIP backup in memory. Returns (bytes, filename, file_count).
         Also saves a copy to data/backups/ for the backup list.
-        Never includes .env, secrets, or files outside DATA_DIR."""
-        _ensure_dir(DATA_DIR / "backups")
+        Never includes .env, secrets, or files outside self.data_dir."""
+        _ensure_dir(self.data_dir / "backups")
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         zip_name = f"task_destroyer_backup_{ts}.zip"
 
@@ -476,7 +572,7 @@ class Storage:
         zip_bytes = buf.getvalue()
 
         try:
-            zip_path = DATA_DIR / "backups" / zip_name
+            zip_path = self.data_dir / "backups" / zip_name
             zip_path.write_bytes(zip_bytes)
         except Exception:
             pass
@@ -494,7 +590,7 @@ class Storage:
         dir_counts = {}
         total = 0
         for dir_name in _BACKUP_DIRS:
-            dp = DATA_DIR / dir_name
+            dp = self.data_dir / dir_name
             if not dp.exists():
                 continue
             count = 0
@@ -517,7 +613,7 @@ class Storage:
 
     def list_backups(self) -> List[dict]:
         """Return list of available backup ZIPs, newest first."""
-        backup_dir = DATA_DIR / "backups"
+        backup_dir = self.data_dir / "backups"
         if not backup_dir.exists():
             return []
         result = []
@@ -535,7 +631,7 @@ class Storage:
         return result
 
     def restore_from_backup(self, zip_source) -> dict:
-        """Restore DATA_DIR from a backup ZIP (bytes or file path).
+        """Restore self.data_dir from a backup ZIP (bytes or file path).
         Auto-creates a pre-restore backup first."""
         try:
             pre_backup = self.create_backup("before_restore")
@@ -567,7 +663,7 @@ class Storage:
                     base = Path(member).name.lower()
                     if base in (".env", "secrets.toml") or "secret" in base:
                         continue
-                    target = DATA_DIR / member
+                    target = self.data_dir / member
                     _ensure_dir(target.parent)
                     with zf.open(member) as src:
                         target.write_bytes(src.read())
@@ -586,7 +682,7 @@ class Storage:
 
     def list_trash(self) -> List[dict]:
         """Return list of files in data/trash/, newest first."""
-        trash_dir = DATA_DIR / "trash"
+        trash_dir = self.data_dir / "trash"
         if not trash_dir.exists():
             return []
         result = []
@@ -612,7 +708,7 @@ class Storage:
 
     def restore_from_trash(self, filename: str) -> dict:
         """Move a file from trash back to its original location."""
-        trash_path = DATA_DIR / "trash" / filename
+        trash_path = self.data_dir / "trash" / filename
         if not trash_path.exists():
             return {"success": False, "message": "ゴミ箱にファイルが見つかりません"}
         try:
@@ -634,7 +730,7 @@ class Storage:
 
     def purge_trash(self, filename: str) -> dict:
         """Permanently delete a single file from trash."""
-        trash_path = DATA_DIR / "trash" / filename
+        trash_path = self.data_dir / "trash" / filename
         if not trash_path.exists():
             return {"success": False, "message": "ファイルが見つかりません"}
         try:
@@ -658,7 +754,7 @@ class Storage:
         # Scan for API error strings in project files
         error_files = []
         try:
-            for p in (DATA_DIR / "projects").glob("*.json"):
+            for p in (self.data_dir / "projects").glob("*.json"):
                 try:
                     text = p.read_text(encoding="utf-8", errors="ignore")
                     for pattern in _ERROR_PATTERNS:
@@ -684,7 +780,7 @@ class Storage:
 
         dir_sizes = {}
         for dir_name in _BACKUP_DIRS + ["backups"]:
-            dp = DATA_DIR / dir_name
+            dp = self.data_dir / dir_name
             if dp.exists():
                 count = sum(1 for _ in dp.rglob("*") if _.is_file())
                 dir_sizes[dir_name] = count
@@ -696,7 +792,7 @@ class Storage:
             "trash_count": len(trash),
             "backup_count": len(backups),
             "last_backup_at": backups[0]["created_at"] if backups else None,
-            "data_dir": str(DATA_DIR),
+            "data_dir": str(self.data_dir),
             "dir_file_counts": dir_sizes,
             "error_content_files": error_files,
         }

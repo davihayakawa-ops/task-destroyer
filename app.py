@@ -434,6 +434,8 @@ def init_state():
         "assignee": "",
         "reviewer": "",
         "nav_mode": "simple",
+        "shop_id": "default",
+        "shop_name": "共通",
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -454,13 +456,13 @@ init_state()
 # Bump this string whenever new methods are added to any service class.
 # Changing it invalidates the @st.cache_resource cache on Streamlit Cloud,
 # forcing fresh service objects that reflect the latest code.
-_SERVICES_VER = "20260504-p4b"
+_SERVICES_VER = "20260513-shop-storage"
 
 
 @st.cache_resource
-def get_services(_v=_SERVICES_VER):
+def get_services(shop_id: str = "default", _v=_SERVICES_VER):
     llm = LLMClient()
-    storage = Storage()
+    storage = Storage(shop_id)
     return {
         "llm": llm,
         "storage": storage,
@@ -475,7 +477,28 @@ def get_services(_v=_SERVICES_VER):
     }
 
 
-svc = get_services()
+svc = get_services(st.session_state.get("shop_id", "default"))
+
+
+def clear_active_product_context():
+    for key, value in {
+        "product_id": "",
+        "product_info": {},
+        "core_text": "",
+        "core_method": "auto",
+        "core_status": "draft",
+        "external_core_text": "",
+        "generated": {},
+        "assignee": "",
+        "reviewer": "",
+    }.items():
+        st.session_state[key] = value
+    for key in (
+        "image_prompts", "video_scripts", "ads_sns_items",
+        "confirm_delete_id", "confirm_delete_file_path", "confirm_delete_name",
+        "_bk_ready_bytes", "_bk_ready_fname", "_bk_ready_count", "_bk_ready_err",
+    ):
+        st.session_state.pop(key, None)
 
 
 
@@ -595,6 +618,46 @@ def render_sidebar():
             f'{mode["icon"]} {mode_name}</div>',
             unsafe_allow_html=True,
         )
+
+        # ── Shop switcher ─────────────────────────────────────────────────
+        shops = Storage.list_shops()
+        current_shop_id = st.session_state.get("shop_id", "default")
+        shop_ids = [s["id"] for s in shops]
+        if current_shop_id not in shop_ids:
+            current_shop_id = "default"
+            st.session_state["shop_id"] = current_shop_id
+        shop_names = {s["id"]: s["name"] for s in shops}
+        st.markdown(
+            f'<div class="sb-mode-label">{"ショップ" if is_ja else "Loja"}</div>',
+            unsafe_allow_html=True,
+        )
+        selected_shop_id = st.selectbox(
+            "ショップ" if is_ja else "Loja",
+            options=shop_ids,
+            index=shop_ids.index(current_shop_id),
+            format_func=lambda sid: shop_names.get(sid, sid),
+            label_visibility="collapsed",
+        )
+        if selected_shop_id != st.session_state.get("shop_id", "default"):
+            st.session_state["shop_id"] = selected_shop_id
+            st.session_state["shop_name"] = shop_names.get(selected_shop_id, selected_shop_id)
+            clear_active_product_context()
+            st.rerun()
+
+        with st.expander("➕ " + ("ショップ追加" if is_ja else "Adicionar loja"), expanded=False):
+            new_shop_name = st.text_input(
+                "ショップ名" if is_ja else "Nome da loja",
+                key="new_shop_name",
+            )
+            if st.button("作成" if is_ja else "Criar", key="create_shop", use_container_width=True):
+                if new_shop_name.strip():
+                    new_shop = Storage.create_shop(new_shop_name)
+                    st.session_state["shop_id"] = new_shop["id"]
+                    st.session_state["shop_name"] = new_shop["name"]
+                    clear_active_product_context()
+                    st.rerun()
+                else:
+                    st.warning("ショップ名を入力してください。" if is_ja else "Informe o nome da loja.")
 
         # ── Simple / Full mode toggle ─────────────────────────────────────
         st.markdown(

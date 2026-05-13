@@ -14,6 +14,11 @@ from .project_utils import (
 )
 
 
+def _current_storage():
+    from modules.storage import Storage as _Storage
+    return _Storage(st.session_state.get("shop_id", "default"))
+
+
 def page_saved_data(svc: dict) -> None:
     st.markdown('<div class="section-header">💾 ' + t("nav.saved_data") + '</div>',
                 unsafe_allow_html=True)
@@ -60,8 +65,7 @@ def page_saved_data(svc: dict) -> None:
                 if not can_perform_action("cleanup_empty"):
                     st.warning("この操作は許可されていません。" if is_ja else "Operação não permitida.")
                     st.rerun()
-                from modules.storage import Storage as _Storage
-                _s = _Storage()
+                _s = _current_storage()
                 # Auto-backup before cleanup
                 try:
                     bk = _s.create_backup("before_empty_cleanup")
@@ -297,8 +301,7 @@ def page_saved_data(svc: dict) -> None:
 
     # ── Tab 3: 診断 ───────────────────────────────────────────────────────────
     with tab3:
-        from modules.storage import Storage as _StorageDx
-        _sdx = _StorageDx()
+        _sdx = _current_storage()
         try:
             dx = _sdx.get_diagnostics()
         except Exception as _dxe:
@@ -354,8 +357,7 @@ def page_saved_data(svc: dict) -> None:
 
         # バックアップ対象の統計情報を取得（常に表示）
         try:
-            from modules.storage import Storage as _BkStorage
-            _bk_s = _BkStorage()
+            _bk_s = _current_storage()
             _bk_stats = _bk_s.get_backup_stats()
         except Exception as _bk_stats_exc:
             _bk_stats = {"project_count": 0, "dir_file_counts": {}, "total_file_count": 0}
@@ -414,8 +416,7 @@ def page_saved_data(svc: dict) -> None:
                     st.rerun()
                 with st.spinner("バックアップ作成中..." if is_ja else "Criando backup..."):
                     try:
-                        from modules.storage import Storage as _BkStorage2
-                        _bk_s2 = _BkStorage2()
+                        _bk_s2 = _current_storage()
                         _bk_bytes, _bk_fname, _bk_zip_count = _bk_s2.create_backup_bytes()
                         st.session_state["_bk_ready_bytes"] = _bk_bytes
                         st.session_state["_bk_ready_fname"] = _bk_fname
@@ -486,8 +487,7 @@ def page_saved_data(svc: dict) -> None:
                     st.rerun()
                 with st.spinner("復元中..." if is_ja else "Restaurando..."):
                     try:
-                        from modules.storage import Storage as _RestoreStorage
-                        _rst_s = _RestoreStorage()
+                        _rst_s = _current_storage()
                         _rst_res = _rst_s.restore_from_backup(_restore_upload.read())
                     except Exception as _rst_exc:
                         _rst_res = {"success": False, "message": str(_rst_exc)}
@@ -504,8 +504,7 @@ def page_saved_data(svc: dict) -> None:
         # ── セクション3: 保存済みバックアップ一覧 ────────────────────────────
         st.markdown("### 📋 " + ("保存済みバックアップ一覧" if is_ja else "Backups Disponíveis"))
         try:
-            from modules.storage import Storage as _ListBkStorage
-            _lbk_s = _ListBkStorage()
+            _lbk_s = _current_storage()
             _bk_list = _lbk_s.list_backups()
         except Exception:
             _bk_list = []
@@ -541,8 +540,7 @@ def page_saved_data(svc: dict) -> None:
 
     # ── Tab 5: ゴミ箱 ─────────────────────────────────────────────────────────
     with tab5:
-        from modules.storage import Storage as _StorageTr
-        _str = _StorageTr()
+        _str = _current_storage()
         try:
             trash_list = _str.list_trash()
         except Exception as _tre:
