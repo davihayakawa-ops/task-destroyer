@@ -516,6 +516,7 @@ def _market_instructions(options: Optional[dict] = None) -> str:
         f"販売先市場: {market_label}\n"
         f"出力言語: {lang_label}\n"
         f"入力言語に関係なく、生成結果本文・見出し・CTA・FAQ・SNS文は必ず出力言語で書くこと。\n"
+        f"Markdownの見出し、表のラベル、制作メモ、注意点も、明示的に英語指定された画像AIプロンプト部分を除き、必ず出力言語で書くこと。\n"
         f"{compliance}{note}"
     )
 
@@ -892,9 +893,10 @@ class GeneratorEngine:
             f"### NG要素\n\n"
             f"### 生成AIプロンプト（英語）\n"
             f"（Midjourney/Stable Diffusion等に直接貼り付けられる英語プロンプト）\n\n"
-            f"### 日本語メモ（制作担当者への補足）\n\n"
+            f"### 制作メモ（出力言語）\n\n"
             f"重要:\n"
             f"- 生成AIプロンプトは英語で、被写体・構図・レンズ感・光・質感・背景・色を具体的に書く。\n"
+            f"- 生成AIプロンプト以外の説明、見出し、制作メモは出力言語で書く。\n"
             f"- 商品そのものを曖昧にせず、販売先市場のECで信頼される清潔感と質感を出す。\n"
             f"- 効果保証、医療的断定、過度なBefore/After表現は避ける。\n"
             f"- そのまま貼れる完成プロンプトとして出す。"
@@ -988,11 +990,11 @@ class GeneratorEngine:
                 f"- Main Hook:\n- Scene-by-scene Direction:\n- Visual Style:\n"
                 f"- Product Presentation:\n- On-screen Text:\n- Voiceover Script:\n"
                 f"- Music / Sound:\n- CTA:\n- Negative Instructions:\n\n"
-                f"### 日本語メモ\n\n"
+                f"### 制作メモ（出力言語）\n\n"
                 f"重要:\n"
                 f"- Marketing Studioに貼り付けやすいよう、英語中心で具体的に書く。\n"
                 f"- カット、画角、光、商品接写、手元動作、画面テキストまで指定する。\n"
-                f"- 補足メモは出力言語に合わせる。\n"
+                f"- 補足メモ、説明、注意点は出力言語に合わせる。\n"
                 f"- 販売先市場の広告審査・法規制で問題になりやすい表現は避ける。"
             )
             return self.llm.generate_structured(prompt)

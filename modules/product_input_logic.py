@@ -64,6 +64,16 @@ def _copy_translation_meta(target: dict, existing: dict):
         target[key] = existing.get(key, {} if key == "input_ja" else "")
 
 
+def _source_language_code(save_lang: str) -> str:
+    if save_lang == "pt":
+        return "pt-BR"
+    if save_lang == "ja":
+        return "ja"
+    if save_lang == "en":
+        return "en"
+    return save_lang or "unknown"
+
+
 def prepare_product_save_data(
     new_info: dict,
     existing: dict,
@@ -117,12 +127,14 @@ def prepare_product_save_data(
         _copy_translation_meta(data, existing)
         return data
 
-    # Admin entered Portuguese; keep any existing Japanese review data until retranslated.
+    # Non-Japanese input can still be used directly for multilingual generation.
     data["input_original"] = {
         k: data.get(k, "") for k in PRODUCT_TRANSLATABLE_FIELDS
     }
-    data["input_original_language"] = "pt-BR"
+    data["input_original_language"] = _source_language_code(save_lang)
     data["translation_status"] = existing.get("translation_status", "not_translated")
-    data["core_source_data"] = existing.get("core_source_data", {})
+    data["core_source_data"] = {
+        k: data.get(k, "") for k in CORE_SOURCE_FIELDS
+    }
     _copy_translation_meta(data, existing)
     return data

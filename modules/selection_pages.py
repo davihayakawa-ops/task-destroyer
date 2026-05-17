@@ -471,7 +471,7 @@ def _copy_sections(category_key: str, item_key: str, content: str, is_ja: bool):
     if category_key == "image_prompts":
         return [
             (_ui("生成AIプロンプト（英語）", "Prompt em inglês", "Image AI prompt (English)"), _extract_markdown_section(content, "生成AIプロンプト（英語）")),
-            (_ui("日本語メモ", "Notas", "Notes"), _extract_markdown_section(content, "日本語メモ（制作担当者への補足）") or _extract_markdown_section(content, "日本語メモ")),
+            (_ui("制作メモ", "Notas", "Notes"), _extract_markdown_section(content, "制作メモ（出力言語）") or _extract_markdown_section(content, "日本語メモ（制作担当者への補足）") or _extract_markdown_section(content, "日本語メモ")),
             (_ui("NG要素", "Itens proibidos", "Avoid"), _extract_markdown_section(content, "NG要素")),
             (_ui("入れると良いテキスト", "Texto recomendado", "Recommended text"), _extract_markdown_section(content, "入れると良いテキスト")),
         ]
@@ -481,7 +481,7 @@ def _copy_sections(category_key: str, item_key: str, content: str, is_ja: bool):
                 (_ui("Higgs用プロンプト", "Prompt Higgs", "Higgs prompt"), _extract_markdown_section(content, "Higgs Marketing Studio Prompt") or content),
                 (_ui("Scene direction", "Direção de cenas", "Scene direction"), _extract_markdown_section(content, "Scene-by-scene Direction")),
                 ("Voiceover" if is_ja else "Voiceover", _extract_markdown_section(content, "Voiceover Script")),
-                (_ui("日本語メモ", "Notas", "Notes"), _extract_markdown_section(content, "日本語メモ")),
+                (_ui("制作メモ", "Notas", "Notes"), _extract_markdown_section(content, "制作メモ（出力言語）") or _extract_markdown_section(content, "日本語メモ")),
             ]
         return [
             (_ui("冒頭3秒フック", "Gancho inicial", "Opening 3-second hook"), _extract_markdown_section(content, "冒頭3秒フック")),
