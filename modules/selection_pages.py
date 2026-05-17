@@ -106,49 +106,126 @@ def _apply_market_preset(note: str, target_market: str = "us", output_language: 
     st.session_state["generation_market_note"] = note
 
 
+def _ui(ja: str, pt: str, en: str) -> str:
+    lang = st.session_state.get("lang", "ja")
+    if lang == "ja":
+        return ja
+    if lang == "en":
+        return en
+    return pt
+
+
+IP_LABEL_EN = {
+    "main_visual": "🖼️ Product page main visual",
+    "product_only": "📦 Product-only image",
+    "usage_scene": "🌿 Usage scene image",
+    "benefit": "✨ Benefit visual",
+    "comparison": "⚖️ Comparison image",
+    "ad_banner": "📢 Ad banner image",
+    "sns_post": "📱 Social post image",
+    "story": "📖 Story image",
+}
+IP_PRESET_EN = {
+    "shopify": "🛒 Shopify page set",
+    "sns": "📱 Social asset set",
+    "ads": "📢 Ad operation set",
+    "full": "⚡ Full generation",
+    "custom": "✏️ Custom",
+}
+VS_TYPE_EN = {
+    "tiktok": "🎵 TikTok script",
+    "reels": "📸 Instagram Reels script",
+    "yt_shorts": "▶️ YouTube Shorts script",
+    "ad_script": "📢 Ad script",
+    "narration": "🎤 Voiceover narration",
+    "timeline": "📋 Timeline by seconds",
+    "shooting": "🎬 Script with shooting direction",
+    "higgs_marketing_studio": "🧪 Higgs Marketing Studio prompt",
+}
+VS_PRESET_EN = {
+    "sns": "📱 Social post set",
+    "ads": "📢 Ad operation set",
+    "shorts": "▶️ Shorts production set",
+    "full": "⚡ Full generation",
+    "custom": "✏️ Custom",
+}
+AS_TYPE_EN = {
+    "post": "Post copy",
+    "ad_copy": "Ad copy",
+    "caption": "Caption",
+    "hashtag": "Hashtags",
+    "cta": "CTA",
+    "hook": "Short hook",
+    "comment_bait": "Comment prompt",
+}
+AS_PRESET_EN = {
+    "sns": "📱 Social post set",
+    "ads": "📢 Ad operation set",
+    "custom": "✏️ Custom",
+}
+
+
+def _label_by_lang(key: str, ja: str, pt: str, en_map: dict[str, str]) -> str:
+    lang = st.session_state.get("lang", "ja")
+    if lang == "ja":
+        return ja
+    if lang == "en":
+        return en_map.get(key, ja)
+    return pt
+
+
 def _render_quality_controls(prefix: str, is_ja: bool, page_kind: str) -> dict:
-    st.markdown("### " + ("生成の方向性" if is_ja else "Direção da geração"))
+    lang = st.session_state.get("lang", "ja")
+    st.markdown("### " + _ui("生成の方向性", "Direção da geração", "Generation direction"))
     if page_kind == "image":
         purpose_opts = ["Shopify商品ページ", "広告バナー", "SNS投稿", "Higgsfield/画像AI用", "高級ブランド風"]
         purpose_pt = ["Página Shopify", "Banner de anúncio", "Post SNS", "Para Higgsfield/IA de imagem", "Marca premium"]
+        purpose_en = ["Shopify product page", "Ad banner", "Social post", "For Higgsfield / image AI", "Premium brand style"]
     elif page_kind == "video":
         purpose_opts = ["TikTok/Reels", "YouTube Shorts", "広告動画", "Higgs Marketing Studio用", "撮影指示用"]
         purpose_pt = ["TikTok/Reels", "YouTube Shorts", "Vídeo de anúncio", "Para Higgs Marketing Studio", "Direção de filmagem"]
+        purpose_en = ["TikTok / Reels", "YouTube Shorts", "Ad video", "For Higgs Marketing Studio", "Shooting direction"]
     else:
         purpose_opts = ["通常投稿", "広告運用", "商品ページ誘導", "キャンペーン", "コメント獲得"]
         purpose_pt = ["Post normal", "Anúncio pago", "Levar à página do produto", "Campanha", "Gerar comentários"]
+        purpose_en = ["Organic post", "Paid ad", "Drive to product page", "Campaign", "Get comments"]
     tone_opts = ["上品・信頼感", "ナチュラル", "高級感", "悩み共感", "SNS広告・強め", "ミニマル"]
     tone_pt = ["Elegante/confiável", "Natural", "Premium", "Empatia com dor", "Anúncio SNS forte", "Minimalista"]
+    tone_en = ["Elegant / trustworthy", "Natural", "Premium", "Pain empathy", "Stronger social ad style", "Minimal"]
     strength_opts = ["控えめ", "標準", "強め"]
     strength_pt = ["Suave", "Padrão", "Forte"]
+    strength_en = ["Soft", "Standard", "Strong"]
+    purpose_display = purpose_opts if lang == "ja" else (purpose_en if lang == "en" else purpose_pt)
+    tone_display = tone_opts if lang == "ja" else (tone_en if lang == "en" else tone_pt)
+    strength_display = strength_opts if lang == "ja" else (strength_en if lang == "en" else strength_pt)
 
     col1, col2, col3 = st.columns(3)
     with col1:
         purpose = st.selectbox(
-            "用途" if is_ja else "Uso",
-            purpose_opts if is_ja else purpose_pt,
+            _ui("用途", "Uso", "Use case"),
+            purpose_display,
             key=f"{prefix}_purpose",
         )
     with col2:
         tone = st.selectbox(
-            "雰囲気" if is_ja else "Tom",
-            tone_opts if is_ja else tone_pt,
+            _ui("雰囲気", "Tom", "Tone"),
+            tone_display,
             key=f"{prefix}_tone",
         )
     with col3:
         strength = st.selectbox(
-            "訴求の強さ" if is_ja else "Força",
-            strength_opts if is_ja else strength_pt,
+            _ui("訴求の強さ", "Força", "Persuasion strength"),
+            strength_display,
             index=1,
             key=f"{prefix}_strength",
         )
     note = st.text_input(
-        "追加指示（任意）" if is_ja else "Instrução extra (opcional)",
-        placeholder=("例：黒背景、高級感、30代女性向け" if is_ja else "Ex.: fundo escuro, premium, mulheres 30+"),
+        _ui("追加指示（任意）", "Instrução extra (opcional)", "Extra instruction (optional)"),
+        placeholder=_ui("例：黒背景、高級感、30代女性向け", "Ex.: fundo escuro, premium, mulheres 30+", "Example: dark background, premium, women 30+"),
         key=f"{prefix}_note",
     )
-    st.markdown("### " + ("販売先・出力言語" if is_ja else "Mercado e idioma de saída"))
-    st.markdown("**" + ("米国向けプリセット" if is_ja else "Presets para EUA") + "**")
+    st.markdown("### " + _ui("販売先・出力言語", "Mercado e idioma de saída", "Market and output language"))
+    st.markdown("**" + _ui("米国向けプリセット", "Presets para EUA", "US presets") + "**")
     preset_cols = st.columns(len(_US_MARKET_PRESETS))
     for i, (preset_key, label, preset_note) in enumerate(_US_MARKET_PRESETS):
         with preset_cols[i]:
@@ -158,35 +235,35 @@ def _render_quality_controls(prefix: str, is_ja: bool, page_kind: str) -> dict:
 
     market_col1, market_col2 = st.columns(2)
     market_labels = {
-        "japan": "日本向け" if is_ja else "Japão",
-        "us": "米国向け" if is_ja else "Estados Unidos",
-        "global": "グローバル" if is_ja else "Global",
+        "japan": _ui("日本向け", "Japão", "Japan"),
+        "us": _ui("米国向け", "Estados Unidos", "United States"),
+        "global": _ui("グローバル", "Global", "Global"),
     }
     language_labels = {
-        "ja": "日本語" if is_ja else "Japonês",
-        "en": "英語" if is_ja else "Inglês",
-        "pt": "ポルトガル語" if is_ja else "Português",
+        "ja": _ui("日本語", "Japonês", "Japanese"),
+        "en": _ui("英語", "Inglês", "English"),
+        "pt": _ui("ポルトガル語", "Português", "Portuguese"),
     }
     with market_col1:
         target_market = st.selectbox(
-            "販売先" if is_ja else "Mercado",
+            _ui("販売先", "Mercado", "Target market"),
             ["japan", "us", "global"],
             key="generation_target_market",
             format_func=lambda v: market_labels.get(v, v),
         )
     with market_col2:
         output_language = st.selectbox(
-            "生成する言語" if is_ja else "Idioma gerado",
+            _ui("生成する言語", "Idioma gerado", "Output language"),
             ["ja", "en", "pt"],
             key="generation_output_language",
             format_func=lambda v: language_labels.get(v, v),
         )
     market_note = st.text_input(
-        "米国向けの追加指定（任意）" if is_ja else "Instrução de mercado (opcional)",
-        placeholder=(
-            "例: 米国DTCブランド風、FTCに安全、短いCTA、価格はUSD前提"
-            if is_ja else
-            "Ex.: estilo DTC dos EUA, seguro para FTC, CTA curto, preço em USD"
+        _ui("米国向けの追加指定（任意）", "Instrução de mercado (opcional)", "Market instruction (optional)"),
+        placeholder=_ui(
+            "例: 米国DTCブランド風、FTCに安全、短いCTA、価格はUSD前提",
+            "Ex.: estilo DTC dos EUA, seguro para FTC, CTA curto, preço em USD",
+            "Example: US DTC brand style, FTC-safe, short CTA, USD pricing",
         ),
         key="generation_market_note",
     )
@@ -202,15 +279,16 @@ def _render_quality_controls(prefix: str, is_ja: bool, page_kind: str) -> dict:
 
 
 def _render_plan(selected_labels, quality: dict, is_ja: bool):
+    lang = st.session_state.get("lang", "ja")
     if not selected_labels:
-        msg = "まだ生成対象が選ばれていません。" if is_ja else "Nenhum item selecionado ainda."
+        msg = _ui("まだ生成対象が選ばれていません。", "Nenhum item selecionado ainda.", "No generation targets selected yet.")
         st.markdown(f'<div class="gen-plan">{_esc(msg)}</div>', unsafe_allow_html=True)
         return
-    title = "生成予定" if is_ja else "Será gerado"
+    title = _ui("生成予定", "Será gerado", "Will be generated")
     settings = (
-        f"{'用途' if is_ja else 'Uso'}: {quality.get('purpose', '-')}"
-        f" / {'雰囲気' if is_ja else 'Tom'}: {quality.get('tone', '-')}"
-        f" / {'強さ' if is_ja else 'Força'}: {quality.get('strength', '-')}"
+        f"{_ui('用途', 'Uso', 'Use case')}: {quality.get('purpose', '-')}"
+        f" / {_ui('雰囲気', 'Tom', 'Tone')}: {quality.get('tone', '-')}"
+        f" / {_ui('強さ', 'Força', 'Strength')}: {quality.get('strength', '-')}"
     )
     pills = "".join(f'<span class="gen-pill">{_esc(label)}</span>' for label in selected_labels)
     st.markdown(
@@ -228,53 +306,69 @@ def _set_video_selection(durations, types):
 
 
 def _render_video_goal_cards(is_ja: bool):
+    lang = st.session_state.get("lang", "ja")
     goals = [
         (
             "sns_start",
-            "迷ったらこれ" if is_ja else "Recomendado",
-            "まずSNS動画を作る" if is_ja else "Criar vídeo SNS",
+            _ui("迷ったらこれ", "Recomendado", "Recommended"),
+            _ui("まずSNS動画を作る", "Criar vídeo SNS", "Create a social video"),
             "15秒・30秒 / TikTok・Reels・ナレーション。最初の広告テストや投稿に使いやすいセット。"
-            if is_ja else
-            "15s e 30s / TikTok, Reels e narração. Bom para primeiro teste ou post.",
+            if is_ja else (
+                "15s and 30s / TikTok, Reels, and narration. Good for a first test ad or post."
+                if lang == "en" else
+                "15s e 30s / TikTok, Reels e narração. Bom para primeiro teste ou post."
+            ),
             ["15s", "30s"],
             ["tiktok", "reels", "narration"],
         ),
         (
             "higgs_video",
-            "動画AI用" if is_ja else "Para IA",
-            "Higgsで動画生成" if is_ja else "Gerar no Higgs",
+            _ui("動画AI用", "Para IA", "For video AI"),
+            _ui("Higgsで動画生成", "Gerar no Higgs", "Generate with Higgs"),
             "30秒 / Higgs用プロンプト・秒数別構成・撮影指示。Higgsfieldに貼る素材を作ります。"
-            if is_ja else
-            "30s / prompt Higgs, cronograma e direção. Cria material para colar no Higgsfield.",
+            if is_ja else (
+                "30s / Higgs prompt, timeline, and shooting direction. Creates material to paste into Higgsfield."
+                if lang == "en" else
+                "30s / prompt Higgs, cronograma e direção. Cria material para colar no Higgsfield."
+            ),
             ["30s"],
             ["higgs_marketing_studio", "timeline", "shooting"],
         ),
         (
             "ad_test",
-            "広告向け" if is_ja else "Anúncio",
-            "広告素材を作る" if is_ja else "Criar material de anúncio",
+            _ui("広告向け", "Anúncio", "For ads"),
+            _ui("広告素材を作る", "Criar material de anúncio", "Create ad assets"),
             "30秒・45秒 / 広告台本・撮影指示・秒数別構成。不安解消とCTAを強めます。"
-            if is_ja else
-            "30s e 45s / roteiro de anúncio, direção e cronograma. Reforça objeções e CTA.",
+            if is_ja else (
+                "30s and 45s / ad script, shooting direction, and timeline. Strengthens objection handling and CTA."
+                if lang == "en" else
+                "30s e 45s / roteiro de anúncio, direção e cronograma. Reforça objeções e CTA."
+            ),
             ["30s", "45s"],
             ["ad_script", "shooting", "timeline"],
         ),
         (
             "shorts_one",
-            "YouTube用" if is_ja else "YouTube",
-            "Shortsを作る" if is_ja else "Criar Shorts",
+            _ui("YouTube用", "YouTube", "For YouTube"),
+            _ui("Shortsを作る", "Criar Shorts", "Create Shorts"),
             "30秒・60秒 / Shorts台本・秒数別構成・Higgs用。説明型の短尺動画に向いています。"
-            if is_ja else
-            "30s e 60s / Shorts, cronograma e Higgs. Bom para vídeos explicativos curtos.",
+            if is_ja else (
+                "30s and 60s / Shorts script, timeline, and Higgs prompt. Good for short explanatory videos."
+                if lang == "en" else
+                "30s e 60s / Shorts, cronograma e Higgs. Bom para vídeos explicativos curtos."
+            ),
             ["30s", "60s"],
             ["yt_shorts", "timeline", "higgs_marketing_studio"],
         ),
     ]
-    st.markdown("### " + ("1. 目的から選ぶ" if is_ja else "1. Escolha pelo objetivo"))
+    st.markdown("### " + _ui("1. 目的から選ぶ", "1. Escolha pelo objetivo", "1. Choose by goal"))
     st.markdown('<div class="cs-info">💡 ' + (
         "何を選べばいいか分からない場合は、左上の「まずSNS動画を作る」を押してください。必要な秒数と内容が自動で選ばれます。"
-        if is_ja else
-        "Se não souber o que escolher, clique no recomendado. A duração e os conteúdos serão selecionados automaticamente."
+        if is_ja else (
+            "If you are not sure what to choose, click the recommended option. The duration and contents will be selected automatically."
+            if lang == "en" else
+            "Se não souber o que escolher, clique no recomendado. A duração e os conteúdos serão selecionados automaticamente."
+        )
     ) + '</div>', unsafe_allow_html=True)
     cols = st.columns(2)
     for i, (goal_id, tag, title, body, durations, types) in enumerate(goals):
@@ -284,7 +378,7 @@ def _render_video_goal_cards(is_ja: bool):
                 f'<span>{_esc(body)}</span></div>',
                 unsafe_allow_html=True,
             )
-            if st.button("この目的でセット" if is_ja else "Usar este objetivo",
+            if st.button(_ui("この目的でセット", "Usar este objetivo", "Use this goal"),
                          key=f"vs_goal_{goal_id}", use_container_width=True,
                          type="primary" if i == 0 else "secondary"):
                 _set_video_selection(durations, types)
@@ -292,6 +386,7 @@ def _render_video_goal_cards(is_ja: bool):
 
 
 def _item_meta(category: str, key: str, is_ja: bool) -> str:
+    lang = st.session_state.get("lang", "ja")
     ip = {
         "main_visual": ("Shopifyの最初に置くメイン画像 / 16:9・4:5", "Imagem principal para Shopify / 16:9 ou 4:5"),
         "product_only": ("商品単体を正確に見せる / 1:1", "Mostrar o produto com clareza / 1:1"),
@@ -322,7 +417,40 @@ def _item_meta(category: str, key: str, is_ja: bool) -> str:
         "comment_bait": ("自然なコメント誘導を作ります。", "Indução natural de comentários."),
     }
     data = {"ip": ip, "vs": vs, "ads": ads}.get(category, {})
+    en = {
+        "ip": {
+            "main_visual": "Main Shopify image / 16:9 or 4:5",
+            "product_only": "Show the product clearly / 1:1",
+            "usage_scene": "Usage scene / 4:5",
+            "benefit": "Visualize the benefit / 4:5",
+            "comparison": "Show differences clearly / 16:9",
+            "ad_banner": "For ads or top of LP / 16:9",
+            "sns_post": "For Instagram / 1:1 or 4:5",
+            "story": "Vertical story / 9:16",
+        },
+        "vs": {
+            "tiktok": "Fast rhythm and a strong first 3-second hook.",
+            "reels": "Focus on visuals and save-worthy organization.",
+            "yt_shorts": "Short educational/comparison format.",
+            "ad_script": "For paid ads, with CTA and objection handling.",
+            "narration": "Natural text for voiceover.",
+            "timeline": "Table by time with visual, text, and audio.",
+            "shooting": "Camera, lighting, and prop direction.",
+            "higgs_marketing_studio": "English prompt to paste into Higgs.",
+        },
+        "ads": {
+            "post": "Multiple variations for organic posts.",
+            "ad_copy": "Short copy for paid ads.",
+            "caption": "Ready-to-use post caption.",
+            "hashtag": "Hashtags by use case.",
+            "cta": "Calls to action for clicks, saves, and purchases.",
+            "hook": "Short attention-stopping hooks.",
+            "comment_bait": "Natural comment prompts.",
+        },
+    }.get(category, {})
     ja, pt = data.get(key, ("", ""))
+    if lang == "en":
+        return en.get(key, ja)
     return ja if is_ja else pt
 
 
@@ -339,37 +467,38 @@ def _extract_markdown_section(content: str, heading: str) -> str:
 
 
 def _copy_sections(category_key: str, item_key: str, content: str, is_ja: bool):
+    lang = st.session_state.get("lang", "ja")
     if category_key == "image_prompts":
         return [
-            ("生成AIプロンプト（英語）" if is_ja else "Prompt em inglês", _extract_markdown_section(content, "生成AIプロンプト（英語）")),
-            ("日本語メモ" if is_ja else "Notas", _extract_markdown_section(content, "日本語メモ（制作担当者への補足）") or _extract_markdown_section(content, "日本語メモ")),
-            ("NG要素" if is_ja else "Itens proibidos", _extract_markdown_section(content, "NG要素")),
-            ("入れると良いテキスト" if is_ja else "Texto recomendado", _extract_markdown_section(content, "入れると良いテキスト")),
+            (_ui("生成AIプロンプト（英語）", "Prompt em inglês", "Image AI prompt (English)"), _extract_markdown_section(content, "生成AIプロンプト（英語）")),
+            (_ui("日本語メモ", "Notas", "Notes"), _extract_markdown_section(content, "日本語メモ（制作担当者への補足）") or _extract_markdown_section(content, "日本語メモ")),
+            (_ui("NG要素", "Itens proibidos", "Avoid"), _extract_markdown_section(content, "NG要素")),
+            (_ui("入れると良いテキスト", "Texto recomendado", "Recommended text"), _extract_markdown_section(content, "入れると良いテキスト")),
         ]
     if category_key == "video_scripts":
         if "higgs_marketing_studio" in item_key:
             return [
-                ("Higgs用プロンプト" if is_ja else "Prompt Higgs", _extract_markdown_section(content, "Higgs Marketing Studio Prompt") or content),
-                ("Scene direction" if is_ja else "Direção de cenas", _extract_markdown_section(content, "Scene-by-scene Direction")),
+                (_ui("Higgs用プロンプト", "Prompt Higgs", "Higgs prompt"), _extract_markdown_section(content, "Higgs Marketing Studio Prompt") or content),
+                (_ui("Scene direction", "Direção de cenas", "Scene direction"), _extract_markdown_section(content, "Scene-by-scene Direction")),
                 ("Voiceover" if is_ja else "Voiceover", _extract_markdown_section(content, "Voiceover Script")),
-                ("日本語メモ" if is_ja else "Notas", _extract_markdown_section(content, "日本語メモ")),
+                (_ui("日本語メモ", "Notas", "Notes"), _extract_markdown_section(content, "日本語メモ")),
             ]
         return [
-            ("冒頭3秒フック" if is_ja else "Gancho inicial", _extract_markdown_section(content, "冒頭3秒フック")),
-            ("完成台本" if is_ja else "Roteiro completo", _extract_markdown_section(content, "完成台本")),
-            ("ナレーション" if is_ja else "Narração", _extract_markdown_section(content, "ナレーション")),
-            ("テロップ" if is_ja else "Legendas", _extract_markdown_section(content, "テロップ")),
-            ("映像・撮影指示" if is_ja else "Direção visual", _extract_markdown_section(content, "映像・撮影指示")),
-            ("CTA案" if is_ja else "CTAs", _extract_markdown_section(content, "CTA案 3つ") or _extract_markdown_section(content, "CTA案")),
+            (_ui("冒頭3秒フック", "Gancho inicial", "Opening 3-second hook"), _extract_markdown_section(content, "冒頭3秒フック")),
+            (_ui("完成台本", "Roteiro completo", "Complete script"), _extract_markdown_section(content, "完成台本")),
+            (_ui("ナレーション", "Narração", "Narration"), _extract_markdown_section(content, "ナレーション")),
+            (_ui("テロップ", "Legendas", "On-screen captions"), _extract_markdown_section(content, "テロップ")),
+            (_ui("映像・撮影指示", "Direção visual", "Visual / shooting direction"), _extract_markdown_section(content, "映像・撮影指示")),
+            (_ui("CTA案", "CTAs", "CTA ideas"), _extract_markdown_section(content, "CTA案 3つ") or _extract_markdown_section(content, "CTA案")),
         ]
     if category_key == "ads_sns_items":
         return [
-            ("案1" if is_ja else "Opção 1", _extract_markdown_section(content, "案1")),
-            ("案2" if is_ja else "Opção 2", _extract_markdown_section(content, "案2")),
-            ("案3" if is_ja else "Opção 3", _extract_markdown_section(content, "案3")),
-            ("短縮版" if is_ja else "Versão curta", _extract_markdown_section(content, "短縮版")),
+            (_ui("案1", "Opção 1", "Option 1"), _extract_markdown_section(content, "案1")),
+            (_ui("案2", "Opção 2", "Option 2"), _extract_markdown_section(content, "案2")),
+            (_ui("案3", "Opção 3", "Option 3"), _extract_markdown_section(content, "案3")),
+            (_ui("短縮版", "Versão curta", "Short version"), _extract_markdown_section(content, "短縮版")),
             ("CTA" if is_ja else "CTA", _extract_markdown_section(content, "CTA")),
-            ("注意点" if is_ja else "Cuidados", _extract_markdown_section(content, "注意点")),
+            (_ui("注意点", "Cuidados", "Notes"), _extract_markdown_section(content, "注意点")),
         ]
     return []
 
@@ -408,7 +537,7 @@ def _render_copy_parts(category_key: str, item_key: str, content: str, is_ja: bo
     )
     safe_fname = item_key.replace("::", "_").replace("/", "_")
     st.download_button(
-        "⬇️ " + ("この部分をダウンロード" if is_ja else "Baixar esta parte"),
+        "⬇️ " + _ui("この部分をダウンロード", "Baixar esta parte", "Download this part"),
         data=selected_text.encode("utf-8"),
         file_name=f"{safe_fname}_{selected_label}.txt",
         mime="text/plain",
@@ -523,15 +652,15 @@ def _render_improve_tools(svc: dict, ensure_product_id, category_key: str,
     st.markdown('<div class="cs-info">💡 ' + (
         "目的に合わせて生成結果をワンクリックで改善します。改善後はこの結果に置き換わります。"
         if is_ja else
-        "Melhore o resultado com um clique. O conteúdo será substituído pela versão melhorada."
+        _ui("", "Melhore o resultado com um clique. O conteúdo será substituído pela versão melhorada.", "Improve the result with one click. The improved version will replace this result.")
     ) + '</div>', unsafe_allow_html=True)
 
     improve_options = [
-        ("shorten", "短くする" if is_ja else "Encurtar"),
-        ("natural", "自然な日本語" if is_ja else "Mais natural"),
-        ("premium", "高級感を出す" if is_ja else "Mais premium"),
-        ("ad_strong", "広告向けに強く" if is_ja else "Mais forte para anúncio"),
-        ("higgs", "Higgs/生成AI向け" if is_ja else "Para Higgs/IA"),
+        ("shorten", _ui("短くする", "Encurtar", "Shorten")),
+        ("natural", _ui("自然な日本語", "Mais natural", "Make natural")),
+        ("premium", _ui("高級感を出す", "Mais premium", "Make premium")),
+        ("ad_strong", _ui("広告向けに強く", "Mais forte para anúncio", "Strengthen for ads")),
+        ("higgs", _ui("Higgs/生成AI向け", "Para Higgs/IA", "For Higgs / AI")),
     ]
     cols = st.columns(2)
     for i, (mode, label) in enumerate(improve_options):
@@ -584,19 +713,19 @@ def _render_item_card(svc: dict, ensure_product_id, status_badge,
             )
         col1, col2, col3 = st.columns(3)
         with col1:
-            if st.button("💾 " + ("保存" if is_ja else "Salvar"),
+            if st.button("💾 " + _ui("保存", "Salvar", "Save"),
                          key=f"save_{category_key}_{item_key}",
                          use_container_width=True, type="primary"):
                 st.session_state[category_key][item_key] = st.session_state.get(
                     f"ta_{category_key}_{item_key}", content
                 )
                 _save_category_state(svc, ensure_product_id, category_key, compat_key)
-                st.success("✅ " + ("保存しました" if is_ja else "Salvo!"))
+                st.success("✅ " + _ui("保存しました", "Salvo!", "Saved!"))
         with col2:
-            if st.button("🔄 " + ("再生成" if is_ja else "Regenerar"),
+            if st.button("🔄 " + _ui("再生成", "Regenerar", "Regenerate"),
                          key=f"regen_{category_key}_{item_key}",
                          use_container_width=True):
-                with st.spinner("⏳ " + ("生成中..." if is_ja else "Gerando...")):
+                with st.spinner("⏳ " + _ui("生成中...", "Gerando...", "Generating...")):
                     result = regen_fn(item_key)
                     st.session_state[category_key][item_key] = result
                     _save_category_state(svc, ensure_product_id, category_key, compat_key)
@@ -604,7 +733,7 @@ def _render_item_card(svc: dict, ensure_product_id, status_badge,
         with col3:
             safe_fname = item_key.replace("::", "_").replace("/", "_")
             st.download_button(
-                "⬇️ " + ("ダウンロード" if is_ja else "Baixar"),
+                "⬇️ " + _ui("ダウンロード", "Baixar", "Download"),
                 data=content.encode("utf-8"),
                 file_name=f"{safe_fname}.md",
                 mime="text/markdown",
@@ -615,6 +744,7 @@ def _render_item_card(svc: dict, ensure_product_id, status_badge,
 
 def page_image_prompt(svc: dict, t, ensure_product_id, status_badge):
     is_ja = st.session_state.get("lang", "ja") == "ja"
+    lang = st.session_state.get("lang", "ja")
     st.markdown(_GEN_CSS, unsafe_allow_html=True)
     st.markdown('<div class="section-header">🖼️ ' + t("image_prompt.title") + '</div>',
                 unsafe_allow_html=True)
@@ -622,7 +752,7 @@ def page_image_prompt(svc: dict, t, ensure_product_id, status_badge):
     if not st.session_state.get("core_text"):
         st.markdown('<div class="cs-warning">⚠️ ' + t("common.no_core_warning") + '</div>',
                     unsafe_allow_html=True)
-        if st.button("✨ " + ("Core生成画面へ" if is_ja else "Ir para Gerar Core")):
+        if st.button("✨ " + _ui("Core生成画面へ", "Ir para Gerar Core", "Go to Build Core")):
             st.session_state["page"] = "core_generation"
             st.rerun()
         return
@@ -635,52 +765,56 @@ def page_image_prompt(svc: dict, t, ensure_product_id, status_badge):
 
     st.markdown(
         _hero(
-            "画像生成AIに貼るプロンプトを作る" if is_ja else "Criar prompts para IA de imagem",
+            _ui("画像生成AIに貼るプロンプトを作る", "Criar prompts para IA de imagem", "Create prompts for image AI"),
             "ここでは画像そのものではなく、Higgsfield・Midjourney・画像生成AIに貼れる完成プロンプトを作ります。用途と雰囲気を先に決めると品質が安定します。"
-            if is_ja else
-            "Aqui você cria prompts prontos para Higgsfield, Midjourney ou outra IA de imagem. Definir uso e tom melhora a qualidade.",
+            if is_ja else (
+                "Here you create ready-to-paste prompts for Higgsfield, Midjourney, or other image AI tools. Setting use case and tone first improves quality."
+                if lang == "en" else
+                "Aqui você cria prompts prontos para Higgsfield, Midjourney ou outra IA de imagem. Definir uso e tom melhora a qualidade."
+            ),
         ),
         unsafe_allow_html=True,
     )
     st.markdown(_info_grid([
-        ("Shopify用" if is_ja else "Para Shopify", "商品ページのFV・説明・使用シーンに使う画像案。" if is_ja else "Imagens para hero, explicação e uso."),
-        ("SNS用" if is_ja else "Para SNS", "Instagram投稿やストーリー向けの縦・正方形画像案。" if is_ja else "Quadrado/vertical para Instagram e stories."),
-        ("広告用" if is_ja else "Para anúncios", "視線を止める構図、悩み訴求、CTA前提の画像案。" if is_ja else "Composição para parar o scroll e vender."),
+        (_ui("Shopify用", "Para Shopify", "For Shopify"), "商品ページのFV・説明・使用シーンに使う画像案。" if is_ja else ("Image ideas for hero, explanation, and usage scenes." if lang == "en" else "Imagens para hero, explicação e uso.")),
+        (_ui("SNS用", "Para SNS", "For social"), "Instagram投稿やストーリー向けの縦・正方形画像案。" if is_ja else ("Square and vertical image ideas for Instagram posts and stories." if lang == "en" else "Quadrado/vertical para Instagram e stories.")),
+        (_ui("広告用", "Para anúncios", "For ads"), "視線を止める構図、悩み訴求、CTA前提の画像案。" if is_ja else ("Scroll-stopping composition, pain appeal, and CTA-aware image ideas." if lang == "en" else "Composição para parar o scroll e vender.")),
     ]), unsafe_allow_html=True)
 
     quality = _render_quality_controls("ip_quality", is_ja, "image")
 
-    st.markdown("### " + ("プリセットを選ぶ" if is_ja else "Escolher preset"))
+    st.markdown("### " + _ui("プリセットを選ぶ", "Escolher preset", "Choose a preset"))
     preset_cols = st.columns(len(IP_PRESETS))
     for i, (pk, pja, ppt, pitems) in enumerate(IP_PRESETS):
         with preset_cols[i]:
-            if st.button(pja if is_ja else ppt, key=f"ip_preset_{pk}", use_container_width=True):
+            if st.button(_label_by_lang(pk, pja, ppt, IP_PRESET_EN), key=f"ip_preset_{pk}", use_container_width=True):
                 for k, _, _ in IP_ITEMS:
                     st.session_state[f"chk_ip_{k}"] = (k in pitems)
                 st.rerun()
 
-    st.markdown("### " + ("生成する画像プロンプト" if is_ja else "Prompts de imagem"))
+    st.markdown("### " + _ui("生成する画像プロンプト", "Prompts de imagem", "Image prompts to generate"))
     selected = []
     selected_labels = []
     cols = st.columns(2)
     for i, (k, ja_lbl, pt_lbl) in enumerate(IP_ITEMS):
         with cols[i % 2]:
             default = st.session_state.get(f"chk_ip_{k}", False)
-            if st.checkbox(ja_lbl if is_ja else pt_lbl, value=default, key=f"chk_ip_{k}"):
+            label = _label_by_lang(k, ja_lbl, pt_lbl, IP_LABEL_EN)
+            if st.checkbox(label, value=default, key=f"chk_ip_{k}"):
                 selected.append(k)
-                selected_labels.append(ja_lbl if is_ja else pt_lbl)
+                selected_labels.append(label)
             meta = _item_meta("ip", k, is_ja)
             if meta:
                 st.caption(meta)
 
     _render_plan(selected_labels, quality, is_ja)
     n = len(selected)
-    btn_label = (f"⚡ 選択した {n} 項目を生成" if is_ja else f"⚡ Gerar {n} item(s) selecionado(s)")
+    btn_label = _ui(f"⚡ 選択した {n} 項目を生成", f"⚡ Gerar {n} item(s) selecionado(s)", f"⚡ Generate {n} selected item(s)")
     if st.button(btn_label, type="primary", disabled=(n == 0)):
         prog = st.progress(0)
         status = st.empty()
         for i, k in enumerate(selected):
-            lbl = next((ja if is_ja else pt for kk, ja, pt in IP_ITEMS if kk == k), k)
+            lbl = next((_label_by_lang(kk, ja, pt, IP_LABEL_EN) for kk, ja, pt in IP_ITEMS if kk == k), k)
             status.text(f"⏳ {lbl} ({i+1}/{n})")
             result = svc["generator"].generate_image_prompt_item(k, core, product_name, category, quality)
             st.session_state["image_prompts"][k] = result
@@ -695,12 +829,12 @@ def page_image_prompt(svc: dict, t, ensure_product_id, status_badge):
     items_data = st.session_state.get("image_prompts", {})
     has_results = any(items_data.get(k) for k, _, _ in IP_ITEMS)
     if has_results:
-        st.markdown("### " + ("生成結果" if is_ja else "Resultados"))
+        st.markdown("### " + _ui("生成結果", "Resultados", "Results"))
         for k, ja_lbl, pt_lbl in IP_ITEMS:
             content = items_data.get(k)
             if not content:
                 continue
-            label = ja_lbl if is_ja else pt_lbl
+            label = _label_by_lang(k, ja_lbl, pt_lbl, IP_LABEL_EN)
 
             def _make_regen_fn_ip(item_key):
                 def _regen(_):
@@ -714,12 +848,13 @@ def page_image_prompt(svc: dict, t, ensure_product_id, status_badge):
     else:
         st.markdown('<div class="cs-info">💡 ' + (
             "上の項目を選択して生成ボタンを押してください。" if is_ja
-            else "Selecione os itens acima e clique em Gerar."
+            else ("Select items above and click Generate." if lang == "en" else "Selecione os itens acima e clique em Gerar.")
         ) + '</div>', unsafe_allow_html=True)
 
 
 def page_video_script(svc: dict, t, ensure_product_id, status_badge):
     is_ja = st.session_state.get("lang", "ja") == "ja"
+    lang = st.session_state.get("lang", "ja")
     st.markdown(_GEN_CSS, unsafe_allow_html=True)
     st.markdown('<div class="section-header">🎬 ' + t("video_script.title") + '</div>',
                 unsafe_allow_html=True)
@@ -727,7 +862,7 @@ def page_video_script(svc: dict, t, ensure_product_id, status_badge):
     if not st.session_state.get("core_text"):
         st.markdown('<div class="cs-warning">⚠️ ' + t("common.no_core_warning") + '</div>',
                     unsafe_allow_html=True)
-        if st.button("✨ " + ("Core生成画面へ" if is_ja else "Ir para Gerar Core")):
+        if st.button("✨ " + _ui("Core生成画面へ", "Ir para Gerar Core", "Go to Build Core")):
             st.session_state["page"] = "core_generation"
             st.rerun()
         return
@@ -739,46 +874,50 @@ def page_video_script(svc: dict, t, ensure_product_id, status_badge):
 
     st.markdown(
         _hero(
-            "動画の台本・撮影指示・Higgs用プロンプトを作る" if is_ja else "Criar roteiro, direção e prompt Higgs",
+            _ui("動画の台本・撮影指示・Higgs用プロンプトを作る", "Criar roteiro, direção e prompt Higgs", "Create video scripts, shooting direction, and Higgs prompts"),
             "秒数と用途を組み合わせて、ショート動画の設計図を作ります。広告用・SNS用・Higgs用で出力内容を変えます。"
-            if is_ja else
-            "Combine duração e uso para criar a estrutura do vídeo curto. A saída muda para anúncio, SNS ou Higgs.",
+            if is_ja else (
+                "Combine duration and purpose to create a short-video blueprint. Output changes for ads, social posts, or Higgs."
+                if lang == "en" else
+                "Combine duração e uso para criar a estrutura do vídeo curto. A saída muda para anúncio, SNS ou Higgs."
+            ),
         ),
         unsafe_allow_html=True,
     )
     st.markdown(_info_grid([
-        ("秒数" if is_ja else "Duração", "15秒はフック重視、30秒以上は理解と安心材料まで入れます。" if is_ja else "15s foca no gancho; 30s+ inclui contexto e confiança."),
-        ("生成タイプ" if is_ja else "Tipo", "TikTok、Reels、広告、撮影指示、Higgs用を選べます。" if is_ja else "TikTok, Reels, anúncio, direção ou Higgs."),
-        ("完成形" if is_ja else "Resultado", "ナレーション・テロップ・映像指示まで分けて出します。" if is_ja else "Narração, legendas e direção visual separados."),
+        (_ui("秒数", "Duração", "Duration"), "15秒はフック重視、30秒以上は理解と安心材料まで入れます。" if is_ja else ("15s focuses on the hook; 30s+ adds context and trust." if lang == "en" else "15s foca no gancho; 30s+ inclui contexto e confiança.")),
+        (_ui("生成タイプ", "Tipo", "Type"), "TikTok、Reels、広告、撮影指示、Higgs用を選べます。" if is_ja else ("Choose TikTok, Reels, ads, shooting direction, or Higgs." if lang == "en" else "TikTok, Reels, anúncio, direção ou Higgs.")),
+        (_ui("完成形", "Resultado", "Output"), "ナレーション・テロップ・映像指示まで分けて出します。" if is_ja else ("Outputs narration, on-screen captions, and visual direction separately." if lang == "en" else "Narração, legendas e direção visual separados.")),
     ]), unsafe_allow_html=True)
 
     quality = _render_quality_controls("vs_quality", is_ja, "video")
 
     _render_video_goal_cards(is_ja)
 
-    with st.expander("細かいセットを選ぶ" if is_ja else "Escolher outros presets", expanded=False):
+    with st.expander(_ui("細かいセットを選ぶ", "Escolher outros presets", "Choose detailed presets"), expanded=False):
         preset_cols = st.columns(len(VS_COMBO_PRESETS))
         for i, (pk, pja, ppt, durations, types) in enumerate(VS_COMBO_PRESETS):
             with preset_cols[i]:
-                if st.button(pja if is_ja else ppt, key=f"vs_preset_{pk}", use_container_width=True):
+                if st.button(_label_by_lang(pk, pja, ppt, VS_PRESET_EN), key=f"vs_preset_{pk}", use_container_width=True):
                     _set_video_selection(durations, types)
                     st.rerun()
 
-    st.markdown("### " + ("2. 秒数を確認する" if is_ja else "2. Conferir duração"))
+    st.markdown("### " + _ui("2. 秒数を確認する", "2. Conferir duração", "2. Confirm duration"))
     selected_durations = []
     duration_cols = st.columns(len(VS_DURATIONS))
     for i, (k, ja_lbl, pt_lbl) in enumerate(VS_DURATIONS):
         with duration_cols[i]:
             default = st.session_state.get(f"chk_vs_duration_{k}", k in ("15s", "30s"))
-            if st.checkbox(ja_lbl if is_ja else pt_lbl, value=default, key=f"chk_vs_duration_{k}"):
+            duration_label = ja_lbl if is_ja else pt_lbl
+            if st.checkbox(duration_label, value=default, key=f"chk_vs_duration_{k}"):
                 selected_durations.append(k)
 
-    st.markdown("### " + ("3. 作る内容を確認する" if is_ja else "3. Conferir conteúdo"))
+    st.markdown("### " + _ui("3. 作る内容を確認する", "3. Conferir conteúdo", "3. Confirm output types"))
     selected_types = []
     type_groups = [
-        ("台本" if is_ja else "Roteiros", {"tiktok", "reels", "yt_shorts", "ad_script"}),
-        ("制作素材" if is_ja else "Materiais", {"narration", "timeline", "shooting"}),
-        ("AI用" if is_ja else "Para IA", {"higgs_marketing_studio"}),
+        (_ui("台本", "Roteiros", "Scripts"), {"tiktok", "reels", "yt_shorts", "ad_script"}),
+        (_ui("制作素材", "Materiais", "Production assets"), {"narration", "timeline", "shooting"}),
+        (_ui("AI用", "Para IA", "For AI"), {"higgs_marketing_studio"}),
     ]
     type_cols = st.columns(3)
     for col, (group_label, keys) in zip(type_cols, type_groups):
@@ -788,7 +927,8 @@ def page_video_script(svc: dict, t, ensure_product_id, status_badge):
                 if k not in keys:
                     continue
                 default = st.session_state.get(f"chk_vs_type_{k}", False)
-                if st.checkbox(ja_lbl if is_ja else pt_lbl, value=default, key=f"chk_vs_type_{k}"):
+                label = _label_by_lang(k, ja_lbl, pt_lbl, VS_TYPE_EN)
+                if st.checkbox(label, value=default, key=f"chk_vs_type_{k}"):
                     selected_types.append(k)
                 meta = _item_meta("vs", k, is_ja)
                 if meta:
@@ -799,7 +939,7 @@ def page_video_script(svc: dict, t, ensure_product_id, status_badge):
 
     _render_plan(selected_labels, quality, is_ja)
     n = len(selected)
-    btn_label = (f"⚡ 選択した {n} 組み合わせを生成" if is_ja else f"⚡ Gerar {n} combinação(ões)")
+    btn_label = _ui(f"⚡ 選択した {n} 組み合わせを生成", f"⚡ Gerar {n} combinação(ões)", f"⚡ Generate {n} combination(s)")
     if st.button(btn_label, type="primary", disabled=(n == 0), key="vs_gen_btn"):
         prog = st.progress(0)
         status = st.empty()
@@ -821,7 +961,7 @@ def page_video_script(svc: dict, t, ensure_product_id, status_badge):
     items_data = st.session_state.get("video_scripts", {})
     has_results = bool(items_data)
     if has_results:
-        st.markdown("### " + ("生成結果" if is_ja else "Resultados"))
+        st.markdown("### " + _ui("生成結果", "Resultados", "Results"))
         for k, content in items_data.items():
             content = items_data.get(k)
             if not content:
@@ -843,13 +983,13 @@ def page_video_script(svc: dict, t, ensure_product_id, status_badge):
     else:
         st.markdown('<div class="cs-info">💡 ' + (
             "秒数と生成タイプを選択して生成ボタンを押してください。" if is_ja
-            else "Selecione duração e tipo, depois clique em Gerar."
+            else ("Select duration and type, then click Generate." if lang == "en" else "Selecione duração e tipo, depois clique em Gerar.")
         ) + '</div>', unsafe_allow_html=True)
 
 
 def _video_combo_label(duration_key: str, type_key: str, is_ja: bool) -> str:
     duration = next((ja if is_ja else pt for k, ja, pt in VS_DURATIONS if k == duration_key), duration_key)
-    type_label = next((ja if is_ja else pt for k, ja, pt in VS_TYPES if k == type_key), type_key)
+    type_label = next((_label_by_lang(k, ja, pt, VS_TYPE_EN) for k, ja, pt in VS_TYPES if k == type_key), type_key)
     return f"{duration} × {type_label}"
 
 
@@ -857,11 +997,12 @@ def _video_item_label(item_key: str, is_ja: bool) -> str:
     if "__" in item_key:
         duration_key, type_key = item_key.split("__", 1)
         return _video_combo_label(duration_key, type_key, is_ja)
-    return next((ja if is_ja else pt for k, ja, pt in VS_ITEMS if k == item_key), item_key)
+    return next((_label_by_lang(k, ja, pt, VS_TYPE_EN) for k, ja, pt in VS_ITEMS if k == item_key), item_key)
 
 
 def page_ads_sns(svc: dict, t, ensure_product_id, status_badge):
     is_ja = st.session_state.get("lang", "ja") == "ja"
+    lang = st.session_state.get("lang", "ja")
     st.markdown(_GEN_CSS, unsafe_allow_html=True)
     st.markdown('<div class="section-header">📣 ' + t("ads_sns.title") + '</div>',
                 unsafe_allow_html=True)
@@ -869,7 +1010,7 @@ def page_ads_sns(svc: dict, t, ensure_product_id, status_badge):
     if not st.session_state.get("core_text"):
         st.markdown('<div class="cs-warning">⚠️ ' + t("common.no_core_warning") + '</div>',
                     unsafe_allow_html=True)
-        if st.button("✨ " + ("Core生成画面へ" if is_ja else "Ir para Gerar Core")):
+        if st.button("✨ " + _ui("Core生成画面へ", "Ir para Gerar Core", "Go to Build Core")):
             st.session_state["page"] = "core_generation"
             st.rerun()
         return
@@ -881,26 +1022,29 @@ def page_ads_sns(svc: dict, t, ensure_product_id, status_badge):
 
     st.markdown(
         _hero(
-            "広告・SNSの投稿文を媒体別に作る" if is_ja else "Criar textos de anúncio e SNS por canal",
+            _ui("広告・SNSの投稿文を媒体別に作る", "Criar textos de anúncio e SNS por canal", "Create ad and social copy by channel"),
             "媒体と目的を決めて、投稿文・広告コピー・CTA・ハッシュタグを作ります。生成予定の組み合わせを確認してから実行します。"
-            if is_ja else
-            "Escolha canal e objetivo para gerar posts, copies, CTAs e hashtags. Confira as combinações antes de gerar.",
+            if is_ja else (
+                "Choose the channel and goal, then generate post copy, ad copy, CTAs, and hashtags. Review combinations before generating."
+                if lang == "en" else
+                "Escolha canal e objetivo para gerar posts, copies, CTAs e hashtags. Confira as combinações antes de gerar."
+            ),
         ),
         unsafe_allow_html=True,
     )
     st.markdown(_info_grid([
-        ("媒体別" if is_ja else "Por canal", "Instagram、TikTok、Google広告など媒体の文脈に合わせます。" if is_ja else "Adapta ao contexto de Instagram, TikTok, Google etc."),
-        ("目的別" if is_ja else "Por objetivo", "投稿、広告コピー、CTA、ハッシュタグを分けて生成します。" if is_ja else "Separa post, copy, CTA e hashtags."),
-        ("使いやすさ" if is_ja else "Pronto para uso", "複数案を出し、編集・保存・ダウンロードできます。" if is_ja else "Gera variações editáveis e baixáveis."),
+        (_ui("媒体別", "Por canal", "By channel"), "Instagram、TikTok、Google広告など媒体の文脈に合わせます。" if is_ja else ("Adapts to Instagram, TikTok, Google Ads, and each channel context." if lang == "en" else "Adapta ao contexto de Instagram, TikTok, Google etc.")),
+        (_ui("目的別", "Por objetivo", "By goal"), "投稿、広告コピー、CTA、ハッシュタグを分けて生成します。" if is_ja else ("Generates posts, ad copy, CTAs, and hashtags separately." if lang == "en" else "Separa post, copy, CTA e hashtags.")),
+        (_ui("使いやすさ", "Pronto para uso", "Ready to use"), "複数案を出し、編集・保存・ダウンロードできます。" if is_ja else ("Creates editable and downloadable variations." if lang == "en" else "Gera variações editáveis e baixáveis.")),
     ]), unsafe_allow_html=True)
 
     quality = _render_quality_controls("as_quality", is_ja, "ads")
 
-    st.markdown("### " + ("プリセットを選ぶ" if is_ja else "Escolher preset"))
+    st.markdown("### " + _ui("プリセットを選ぶ", "Escolher preset", "Choose a preset"))
     preset_cols = st.columns(len(AS_PRESETS))
     for i, (pk, pja, ppt, pcombos) in enumerate(AS_PRESETS):
         with preset_cols[i]:
-            if st.button(pja if is_ja else ppt, key=f"as_preset_{pk}", use_container_width=True):
+            if st.button(_label_by_lang(pk, pja, ppt, AS_PRESET_EN), key=f"as_preset_{pk}", use_container_width=True):
                 if pcombos:
                     preset_media = list({m for m, _ in pcombos})
                     preset_types = list({ct for _, ct in pcombos})
@@ -913,15 +1057,14 @@ def page_ads_sns(svc: dict, t, ensure_product_id, status_badge):
                     st.session_state["as_preset_combos"] = set()
                 st.rerun()
 
-    st.markdown("### " + ("媒体と生成タイプを選ぶ" if is_ja
-                          else "Escolher mídia e tipo"))
+    st.markdown("### " + _ui("媒体と生成タイプを選ぶ", "Escolher mídia e tipo", "Choose channel and output type"))
     col_media, col_type = st.columns(2)
 
     media_options = [m for m, _ in AS_MEDIA]
     media_labels = [lbl for _, lbl in AS_MEDIA]
 
     with col_media:
-        st.markdown("**" + ("媒体" if is_ja else "Mídia") + "**")
+        st.markdown("**" + _ui("媒体", "Mídia", "Channel") + "**")
         sel_media_keys = st.session_state.get("as_sel_media", [])
         selected_media = []
         for mk, ml in zip(media_options, media_labels):
@@ -931,12 +1074,13 @@ def page_ads_sns(svc: dict, t, ensure_product_id, status_badge):
         st.session_state["as_sel_media"] = selected_media
 
     with col_type:
-        st.markdown("**" + ("生成タイプ" if is_ja else "Tipo de Conteúdo") + "**")
+        st.markdown("**" + _ui("生成タイプ", "Tipo de Conteúdo", "Output type") + "**")
         sel_type_keys = st.session_state.get("as_sel_types", [])
         selected_types = []
         for tk, tja, tpt in AS_TYPES:
             default = tk in sel_type_keys
-            if st.checkbox(tja if is_ja else tpt, value=default, key=f"chk_as_t_{tk}"):
+            label = _label_by_lang(tk, tja, tpt, AS_TYPE_EN)
+            if st.checkbox(label, value=default, key=f"chk_as_t_{tk}"):
                 selected_types.append(tk)
             meta = _item_meta("ads", tk, is_ja)
             if meta:
@@ -948,15 +1092,15 @@ def page_ads_sns(svc: dict, t, ensure_product_id, status_badge):
     selected_labels = []
     if n > 0:
         media_labels_map = {mk: ml for mk, ml in AS_MEDIA}
-        type_labels_map = {k: (ja if is_ja else pt) for k, ja, pt in AS_TYPES}
+        type_labels_map = {k: _label_by_lang(k, ja, pt, AS_TYPE_EN) for k, ja, pt in AS_TYPES}
         selected_labels = [f"{media_labels_map[m]} / {type_labels_map[ct]}" for m, ct in combos]
     _render_plan(selected_labels, quality, is_ja)
-    btn_label = (f"⚡ {n} 組み合わせを生成" if is_ja else f"⚡ Gerar {n} combinação(ões)")
+    btn_label = _ui(f"⚡ {n} 組み合わせを生成", f"⚡ Gerar {n} combinação(ões)", f"⚡ Generate {n} combination(s)")
     if st.button(btn_label, type="primary", disabled=(n == 0), key="as_gen_btn"):
         prog = st.progress(0)
         status = st.empty()
         media_labels_map2 = {mk: ml for mk, ml in AS_MEDIA}
-        type_labels_map2 = {k: (ja if is_ja else pt) for k, ja, pt in AS_TYPES}
+        type_labels_map2 = {k: _label_by_lang(k, ja, pt, AS_TYPE_EN) for k, ja, pt in AS_TYPES}
         for i, (m, ct) in enumerate(combos):
             combo_label = f"{media_labels_map2[m]} / {type_labels_map2[ct]}"
             status.text(f"⏳ {combo_label} ({i+1}/{n})")
@@ -972,9 +1116,9 @@ def page_ads_sns(svc: dict, t, ensure_product_id, status_badge):
 
     items_data = st.session_state.get("ads_sns_items", {})
     if items_data:
-        st.markdown("### " + ("生成結果" if is_ja else "Resultados"))
+        st.markdown("### " + _ui("生成結果", "Resultados", "Results"))
         media_labels_map3 = {mk: ml for mk, ml in AS_MEDIA}
-        type_labels_map3 = {k: (ja if is_ja else pt) for k, ja, pt in AS_TYPES}
+        type_labels_map3 = {k: _label_by_lang(k, ja, pt, AS_TYPE_EN) for k, ja, pt in AS_TYPES}
 
         for mk, ml in AS_MEDIA:
             media_items = {k: v for k, v in items_data.items()
@@ -999,5 +1143,5 @@ def page_ads_sns(svc: dict, t, ensure_product_id, status_badge):
     else:
         st.markdown('<div class="cs-info">💡 ' + (
             "上の媒体と生成タイプを選択して生成ボタンを押してください。" if is_ja
-            else "Selecione mídia e tipo acima e clique em Gerar."
+            else ("Select channel and output type above, then click Generate." if lang == "en" else "Selecione mídia e tipo acima e clique em Gerar.")
         ) + '</div>', unsafe_allow_html=True)
