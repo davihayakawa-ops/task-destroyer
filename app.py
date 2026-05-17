@@ -1766,23 +1766,41 @@ def _filled_text(data: dict, key: str) -> str:
     return str(data.get(key) or "").strip()
 
 
-def _core_input_diagnostics(data: dict) -> dict:
+def _core_input_diagnostics(data: dict, is_ja: bool = True) -> dict:
     checks = [
-        ("name", "商品名", 8, "商品名があると、後段の見出しやCTAが具体的になります。"),
-        ("description", "商品説明", 80, "商品説明が短いと、Coreが一般論になりやすいです。"),
-        ("target", "ターゲット", 20, "ターゲットが具体的だと、悩み・理想・FAQが刺さりやすくなります。"),
-        ("features", "差別化ポイント", 40, "特徴・強みが薄いと、USPと比較表が弱くなります。"),
-        ("use_scenes", "使用シーン", 30, "使用シーンがあると、Shopifyページの情景描写が良くなります。"),
-        ("weaknesses", "競合/弱点メモ", 30, "競合や弱点があると、差別化と購入障壁が具体化します。"),
-        ("brand_tone", "ブランドトーン", 10, "トーン指定があると、文章と見た目の方向性が揃います。"),
-        ("prohibited", "禁止表現", 10, "禁止表現があると、薬機法・景表法リスクを抑えやすくなります。"),
+        ("name", "商品名", "Nome do produto", 8,
+         "商品名があると、後段の見出しやCTAが具体的になります。",
+         "Com o nome do produto, títulos e CTAs ficam mais específicos."),
+        ("description", "商品説明", "Descrição do produto", 80,
+         "商品説明が短いと、Coreが一般論になりやすいです。",
+         "Se a descrição for curta, o Core tende a ficar genérico."),
+        ("target", "ターゲット", "Público-alvo", 20,
+         "ターゲットが具体的だと、悩み・理想・FAQが刺さりやすくなります。",
+         "Um público claro melhora dores, desejos e FAQ."),
+        ("features", "差別化ポイント", "Diferenciais", 40,
+         "特徴・強みが薄いと、USPと比較表が弱くなります。",
+         "Diferenciais fracos reduzem a força do USP e da comparação."),
+        ("use_scenes", "使用シーン", "Cenas de uso", 30,
+         "使用シーンがあると、Shopifyページの情景描写が良くなります。",
+         "Cenas de uso deixam a página Shopify mais concreta."),
+        ("weaknesses", "競合/弱点メモ", "Concorrentes / pontos fracos", 30,
+         "競合や弱点があると、差別化と購入障壁が具体化します。",
+         "Concorrentes e objeções ajudam a diferenciar melhor."),
+        ("brand_tone", "ブランドトーン", "Tom da marca", 10,
+         "トーン指定があると、文章と見た目の方向性が揃います。",
+         "O tom alinha texto, design e sensação da marca."),
+        ("prohibited", "禁止表現", "Expressões proibidas", 10,
+         "禁止表現があると、薬機法・景表法リスクを抑えやすくなります。",
+         "Expressões proibidas reduzem riscos de linguagem inadequada."),
     ]
     ready = []
     missing = []
     score = 0
-    for key, label, min_len, hint in checks:
+    for key, label_ja, label_pt, min_len, hint_ja, hint_pt in checks:
         value = _filled_text(data, key)
         ok = len(value) >= min_len
+        label = label_ja if is_ja else label_pt
+        hint = hint_ja if is_ja else hint_pt
         if ok:
             score += 1
             ready.append(label)
@@ -1832,47 +1850,63 @@ def _core_section_preview_html(title: str, body: str, score: int) -> str:
     )
 
 
-def _liquid_quality_checks(code: str, design_options: dict, selected_sections: list) -> list:
+def _liquid_quality_checks(code: str, design_options: dict, selected_sections: list, is_ja: bool = True) -> list:
     checks = []
 
-    def add(label: str, ok: bool, detail: str):
-        checks.append({"label": label, "ok": ok, "detail": detail})
+    def add(label_ja: str, label_pt: str, ok: bool, detail_ja: str, detail_pt: str):
+        checks.append({
+            "label": label_ja if is_ja else label_pt,
+            "ok": ok,
+            "detail": detail_ja if is_ja else detail_pt,
+        })
 
     normalized = code or ""
     lower = normalized.lower()
     add(
         "Shopify貼り付け形式",
+        "Formato para colar no Shopify",
         "<html" not in lower and "<body" not in lower and "<head" not in lower,
         "<html>/<head>/<body> を含まないCustom Liquid向けコード",
+        "Código para Custom Liquid sem <html>/<head>/<body>",
     )
     add(
         "JavaScriptなし",
+        "Sem JavaScript",
         "<script" not in lower and "javascript:" not in lower,
         "Custom Liquid内で不要なJavaScriptを使っていない",
+        "Não usa JavaScript desnecessário no Custom Liquid",
     )
     add(
         "td-クラス運用",
+        "Classes td-",
         not any(not cls.startswith("td-") for cls in re.findall(r'class=\"([^\"]+)\"', normalized) for cls in cls.split()),
         "Shopifyテーマに干渉しにくい td- プレフィックス",
+        "Usa prefixo td- para reduzir conflitos com o tema Shopify",
     )
     add(
         "スマホ対応",
+        "Responsivo no celular",
         "@media" in normalized and ("767px" in normalized or "768px" in normalized),
         "モバイル向けCSSが含まれている",
+        "Inclui CSS para dispositivos móveis",
     )
     risk_words = ["治る", "必ず", "確実", "医学的に証明", "100%"]
     detected = [word for word in risk_words if word in normalized]
     add(
         "リスク表現",
+        "Expressões de risco",
         not detected,
         "検出: " + " / ".join(detected) if detected else "代表的な断定表現は見つかりません",
+        "Detectado: " + " / ".join(detected) if detected else "Nenhuma expressão absoluta comum encontrada",
     )
     placeholders = ["〇〇", "ここに", "サンプル", "placeholder", "TODO"]
     found_placeholders = [word for word in placeholders if word.lower() in lower]
     add(
         "プレースホルダー",
+        "Placeholders",
         not found_placeholders,
         "検出: " + " / ".join(found_placeholders) if found_placeholders else "仮文言は見つかりません",
+        "Detectado: " + " / ".join(found_placeholders) if found_placeholders else "Nenhum texto provisório encontrado",
     )
     colors = [
         design_options.get("background_color"),
@@ -1882,28 +1916,35 @@ def _liquid_quality_checks(code: str, design_options: dict, selected_sections: l
     missing_colors = [color for color in colors if color and color.lower() not in lower]
     add(
         "指定カラー反映",
+        "Cores aplicadas",
         not missing_colors,
         "未検出: " + " / ".join(missing_colors) if missing_colors else "主要カラーがコード内にあります",
+        "Não detectadas: " + " / ".join(missing_colors) if missing_colors else "As cores principais aparecem no código",
     )
     add(
         "選択セクション",
+        "Seções selecionadas",
         len(selected_sections) >= 4,
         f"{len(selected_sections)} セクション構成",
+        f"Estrutura com {len(selected_sections)} seções",
     )
     return checks
 
 
 def _render_liquid_quality_panel(code: str, design_options: dict, selected_sections: list):
-    checks = _liquid_quality_checks(code, design_options, selected_sections)
+    is_ja = st.session_state.get("lang", "ja") == "ja"
+    checks = _liquid_quality_checks(code, design_options, selected_sections, is_ja)
     passed = sum(1 for check in checks if check["ok"])
     total = len(checks)
+    title = "生成後チェック" if is_ja else "Checklist pós-geração"
+    body = "Shopifyに貼る前の簡易チェックです。" if is_ja else "Verificação rápida antes de colar no Shopify."
     st.markdown(
         f"""
         <div class="cs-card" style="padding:14px 16px;margin:12px 0;">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
             <div>
-              <div style="font-weight:800;color:#f8fafc;">生成後チェック</div>
-              <div style="font-size:.78rem;color:#94a3b8;margin-top:4px;">Shopifyに貼る前の簡易チェックです。</div>
+              <div style="font-weight:800;color:#f8fafc;">{title}</div>
+              <div style="font-size:.78rem;color:#94a3b8;margin-top:4px;">{body}</div>
             </div>
             <div style="font-size:1.6rem;font-weight:900;color:#60a5fa;">{passed}/{total}</div>
           </div>
@@ -1915,7 +1956,7 @@ def _render_liquid_quality_panel(code: str, design_options: dict, selected_secti
     for i, check in enumerate(checks):
         with cols[i % 2]:
             klass = "cs-success" if check["ok"] else "cs-warning"
-            mark = "OK" if check["ok"] else "確認"
+            mark = "OK" if check["ok"] else ("確認" if is_ja else "Revisar")
             st.markdown(
                 f'<div class="{klass}" style="margin-bottom:8px;"><strong>{mark} {check["label"]}</strong><br>{check["detail"]}</div>',
                 unsafe_allow_html=True,
@@ -2030,7 +2071,7 @@ def page_core_generation():
             st.markdown(f"- **translation_status**: `{_cg_project.get('translation_status', 'not set')}`")
             st.markdown(f"- **Core生成に使用するデータ**: {'core_source_data ✅' if _cg_core_source else '現在の商品情報を自動使用'}")
 
-    diag = _core_input_diagnostics(_cg_core_source)
+    diag = _core_input_diagnostics(_cg_core_source, is_ja)
     product_name = _cg_core_source.get("name") or product_info.get("name", "")
     st.markdown(
         f"""
@@ -2062,35 +2103,69 @@ def page_core_generation():
             missing_html = "<br>".join(f"<strong>{item['label']}</strong>: {item['hint']}" for item in diag["missing"][:4])
             st.markdown(f'<div class="cs-warning">{missing_html}</div>', unsafe_allow_html=True)
         else:
-            st.markdown('<div class="cs-success">✅ Core生成に十分な材料があります。</div>', unsafe_allow_html=True)
+            st.markdown(
+                '<div class="cs-success">✅ ' +
+                ("Core生成に十分な材料があります。" if is_ja else "Há material suficiente para gerar um bom Core.") +
+                '</div>',
+                unsafe_allow_html=True,
+            )
 
     st.markdown("#### ⚙️ " + ("Core生成設定" if is_ja else "Configuração do Core"))
-    strategy_options = [
-        "売れる訴求重視",
-        "薬機法・景表法安全重視",
-        "高級ブランド寄せ",
-        "悩み共感強め",
-        "競合差別化強め",
-        "SNS広告展開しやすいCore",
-        "Shopifyページ化しやすいCore",
-    ]
-    safety_options = ["かなり安全寄り", "標準", "攻めすぎない範囲で訴求強め"]
-    focus_options = ["悩み共感", "競合との差別化", "使用シーン", "高級感", "FAQ化しやすさ", "画像で見せやすさ", "CTA方針"]
+    strategy_labels = {
+        "売れる訴求重視": "Foco em apelo de venda",
+        "薬機法・景表法安全重視": "Foco em segurança de linguagem",
+        "高級ブランド寄せ": "Estilo de marca premium",
+        "悩み共感強め": "Mais empatia com a dor",
+        "競合差別化強め": "Mais diferenciação competitiva",
+        "SNS広告展開しやすいCore": "Core fácil de usar em anúncios SNS",
+        "Shopifyページ化しやすいCore": "Core fácil de transformar em página Shopify",
+    }
+    safety_labels = {
+        "かなり安全寄り": "Bem conservador",
+        "標準": "Padrão",
+        "攻めすぎない範囲で訴求強め": "Mais persuasivo sem exagerar",
+    }
+    focus_labels = {
+        "悩み共感": "Empatia com a dor",
+        "競合との差別化": "Diferenciação competitiva",
+        "使用シーン": "Cenas de uso",
+        "高級感": "Sensação premium",
+        "FAQ化しやすさ": "Facilidade para FAQ",
+        "画像で見せやすさ": "Fácil de mostrar em imagens",
+        "CTA方針": "Direção de CTA",
+    }
+    strategy_options = list(strategy_labels.keys())
+    safety_options = list(safety_labels.keys())
+    focus_options = list(focus_labels.keys())
+    fmt_strategy = (lambda v: v if is_ja else strategy_labels.get(v, v))
+    fmt_safety = (lambda v: v if is_ja else safety_labels.get(v, v))
+    fmt_focus = (lambda v: v if is_ja else focus_labels.get(v, v))
     cfg_col1, cfg_col2 = st.columns([1, 1])
     with cfg_col1:
-        core_strategy = st.selectbox("生成方針" if is_ja else "Estratégia", strategy_options, key="core_strategy")
-        core_safety = st.selectbox("安全度" if is_ja else "Segurança", safety_options, key="core_safety")
+        core_strategy = st.selectbox(
+            "生成方針" if is_ja else "Estratégia",
+            strategy_options,
+            key="core_strategy",
+            format_func=fmt_strategy,
+        )
+        core_safety = st.selectbox(
+            "安全度" if is_ja else "Segurança",
+            safety_options,
+            key="core_safety",
+            format_func=fmt_safety,
+        )
     with cfg_col2:
         core_focus = st.multiselect(
             "重視する要素" if is_ja else "Focos",
             focus_options,
             default=["悩み共感", "競合との差別化", "使用シーン", "CTA方針"],
             key="core_focus",
+            format_func=fmt_focus,
         )
         core_tone = st.text_input(
             "文章トーン" if is_ja else "Tom",
             value=st.session_state.get("core_tone", _cg_core_source.get("brand_tone", "")),
-            placeholder="例: 上品、自然、信頼感、やわらかい",
+            placeholder="例: 上品、自然、信頼感、やわらかい" if is_ja else "Ex.: premium, natural, confiável, suave",
             key="core_tone",
         )
     core_options = {
