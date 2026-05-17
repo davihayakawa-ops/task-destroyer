@@ -10,15 +10,14 @@ os.chdir(ROOT)
 sys.path.insert(0, str(ROOT))
 
 PAGES = [
-    "dashboard",
     "product_input",
-    "saved_data",
     "core_generation",
     "product_page",
     "image_prompt",
     "video_script",
     "ads_sns",
-    "output",
+    "bulk_pack",
+    "export_center",
 ]
 
 BASE_PRODUCT = {

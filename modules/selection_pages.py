@@ -531,9 +531,7 @@ def _render_improve_tools(svc: dict, ensure_product_id, category_key: str,
         ("natural", "自然な日本語" if is_ja else "Mais natural"),
         ("premium", "高級感を出す" if is_ja else "Mais premium"),
         ("ad_strong", "広告向けに強く" if is_ja else "Mais forte para anúncio"),
-        ("risk_safe", "リスク表現を弱める" if is_ja else "Reduzir riscos"),
         ("higgs", "Higgs/生成AI向け" if is_ja else "Para Higgs/IA"),
-        ("from_checks", "チェック結果から修正" if is_ja else "Corrigir pelos checks"),
     ]
     cols = st.columns(2)
     for i, (mode, label) in enumerate(improve_options):
@@ -541,14 +539,6 @@ def _render_improve_tools(svc: dict, ensure_product_id, category_key: str,
             if st.button("✨ " + label, key=f"improve_{category_key}_{item_key}_{mode}",
                          use_container_width=True):
                 notes = ""
-                if mode == "from_checks":
-                    notes = "\n\n".join(v for v in (checks.get("quality"), checks.get("risk")) if v)
-                    if not notes:
-                        st.warning(
-                            "先にチェックを実行すると、指摘を反映して修正できます。今回は通常改善として進めます。"
-                            if is_ja else
-                            "Execute os checks primeiro para corrigir pelos apontamentos. Agora será uma melhoria normal."
-                        )
                 with st.spinner("改善中..." if is_ja else "Melhorando..."):
                     improved = svc["generator"].improve_generated_content(
                         current_content, core, content_type, mode, notes, _generation_market_options()
@@ -573,10 +563,9 @@ def _render_item_card(svc: dict, ensure_product_id, status_badge,
             '</div>',
             unsafe_allow_html=True,
         )
-        tab_copy, tab_full, tab_check, tab_improve = st.tabs([
+        tab_copy, tab_full, tab_improve = st.tabs([
             "コピー用に分ける" if is_ja else "Partes para copiar",
             "全文編集" if is_ja else "Editar texto completo",
-            "チェック" if is_ja else "Verificar",
             "改善" if is_ja else "Melhorar",
         ])
         with tab_copy:
@@ -588,10 +577,6 @@ def _render_item_card(svc: dict, ensure_product_id, status_badge,
                 height=300,
                 key=f"ta_{category_key}_{item_key}",
                 label_visibility="collapsed",
-            )
-        with tab_check:
-            _render_inline_checks(
-                svc, ensure_product_id, category_key, item_key, content, is_ja, compat_key
             )
         with tab_improve:
             _render_improve_tools(

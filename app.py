@@ -820,7 +820,7 @@ def init_state():
         "lang": "ja",
         "i18n": {},
         "mode": "commerce",
-        "page": "mode_selection",
+        "page": "product_input",
         "product_id": "",
         "product_info": {},
         "core_text": "",
@@ -1013,35 +1013,20 @@ def _render_market_controls(is_ja: bool):
 
 
 _NAV_GROUPS = [
-    ("home", "🏠 ホーム", "🏠 Início", "🏠 Home", [
-        ("dashboard",       "🏠 ダッシュボード",   "🏠 Painel",          "🏠 Dashboard",       "dash"),
-        ("mode_selection",  "🗂️ モード選択",       "🗂️ Seleção de Modo", "🗂️ Mode Selection",  "mode"),
-    ]),
     ("product", "📦 商品", "📦 Produto", "📦 Product", [
-        ("product_input",   "📦 商品入力",         "📦 Entrada do Produto",  "📦 Product Input", "pi"),
+        ("product_input",   "① 商品情報を入れる", "① Dados do Produto",    "① Product Info", "pi"),
         ("external_core",   "📥 外部Core取り込み", "📥 Importar Core",        "📥 Import Core",   "ec"),
     ]),
     ("core", "✨ Core", "✨ Core", "✨ Core", [
-        ("core_generation", "✨ Core生成・編集",   "✨ Gerar/Editar Core", "✨ Generate/Edit Core", "cg"),
-        ("core_generation", "📚 Coreライブラリ",  "📚 Biblioteca de Cores","📚 Core Library",       "cl"),
+        ("core_generation", "② Coreを作る",       "② Criar Core",          "② Build Core", "cg"),
     ]),
     ("generate", "⚡ 生成", "⚡ Gerar", "⚡ Generate", [
-        ("product_page",    "📄 商品ページ",        "📄 Página do Produto",  "📄 Product Page",   "pp"),
-        ("product_page",    "🛒 Shopifyコード",     "🛒 Código Shopify",     "🛒 Shopify Code",   "sh"),
+        ("product_page",    "③ Shopifyコード",     "③ Código Shopify",     "③ Shopify Code",   "sh"),
         ("image_prompt",    "🖼️ 画像プロンプト",   "🖼️ Prompts de Imagem", "🖼️ Image Prompts", "ip"),
         ("video_script",    "🎬 動画台本",          "🎬 Roteiro de Vídeo",   "🎬 Video Script",   "vs"),
         ("ads_sns",         "📣 広告・SNS",         "📣 Anúncios/SNS",       "📣 Ads/SNS",        "as_"),
         ("bulk_pack",       "🔥 一括生成",          "🔥 Geração em Lote",    "🔥 Bulk Generation","bp"),
-    ]),
-    ("review", "✅ 確認", "✅ Verificação", "✅ Review", [
-        ("refinement",      "✍️ 日本語補正・翻訳", "✍️ Refinar/Traduzir",  "✍️ Refine/Translate", "rf"),
-        ("check",           "✅ チェック",          "✅ Verificação",        "✅ Check",            "ck"),
-    ]),
-    ("output", "📤 出力・管理", "📤 Saída / Gestão", "📤 Output / Management", [
-        ("export_center",     "⚡ 生成＆エクスポート","⚡ Gerar & Exportar",   "⚡ Generate & Export", "exc"),
-        ("output",            "📤 出力",              "📤 Exportar",           "📤 Export",            "out"),
-        ("saved_data",        "💾 保存データ",        "💾 Dados Salvos",       "💾 Saved Data",        "sv"),
-        ("instruction_sheet", "📋 制作指示書",        "📋 Ficha de Produção",  "📋 Production Brief",  "ins"),
+        ("export_center",     "④ 出力・コピー",      "④ Exportar/Copiar",    "④ Export / Copy", "exc"),
     ]),
 ]
 
@@ -1056,12 +1041,8 @@ _BREADCRUMB_MAP_JA = {
     "video_script":     ("⚡ 生成",        "動画台本"),
     "ads_sns":          ("⚡ 生成",        "広告・SNS"),
     "bulk_pack":        ("⚡ 生成",        "一括生成"),
-    "refinement":       ("✅ 確認",        "日本語補正・翻訳"),
-    "check":            ("✅ 確認",        "チェック"),
-    "export_center":    ("📤 出力・管理",  "生成＆エクスポート"),
-    "output":           ("📤 出力・管理",  "出力"),
-    "saved_data":       ("📤 出力・管理",  "保存データ"),
-    "instruction_sheet":("📤 出力・管理",  "制作指示書"),
+    "export_center":    ("⚡ 生成",        "出力・コピー"),
+    "output":           ("⚡ 生成",        "出力・コピー"),
 }
 _BREADCRUMB_MAP_PT = {
     "dashboard":        ("🏠 Início",       "Painel"),
@@ -1074,12 +1055,8 @@ _BREADCRUMB_MAP_PT = {
     "video_script":     ("⚡ Gerar",        "Roteiro de Vídeo"),
     "ads_sns":          ("⚡ Gerar",        "Anúncios/SNS"),
     "bulk_pack":        ("⚡ Gerar",        "Geração em Lote"),
-    "refinement":       ("✅ Verificação",  "Refinar/Traduzir"),
-    "check":            ("✅ Verificação",  "Verificação"),
-    "export_center":    ("📤 Saída/Gestão", "Gerar & Exportar"),
-    "output":           ("📤 Saída/Gestão", "Exportar"),
-    "saved_data":       ("📤 Saída/Gestão", "Dados Salvos"),
-    "instruction_sheet":("📤 Saída/Gestão", "Ficha de Produção"),
+    "export_center":    ("⚡ Gerar",        "Exportar/Copiar"),
+    "output":           ("⚡ Gerar",        "Exportar/Copiar"),
 }
 _BREADCRUMB_MAP_EN = {
     "dashboard":        ("🏠 Home",                "Dashboard"),
@@ -1092,12 +1069,8 @@ _BREADCRUMB_MAP_EN = {
     "video_script":     ("⚡ Generate",            "Video Script"),
     "ads_sns":          ("⚡ Generate",            "Ads/SNS"),
     "bulk_pack":        ("⚡ Generate",            "Bulk Generation"),
-    "refinement":       ("✅ Review",              "Refine/Translate"),
-    "check":            ("✅ Review",              "Check"),
-    "export_center":    ("📤 Output/Management",   "Generate & Export"),
-    "output":           ("📤 Output/Management",   "Export"),
-    "saved_data":       ("📤 Output/Management",   "Saved Data"),
-    "instruction_sheet":("📤 Output/Management",   "Production Brief"),
+    "export_center":    ("⚡ Generate",            "Export / Copy"),
+    "output":           ("⚡ Generate",            "Export / Copy"),
 }
 
 
@@ -1181,57 +1154,25 @@ def render_sidebar():
 
         cur_page = st.session_state.get("page", "")
 
-        # ── Simple mode: 5 flat items ─────────────────────────────────────
-        if st.session_state["nav_mode"] == "simple":
-            simple_items = [
-                ("product_input",   _lt("① 商品情報を入れる", "① Produto", "① Product Info", lang)),
-                ("core_generation", _lt("② Coreを作る", "② Core", "② Build Core", lang)),
-                ("product_page",    _lt("③ Shopifyコード", "③ Shopify", "③ Shopify Code", lang)),
-                ("export_center",   _lt("④ 出力・コピー", "④ Exportar", "④ Export / Copy", lang)),
-                ("saved_data",      _lt("保存済みを見る", "Dados salvos", "Saved Data", lang)),
-            ]
-            for page_id, label in simple_items:
-                is_active = cur_page == page_id
-                if st.button(
-                    label,
-                    key=f"snav_{page_id}",
-                    use_container_width=True,
-                    type="primary" if is_active else "secondary",
-                ):
-                    st.session_state["page"] = page_id
-                    st.rerun()
-
-            if st.button(_lt("詳細メニューを開く", "Menu completo", "Open Full Menu", lang),
-                         key="nav_mode_full_inline", use_container_width=True):
-                st.session_state["nav_mode"] = "full"
-                st.rerun()
-
-        # ── Full mode: grouped collapsible sections ───────────────────────
-        else:
-            if st.button(_lt("かんたんメニューに戻す", "Menu simples", "Back to Simple Menu", lang),
-                         key="nav_mode_simple_inline", use_container_width=True, type="primary"):
-                st.session_state["nav_mode"] = "simple"
-                st.rerun()
-            for group_id, grp_ja, grp_pt, grp_en, items in _NAV_GROUPS:
-                filtered_items = filter_nav_items(items)
-                if not filtered_items:
-                    continue
-                grp_label = _lt(grp_ja, grp_pt, grp_en, lang)
-                # Auto-expand the group that contains the current page
-                group_pages = {item[0] for item in filtered_items}
-                auto_open   = cur_page in group_pages
-                with st.expander(grp_label, expanded=auto_open):
-                    for page_id, lbl_ja, lbl_pt, lbl_en, key_sfx in filtered_items:
-                        label     = _lt(lbl_ja, lbl_pt, lbl_en, lang)
-                        is_active = cur_page == page_id
-                        if st.button(
-                            label,
-                            key=f"fnav_{group_id}_{key_sfx}",
-                            use_container_width=True,
-                            type="primary" if is_active else "secondary",
-                        ):
-                            st.session_state["page"] = page_id
-                            st.rerun()
+        for group_id, grp_ja, grp_pt, grp_en, items in _NAV_GROUPS:
+            filtered_items = filter_nav_items(items)
+            if not filtered_items:
+                continue
+            grp_label = _lt(grp_ja, grp_pt, grp_en, lang)
+            group_pages = {item[0] for item in filtered_items}
+            auto_open = cur_page in group_pages or group_id == "generate"
+            with st.expander(grp_label, expanded=auto_open):
+                for page_id, lbl_ja, lbl_pt, lbl_en, key_sfx in filtered_items:
+                    label = _lt(lbl_ja, lbl_pt, lbl_en, lang)
+                    is_active = cur_page == page_id
+                    if st.button(
+                        label,
+                        key=f"fnav_{group_id}_{key_sfx}",
+                        use_container_width=True,
+                        type="primary" if is_active else "secondary",
+                    ):
+                        st.session_state["page"] = page_id
+                        st.rerun()
 
         # ── Product info summary ──────────────────────────────────────────
         if st.session_state.get("product_info", {}).get("name"):
@@ -1257,53 +1198,6 @@ def render_sidebar():
             '</div>',
             unsafe_allow_html=True,
         )
-
-        st.markdown("---")
-        with st.expander("➕ " + _lt("ショップ追加", "Adicionar loja", "Add Shop", lang), expanded=False):
-            new_shop_name = st.text_input(
-                _lt("ショップ名", "Nome da loja", "Shop name", lang),
-                key="new_shop_name",
-            )
-            if st.button(_lt("作成", "Criar", "Create", lang), key="create_shop", use_container_width=True):
-                if new_shop_name.strip():
-                    new_shop = Storage.create_shop(new_shop_name)
-                    st.session_state["shop_id"] = new_shop["id"]
-                    st.session_state["shop_name"] = new_shop["name"]
-                    clear_active_product_context()
-                    st.rerun()
-                else:
-                    st.warning(_lt("ショップ名を入力してください。", "Informe o nome da loja.", "Enter a shop name.", lang))
-
-        if current_shop_id != "default":
-            with st.expander("🗑️ " + _lt("ショップ削除", "Excluir loja", "Delete Shop", lang), expanded=False):
-                st.caption(
-                    _lt(
-                        "選択中ショップの保存データも削除されます。",
-                        "Os dados salvos da loja selecionada também serão excluídos.",
-                        "Saved data for the selected shop will also be deleted.",
-                        lang,
-                    )
-                )
-                confirm_shop_delete = st.checkbox(
-                    _lt("このショップを削除する", "Excluir esta loja", "Delete this shop", lang),
-                    key=f"confirm_delete_shop_{current_shop_id}",
-                )
-                if st.button(
-                    _lt("削除", "Excluir", "Delete", lang),
-                    key=f"delete_shop_{current_shop_id}",
-                    use_container_width=True,
-                    disabled=not confirm_shop_delete,
-                ):
-                    result = Storage.delete_shop(current_shop_id)
-                    if result.get("success"):
-                        st.session_state["shop_id"] = "default"
-                        st.session_state["shop_name"] = "共通"
-                        clear_active_product_context()
-                        st.success(result["message"])
-                        st.rerun()
-                    else:
-                        st.warning(result.get("message", "削除できませんでした。"))
-
 
 def render_breadcrumb():
     page    = st.session_state.get("page", "")
@@ -1370,8 +1264,6 @@ def render_workflow_summary(page: str):
         "bulk_pack": 2,
         "export_center": 3,
         "output": 3,
-        "saved_data": 3,
-        "instruction_sheet": 3,
     }
     active_idx = active_by_page.get(page, 0)
     if lang == "ja":
@@ -3328,8 +3220,6 @@ def page_product_page():
             )
 
         selected_combined = _combined_html(gen, selected_section_keys)
-        if selected_combined:
-            _render_liquid_quality_panel(selected_combined, design_options, selected_section_keys)
 
         # ── Section: ページ全体コード（旧形式）──────────────────────────
         if output_type == "ページ全体コード（旧形式）" and gen.get("shopify_custom_liquid"):
@@ -4218,147 +4108,71 @@ def page_export_center():
                     st.session_state["page"] = CT_PAGE.get(ct, "product_page")
                     st.rerun()
 
-    # ── Bottom: saved projects + export ──────────────────────────────────────
+    # ── Bottom: direct export only ────────────────────────────────────────────
     st.markdown("---")
-    with st.expander("保存済みプロジェクト・一括ダウンロード・外部連携" if is_ja else "Projetos salvos, download em lote e integrações", expanded=False):
-        bot_l, bot_r = st.columns([3, 2])
+    exp_title = "まとめて出力" if is_ja else "Exportar tudo"
+    st.markdown(f'<div class="ec-section-title">📤 {exp_title}</div>', unsafe_allow_html=True)
 
-        with bot_l:
-            proj_title = "保存済みプロジェクト" if is_ja else "Projetos Salvos"
-            st.markdown(f'<div class="ec-section-title">💾 {proj_title}</div>',
-                        unsafe_allow_html=True)
-            try:
-                projects = svc["storage"].list_products()
-            except Exception:
-                projects = []
+    _SHOPIFY_KEYS_EC = [
+        "shopify_common_css", "shopify_hero_section_code", "shopify_about_section_code",
+        "shopify_problem_section_code", "shopify_features_section_code",
+        "shopify_usage_scene_section_code", "shopify_comparison_section_code",
+        "shopify_faq_section_code", "shopify_cta_section_code",
+    ]
+    export_items = {k: v for k, v in gen.items()
+                    if v and isinstance(v, str) and not k.startswith("_")}
+    all_text = "\n\n---\n\n".join(f"# {k}\n\n{v}" for k, v in export_items.items())
+    shopify_code = "\n\n".join(gen[k] for k in _SHOPIFY_KEYS_EC if gen.get(k))
 
-            if projects:
-                rows_html = ""
-                for p in list(reversed(projects))[:5]:
-                    badge_html = '<span class="badge badge-draft">保存済み</span>'
-                    rows_html += (
-                        f'<tr>'
-                        f'<td><div class="ec-proj-name">{p.get("name", p["id"])}</div>'
-                        f'<div class="ec-proj-sub">{p.get("category", "")}</div></td>'
-                        f'<td style="color:#6b7280;font-size:0.75rem">{p.get("updated_at", "")}</td>'
-                        f'<td>{badge_html}</td>'
-                        f'</tr>'
-                    )
-                th_name = "プロジェクト名" if is_ja else "Projeto"
-                th_updated = "最終更新" if is_ja else "Atualizado"
-                th_status = "ステータス" if is_ja else "Status"
-                st.markdown(
-                    f'<table class="ec-proj-table">'
-                    f'<thead><tr><th>{th_name}</th><th>{th_updated}</th><th>{th_status}</th></tr></thead>'
-                    f'<tbody>{rows_html}</tbody>'
-                    f'</table>',
-                    unsafe_allow_html=True,
-                )
-                st.markdown("")
-                see_all = "すべてのプロジェクトを見る →" if is_ja else "Ver todos os projetos →"
-                if st.button(see_all, key="ec_all_projects"):
-                    st.session_state["page"] = "saved_data"
-                    st.rerun()
-            else:
-                no_proj = "保存済みプロジェクトがありません" if is_ja else "Nenhum projeto salvo"
-                st.markdown(f'<div class="ec-empty-card">{no_proj}</div>',
-                            unsafe_allow_html=True)
+    def _build_zip() -> bytes:
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+            core_t = st.session_state.get("core_text", "")
+            if core_t:
+                zf.writestr("core.txt", core_t)
+            for key, text in export_items.items():
+                safe = key.replace("/", "_").replace(" ", "_")
+                ext = "html" if "shopify" in key.lower() else "txt"
+                zf.writestr(f"{safe}.{ext}", text)
+            if shopify_code:
+                zf.writestr(f"shopify_{product_name}.html", shopify_code)
+        buf.seek(0)
+        return buf.read()
 
-        with bot_r:
-            exp_title = "エクスポート＆連携" if is_ja else "Exportação & Integração"
-            st.markdown(f'<div class="ec-section-title">📤 {exp_title}</div>',
-                        unsafe_allow_html=True)
+    has_content = bool(all_text or st.session_state.get("core_text"))
 
-        _SHOPIFY_KEYS_EC = [
-            "shopify_common_css", "shopify_hero_section_code", "shopify_about_section_code",
-            "shopify_problem_section_code", "shopify_features_section_code",
-            "shopify_usage_scene_section_code", "shopify_comparison_section_code",
-            "shopify_faq_section_code", "shopify_cta_section_code",
-        ]
-        export_items = {k: v for k, v in gen.items()
-                        if v and isinstance(v, str) and not k.startswith("_")}
-        all_text = "\n\n---\n\n".join(f"# {k}\n\n{v}" for k, v in export_items.items())
-        shopify_code = "\n\n".join(gen[k] for k in _SHOPIFY_KEYS_EC if gen.get(k))
-
-        # Build ZIP bundle
-        def _build_zip() -> bytes:
-            buf = io.BytesIO()
-            with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-                core_t = st.session_state.get("core_text", "")
-                if core_t:
-                    zf.writestr("core.txt", core_t)
-                for key, text in export_items.items():
-                    safe = key.replace("/", "_").replace(" ", "_")
-                    ext = "html" if "shopify" in key.lower() else "txt"
-                    zf.writestr(f"{safe}.{ext}", text)
-                if shopify_code:
-                    zf.writestr(f"shopify_{product_name}.html", shopify_code)
-            buf.seek(0)
-            return buf.read()
-
-        has_content = bool(all_text or st.session_state.get("core_text"))
-
-        dl1, dl2, dl3 = st.columns(3)
-        with dl1:
-            st.download_button(
-                "⬇️ " + ("一括TXT" if is_ja else "Tudo TXT"),
-                data=(all_text or " ").encode("utf-8"),
-                file_name=f"task_destroyer_{product_name}.txt",
-                mime="text/plain",
-                key="ec_bulk_dl",
-                use_container_width=True,
-                disabled=not all_text,
-            )
-        with dl2:
-            st.download_button(
-                "</> Shopify",
-                data=(shopify_code or " ").encode("utf-8"),
-                file_name=f"shopify_{product_name}.html",
-                mime="text/html",
-                key="ec_shopify_dl",
-                use_container_width=True,
-                disabled=not shopify_code,
-            )
-        with dl3:
-            zip_bytes = _build_zip() if has_content else b""
-            st.download_button(
-                "📦 ZIP",
-                data=zip_bytes if zip_bytes else b" ",
-                file_name=f"task_destroyer_{product_name}.zip",
-                mime="application/zip",
-                key="ec_zip_dl",
-                use_container_width=True,
-                disabled=not has_content,
-            )
-
-        st.markdown("")
-
-        INTEGRATIONS = [
-            ("🟢", ("Googleドライブに保存" if is_ja else "Salvar no Google Drive"),
-                   ("Google Drive連携"    if is_ja else "Integração Google Drive")),
-            ("📘", ("Word / Docsに出力"  if is_ja else "Exportar Word/Docs"),
-                   ("文書エクスポート"    if is_ja else "Exportação de documentos")),
-            ("📅", ("SNS投稿を予約"      if is_ja else "Agendar posts SNS"),
-                   ("SNS連携"            if is_ja else "Integração SNS")),
-            ("📧", ("メールで送信"       if is_ja else "Enviar por e-mail"),
-                   ("メール送信"         if is_ja else "Envio por e-mail")),
-        ]
-        soon = "近日公開" if is_ja else "Em breve"
-        for icon, name, desc in INTEGRATIONS:
-            st.markdown(
-                f'<div class="ec-export-tile">'
-                f'<div class="ec-export-icon">{icon}</div>'
-                f'<div><div class="ec-export-name">{name}</div>'
-                f'<div class="ec-export-desc">{desc}</div></div>'
-                f'<span class="ec-soon">{soon}</span>'
-                f'</div>',
-                unsafe_allow_html=True,
-            )
-
-        manage_label = "🔗 連携サービスを管理" if is_ja else "🔗 Gerenciar integrações"
-        if st.button(manage_label, key="ec_manage_int", use_container_width=True):
-            st.session_state["page"] = "instruction_sheet"
-            st.rerun()
+    dl1, dl2, dl3 = st.columns(3)
+    with dl1:
+        st.download_button(
+            "⬇️ " + ("一括TXT" if is_ja else "Tudo TXT"),
+            data=(all_text or " ").encode("utf-8"),
+            file_name=f"task_destroyer_{product_name}.txt",
+            mime="text/plain",
+            key="ec_bulk_dl",
+            use_container_width=True,
+            disabled=not all_text,
+        )
+    with dl2:
+        st.download_button(
+            "</> Shopify",
+            data=(shopify_code or " ").encode("utf-8"),
+            file_name=f"shopify_{product_name}.html",
+            mime="text/html",
+            key="ec_shopify_dl",
+            use_container_width=True,
+            disabled=not shopify_code,
+        )
+    with dl3:
+        zip_bytes = _build_zip() if has_content else b""
+        st.download_button(
+            "📦 ZIP",
+            data=zip_bytes if zip_bytes else b" ",
+            file_name=f"task_destroyer_{product_name}.zip",
+            mime="application/zip",
+            key="ec_zip_dl",
+            use_container_width=True,
+            disabled=not has_content,
+        )
 
 
 # ── Page: Saved Data → moved to modules/saved_data_page.py ───────────────────
@@ -4401,6 +4215,17 @@ def page_custom_mode():
 # ── Main router ───────────────────────────────────────────────────────────────
 
 def main():
+    removed_pages = {
+        "dashboard",
+        "mode_selection",
+        "refinement",
+        "check",
+        "saved_data",
+        "instruction_sheet",
+    }
+    if st.session_state.get("page") in removed_pages:
+        st.session_state["page"] = "product_input"
+
     render_sidebar()
     render_breadcrumb()
 
@@ -4422,7 +4247,6 @@ def main():
     render_workflow_summary(page)
 
     page_map = {
-        "dashboard": lambda: _page_new_dashboard(svc),
         "mode_selection": page_mode_selection,
         "product_input": page_product_input,
         "external_core": page_external_core,
@@ -4432,12 +4256,8 @@ def main():
         "video_script": page_video_script,
         "ads_sns": page_ads_sns,
         "bulk_pack": page_bulk_pack,
-        "refinement": page_refinement,
-        "check": page_check,
         "output": page_output,
-        "saved_data": lambda: _page_saved_data(svc),
         "export_center": page_export_center,
-        "instruction_sheet": page_instruction_sheet,
     }
 
     render_fn = page_map.get(page, page_mode_selection)
