@@ -153,6 +153,7 @@ core_studio/
 | `DATA_DIR` | データ保存ディレクトリ | `data` |
 | `TASK_DESTROYER_USERS` | ログインユーザーJSON。未設定時はローカル開発モード | 未設定 |
 | `TASK_DESTROYER_MONTHLY_CALL_LIMIT` | ワークスペースごとの月間LLM呼び出し上限。`0`で無効 | `1000` |
+| `TASK_DESTROYER_TERMS_VERSION` | 利用規約・プライバシー同意のバージョン。変更すると再同意が必要 | `2026-05-18` |
 
 ## 本番公開前チェック
 
@@ -160,5 +161,6 @@ core_studio/
 - `ANTHROPIC_API_KEY` は Streamlit Secrets などサーバー側Secretsに置く
 - `TASK_DESTROYER_USERS` を設定し、`password` ではなく `password_hash` を使う
 - `TASK_DESTROYER_MONTHLY_CALL_LIMIT` を 1 以上にする
+- `TASK_DESTROYER_TERMS_VERSION` を規約更新日などに合わせる
 - `.env` や `.streamlit/secrets.toml` はGitにコミットしない
 - 生成・削除・バックアップなどの運用ログは `data/.../audit_logs/` に保存されます

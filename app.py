@@ -30,6 +30,7 @@ from modules.auth import ensure_authentication, current_user, load_users, logout
 from modules.config import render_config_guard
 from modules.usage_limiter import UsageLimiter
 from modules.audit_logger import AuditLogger
+from modules.legal import render_consent_gate
 from modules.project_utils import (
     STATUS_BADGE_CLASS, STATUS_LABEL_JA, STATUS_LABEL_PT,
     status_badge, ensure_product_id, load_project_session,
@@ -851,7 +852,7 @@ init_state()
 # Bump this string whenever new methods are added to any service class.
 # Changing it invalidates the @st.cache_resource cache on Streamlit Cloud,
 # forcing fresh service objects that reflect the latest code.
-_SERVICES_VER = "20260518-audit-logs-v1"
+_SERVICES_VER = "20260518-legal-consent-v1"
 
 
 @st.cache_resource
@@ -4362,6 +4363,9 @@ def main():
             st.session_state["shop_name"] = auth_user.get("name") or workspace
             clear_active_product_context()
             st.rerun()
+
+    if not render_consent_gate(svc["storage"].data_dir, svc["audit_logger"]):
+        return
 
     st.session_state["mode"] = "commerce"
     removed_pages = {

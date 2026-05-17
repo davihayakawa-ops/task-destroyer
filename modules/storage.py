@@ -23,6 +23,7 @@ _BACKUP_DIRS = [
     "projects", "core_library", "activity_logs",
     "delete_logs", "bulk_packs", "ab_tests", "reviews",
     "performance_notes", "category_templates", "trash", "audit_logs",
+    "consents",
 ]
 
 # API error patterns used for diagnostics
@@ -229,6 +230,8 @@ class Storage:
         _ensure_dir(self.data_dir / "projects")
         _ensure_dir(self.data_dir / "core_library")
         _ensure_dir(self.data_dir / "activity_logs")
+        _ensure_dir(self.data_dir / "audit_logs")
+        _ensure_dir(self.data_dir / "consents")
         _ensure_dir(self.data_dir / "delete_logs")
         _ensure_dir(self.data_dir / "backups")
         _ensure_dir(self.data_dir / "trash")
