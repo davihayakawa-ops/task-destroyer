@@ -1,3 +1,5 @@
+import html
+
 import streamlit as st
 
 from .i18n import t, tl
@@ -19,21 +21,179 @@ def _current_storage():
     return _Storage(st.session_state.get("shop_id", "default"))
 
 
+_SAVED_DATA_CSS = """
+<style>
+.sd-hero {
+    background: #111827;
+    border: 1px solid #263244;
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin: 0 0 16px;
+}
+.sd-hero h3 {
+    color: #f8fafc;
+    font-size: 1rem;
+    font-weight: 850;
+    margin: 0 0 6px;
+}
+.sd-hero p {
+    color: #a8b3c7;
+    font-size: .82rem;
+    line-height: 1.65;
+    margin: 0;
+}
+.sd-action-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin: 0 0 18px;
+}
+.sd-action-card,
+.sd-kpi {
+    background: #111827;
+    border: 1px solid #263244;
+    border-radius: 8px;
+    padding: 13px 14px;
+}
+.sd-action-card strong {
+    color: #f8fafc;
+    display: block;
+    font-size: .84rem;
+    margin-bottom: 5px;
+}
+.sd-action-card span {
+    color: #94a3b8;
+    display: block;
+    font-size: .74rem;
+    line-height: 1.55;
+}
+.sd-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin: 12px 0 16px;
+}
+.sd-kpi {
+    min-height: 92px;
+}
+.sd-kpi-label {
+    color: #94a3b8;
+    font-size: .74rem;
+    font-weight: 750;
+    margin-bottom: 8px;
+}
+.sd-kpi-value {
+    color: #f8fafc;
+    font-size: 1.85rem;
+    font-weight: 900;
+    letter-spacing: 0;
+    line-height: 1;
+}
+.sd-kpi-note {
+    color: #64748b;
+    font-size: .7rem;
+    margin-top: 8px;
+}
+.sd-path,
+.sd-list {
+    background: #151a24;
+    border: 1px solid #263244;
+    border-radius: 8px;
+    color: #cbd5e1;
+    font-size: .8rem;
+    line-height: 1.8;
+    padding: 12px 14px;
+}
+.sd-path {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    overflow-x: auto;
+    white-space: nowrap;
+}
+.sd-list code,
+.sd-path code {
+    color: #f8fafc;
+}
+@media (max-width: 900px) {
+    .sd-action-grid,
+    .sd-kpi-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+"""
+
+
+def _hero_html(title: str, body: str) -> str:
+    return (
+        '<div class="sd-hero">'
+        f"<h3>{html.escape(title)}</h3>"
+        f"<p>{html.escape(body)}</p>"
+        "</div>"
+    )
+
+
 def page_saved_data(svc: dict) -> None:
     st.markdown('<div class="section-header">💾 ' + t("nav.saved_data") + '</div>',
                 unsafe_allow_html=True)
     is_ja = st.session_state.get("lang", "ja") == "ja"
+    st.markdown(_SAVED_DATA_CSS, unsafe_allow_html=True)
+
+    if is_ja:
+        st.markdown(
+            _hero_html(
+                "保存済みデータを管理",
+                "普段は商品プロジェクトから読み込みます。診断・バックアップ・ゴミ箱は、データ整理や復元が必要な時だけ使う管理メニューです。",
+            ),
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            """
+            <div class="sd-action-grid">
+                <div class="sd-action-card"><strong>商品を読み込む</strong><span>過去に保存した商品を開いて、Core生成やShopifyコード作成を続けます。</span></div>
+                <div class="sd-action-card"><strong>安全に保管する</strong><span>バックアップを作成して、復元が必要な時に戻せます。</span></div>
+                <div class="sd-action-card"><strong>状態を確認する</strong><span>診断は管理用です。通常操作では開かなくても問題ありません。</span></div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            _hero_html(
+                "Gerenciar dados salvos",
+                "No uso normal, abra os projetos de produto. Diagnóstico, backup e lixeira são menus de administração para organização e restauração.",
+            ),
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            """
+            <div class="sd-action-grid">
+                <div class="sd-action-card"><strong>Abrir produto</strong><span>Continue a partir de um produto salvo para gerar Core ou código Shopify.</span></div>
+                <div class="sd-action-card"><strong>Guardar com segurança</strong><span>Crie backups e restaure dados quando necessário.</span></div>
+                <div class="sd-action-card"><strong>Verificar estado</strong><span>O diagnóstico é administrativo. Não precisa ser aberto no uso normal.</span></div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
-        "💼 " + t("saved_data.products_tab"),
-        "📚 " + t("saved_data.cores_tab"),
-        "🔍 " + ("診断" if is_ja else "Diagnóstico"),
-        "🗃️ " + ("バックアップ" if is_ja else "Backup"),
-        "🗑️ " + ("ゴミ箱" if is_ja else "Lixeira"),
+        "商品" if is_ja else "Produtos",
+        "Core",
+        "管理診断" if is_ja else "Diagnóstico",
+        "バックアップ" if is_ja else "Backup",
+        "ゴミ箱" if is_ja else "Lixeira",
     ])
 
     with tab1:
         all_products = svc["storage"].list_products()
+        st.markdown(
+            _hero_html(
+                "商品プロジェクト" if is_ja else "Projetos de produto",
+                "保存済みの商品を読み込みます。不要な削除や翻訳確認は、商品行を開いて操作します。"
+                if is_ja else
+                "Abra produtos salvos. Exclusão e revisão de tradução ficam dentro de cada item.",
+            ),
+            unsafe_allow_html=True,
+        )
 
         # ── Display options ──────────────────────────────────────────────
         ctrl_col1, ctrl_col2 = st.columns([3, 2])
@@ -301,6 +461,15 @@ def page_saved_data(svc: dict) -> None:
 
     # ── Tab 3: 診断 ───────────────────────────────────────────────────────────
     with tab3:
+        st.markdown(
+            _hero_html(
+                "管理診断" if is_ja else "Diagnóstico administrativo",
+                "保存データの健康状態を確認する管理画面です。通常の作業では、問題が起きた時だけ見れば十分です。"
+                if is_ja else
+                "Tela administrativa para verificar o estado dos dados salvos. No fluxo normal, use apenas quando houver algum problema.",
+            ),
+            unsafe_allow_html=True,
+        )
         _sdx = _current_storage()
         try:
             dx = _sdx.get_diagnostics()
@@ -309,48 +478,88 @@ def page_saved_data(svc: dict) -> None:
             dx = {}
 
         if dx:
-            c1, c2, c3, c4 = st.columns(4)
-            with c1:
-                st.metric("📦 " + ("プロジェクト数" if is_ja else "Projetos"), dx.get("total_projects", 0))
-            with c2:
-                st.metric("✅ " + ("正常" if is_ja else "Normais"), dx.get("normal_projects", 0))
-            with c3:
-                st.metric("⚠️ " + ("空" if is_ja else "Vazios"), dx.get("empty_projects", 0))
-            with c4:
-                st.metric("🗑️ " + ("ゴミ箱" if is_ja else "Lixeira"), dx.get("trash_count", 0))
-
-            c5, c6 = st.columns(2)
-            with c5:
-                st.metric("🗃️ " + ("バックアップ数" if is_ja else "Backups"), dx.get("backup_count", 0))
-            with c6:
-                last_bk = dx.get("last_backup_at") or ("—" if is_ja else "None")
-                st.metric("🕐 " + ("最終バックアップ" if is_ja else "Último Backup"), last_bk)
-
-            st.markdown("---")
-            st.markdown("**" + ("読み込み対象フォルダ" if is_ja else "Diretório de dados") + "**")
-            st.code(dx.get("data_dir", ""))
-
-            counts = dx.get("dir_file_counts", {})
-            if counts:
-                st.markdown("**" + ("フォルダ別ファイル数" if is_ja else "Arquivos por pasta") + "**")
-                rows = "\n".join(f"- `{k}/` : {v}件" for k, v in sorted(counts.items()))
-                st.markdown(rows)
-
             errors = dx.get("error_content_files", [])
+            last_bk = dx.get("last_backup_at") or "—"
+            kpi_items = [
+                ("保存プロジェクト" if is_ja else "Projetos salvos", dx.get("total_projects", 0),
+                 "読み込み可能な商品数" if is_ja else "Produtos disponíveis"),
+                ("正常データ" if is_ja else "Dados normais", dx.get("normal_projects", 0),
+                 "通常利用できる保存データ" if is_ja else "Itens prontos para uso"),
+                ("空データ" if is_ja else "Dados vazios", dx.get("empty_projects", 0),
+                 "必要なら整理できます" if is_ja else "Podem ser limpos se necessário"),
+                ("ゴミ箱" if is_ja else "Lixeira", dx.get("trash_count", 0),
+                 "復元または完全削除できます" if is_ja else "Pode restaurar ou excluir"),
+                ("バックアップ" if is_ja else "Backups", dx.get("backup_count", 0),
+                 "保存済みZIPの数" if is_ja else "Quantidade de ZIPs salvos"),
+                ("最終バックアップ" if is_ja else "Último backup", last_bk,
+                 "直近の保管日時" if is_ja else "Data mais recente"),
+            ]
+            st.markdown(
+                '<div class="sd-kpi-grid">'
+                + "".join(
+                    '<div class="sd-kpi">'
+                    f'<div class="sd-kpi-label">{html.escape(str(label))}</div>'
+                    f'<div class="sd-kpi-value">{html.escape(str(value))}</div>'
+                    f'<div class="sd-kpi-note">{html.escape(str(note))}</div>'
+                    '</div>'
+                    for label, value, note in kpi_items
+                )
+                + "</div>",
+                unsafe_allow_html=True,
+            )
+
             if errors:
-                st.markdown("---")
-                st.markdown("**⚠️ " + ("APIエラー文が含まれる可能性のあるファイル（要確認）" if is_ja
-                             else "Arquivos com possível erro de API (verificar)") + "**")
-                for ef in errors:
-                    st.markdown(f"- `{ef['file']}` — 商品名: {ef['name']} — パターン: `{ef['pattern']}`")
-                st.caption("自動削除・上書きはしません。手動で確認してください。" if is_ja
-                           else "Nenhuma ação automática. Verifique manualmente.")
+                st.markdown('<div class="cs-warning">⚠️ ' + (
+                    "確認が必要なファイルがあります。下の技術情報を開いて内容を確認してください。"
+                    if is_ja else
+                    "Há arquivos que precisam de verificação. Abra as informações técnicas abaixo."
+                ) + '</div>', unsafe_allow_html=True)
             else:
                 st.success("APIエラー文を含むファイルは検出されませんでした。" if is_ja
                            else "Nenhum arquivo com erro de API detectado.")
 
+            with st.expander("技術情報を表示" if is_ja else "Mostrar informações técnicas", expanded=False):
+                st.markdown("**" + ("読み込み対象フォルダ" if is_ja else "Diretório de dados") + "**")
+                data_dir = html.escape(str(dx.get("data_dir", "")))
+                st.markdown(f'<div class="sd-path"><code>{data_dir}</code></div>',
+                            unsafe_allow_html=True)
+
+                counts = dx.get("dir_file_counts", {})
+                if counts:
+                    st.markdown("**" + ("フォルダ別ファイル数" if is_ja else "Arquivos por pasta") + "**")
+                    rows = "".join(
+                        f"<div><code>{html.escape(str(k))}/</code> : {html.escape(str(v))}"
+                        + (" 件" if is_ja else " arquivos")
+                        + "</div>"
+                        for k, v in sorted(counts.items())
+                    )
+                    st.markdown(f'<div class="sd-list">{rows}</div>', unsafe_allow_html=True)
+
+                if errors:
+                    st.markdown("**⚠️ " + ("APIエラー文が含まれる可能性のあるファイル" if is_ja
+                                 else "Arquivos com possível erro de API") + "**")
+                    for ef in errors:
+                        st.markdown(
+                            f"- `{ef['file']}` — "
+                            + ("商品名" if is_ja else "Produto")
+                            + f": {ef['name']} — "
+                            + ("パターン" if is_ja else "Padrão")
+                            + f": `{ef['pattern']}`"
+                        )
+                    st.caption("自動削除・上書きはしません。手動で確認してください。" if is_ja
+                               else "Nenhuma ação automática. Verifique manualmente.")
+
     # ── Tab 4: バックアップ ────────────────────────────────────────────────────
     with tab4:
+        st.markdown(
+            _hero_html(
+                "バックアップと復元" if is_ja else "Backup e restauração",
+                "保存データをZIPで保管します。復元は現在のデータに影響するため、必要な時だけ実行してください。"
+                if is_ja else
+                "Guarde os dados salvos em ZIP. A restauração afeta os dados atuais, então use apenas quando necessário.",
+            ),
+            unsafe_allow_html=True,
+        )
 
         # ── セクション1: 全保存データをバックアップ ──────────────────────────
         st.markdown("### 🗃️ " + ("全保存データをバックアップ" if is_ja else "Backup de todos os dados"))
@@ -540,6 +749,15 @@ def page_saved_data(svc: dict) -> None:
 
     # ── Tab 5: ゴミ箱 ─────────────────────────────────────────────────────────
     with tab5:
+        st.markdown(
+            _hero_html(
+                "ゴミ箱" if is_ja else "Lixeira",
+                "削除した商品はここから復元できます。完全削除は戻せないため、確認してから実行してください。"
+                if is_ja else
+                "Produtos excluídos podem ser restaurados aqui. A exclusão definitiva não pode ser desfeita.",
+            ),
+            unsafe_allow_html=True,
+        )
         _str = _current_storage()
         try:
             trash_list = _str.list_trash()
