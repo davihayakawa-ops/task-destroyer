@@ -37,8 +37,6 @@ CORE_SOURCE_FIELDS = (
     "use_scenes",
     "competitor_urls",
     "notes",
-    "assignee",
-    "final_reviewer",
 )
 
 TRANSLATION_META_FIELDS = ("input_ja", "translated_at", "translated_by")
@@ -59,8 +57,6 @@ PRODUCT_FIELD_LABELS_JA = {
     "prohibited": "禁止表現",
     "brand_tone": "ブランドトーン",
     "product_url": "商品URL",
-    "assignee": "担当者",
-    "final_reviewer": "最終確認者",
 }
 
 def _copy_translation_meta(target: dict, existing: dict):

@@ -19,15 +19,9 @@ os.chdir(ROOT)
 from modules.llm_client import LLMClient
 from modules.storage import Storage
 from modules.core_engine import CoreEngine
-from modules.core_importer import CoreImporter
-from modules.translator import Translator
-from modules.japanese_refiner import JapaneseRefiner
 from modules.generator_engine import GeneratorEngine
 from modules.exporter import Exporter
-from modules.checker import Checker
-from modules.bulk_pack_generator import BulkPackGenerator
 from modules.mode_registry import list_modes, get_mode
-from modules.permissions import filter_nav_items
 from modules.product_input_logic import PRODUCT_FIELD_LABELS_JA, PRODUCT_TRANSLATABLE_FIELDS, prepare_product_save_data
 from modules.selection_pages import page_ads_sns as render_page_ads_sns, page_image_prompt as render_page_image_prompt, page_video_script as render_page_video_script
 from modules.i18n import load_i18n, t, tl, resolve_option_index
@@ -36,8 +30,6 @@ from modules.project_utils import (
     status_badge, ensure_product_id, load_project_session,
     is_empty_project_entry, do_delete_project,
 )
-from modules.saved_data_page import page_saved_data as _page_saved_data
-from modules.dashboard_page import page_new_dashboard as _page_new_dashboard
 
 
 # ── Page config ───────────────────────────────────────────────────────────────
@@ -828,8 +820,6 @@ def init_state():
         "core_status": "draft",
         "external_core_text": "",
         "generated": {},
-        "assignee": "",
-        "reviewer": "",
         "nav_mode": "simple",
         "shop_id": "default",
         "shop_name": "共通",
@@ -864,13 +854,8 @@ def get_services(shop_id: str = "default", _v=_SERVICES_VER):
         "llm": llm,
         "storage": storage,
         "core_engine": CoreEngine(llm),
-        "core_importer": CoreImporter(llm),
-        "translator": Translator(llm),
-        "refiner": JapaneseRefiner(llm),
         "generator": GeneratorEngine(llm),
         "exporter": Exporter(),
-        "checker": Checker(llm),
-        "bulk": BulkPackGenerator(llm),
     }
 
 
@@ -886,8 +871,6 @@ def clear_active_product_context():
         "core_status": "draft",
         "external_core_text": "",
         "generated": {},
-        "assignee": "",
-        "reviewer": "",
     }.items():
         st.session_state[key] = value
     for key in (
@@ -1146,25 +1129,25 @@ def render_sidebar():
 
         cur_page = st.session_state.get("page", "")
 
-        for group_id, grp_ja, grp_pt, grp_en, items in _NAV_GROUPS:
-            filtered_items = filter_nav_items(items)
-            if not filtered_items:
-                continue
-            grp_label = _lt(grp_ja, grp_pt, grp_en, lang)
-            group_pages = {item[0] for item in filtered_items}
-            auto_open = cur_page in group_pages or group_id == "generate"
-            with st.expander(grp_label, expanded=auto_open):
-                for page_id, lbl_ja, lbl_pt, lbl_en, key_sfx in filtered_items:
-                    label = _lt(lbl_ja, lbl_pt, lbl_en, lang)
-                    is_active = cur_page == page_id
-                    if st.button(
-                        label,
-                        key=f"fnav_{group_id}_{key_sfx}",
-                        use_container_width=True,
-                        type="primary" if is_active else "secondary",
-                    ):
-                        st.session_state["page"] = page_id
-                        st.rerun()
+        nav_items = [
+            ("product_input",   _lt("① 商品情報を入れる", "① Dados do produto", "① Product Info", lang)),
+            ("core_generation", _lt("② Coreを作る", "② Criar Core", "② Build Core", lang)),
+            ("product_page",    _lt("③ Shopifyコード", "③ Código Shopify", "③ Shopify Code", lang)),
+            ("image_prompt",    _lt("画像プロンプト", "Prompts de imagem", "Image Prompts", lang)),
+            ("video_script",    _lt("動画台本", "Roteiro de vídeo", "Video Script", lang)),
+            ("ads_sns",         _lt("広告・SNS", "Anúncios/SNS", "Ads/SNS", lang)),
+            ("export_center",   _lt("④ 出力・コピー", "④ Exportar/Copiar", "④ Export / Copy", lang)),
+        ]
+        for page_id, label in nav_items:
+            is_active = cur_page == page_id
+            if st.button(
+                label,
+                key=f"simple_nav_{page_id}",
+                use_container_width=True,
+                type="primary" if is_active else "secondary",
+            ):
+                st.session_state["page"] = page_id
+                st.rerun()
 
         # ── Product info summary ──────────────────────────────────────────
         if st.session_state.get("product_info", {}).get("name"):
@@ -1678,44 +1661,6 @@ def page_product_input():
 
     st.markdown("---")
 
-    person_opts = tl("product_input.person_options")
-    person_opts_o = _other_list("product_input.person_options")
-    free_person = person_opts[-1] if person_opts else "自由入力"
-    free_person_o = person_opts_o[-1] if person_opts_o else ""
-
-    col_a, col_b = st.columns(2)
-    with col_a:
-        ex_assignee = st.session_state.get("assignee", "")
-        assignee_idx = resolve_option_index(ex_assignee, person_opts, person_opts_o)
-        assignee_mode = st.selectbox(t("product_input.assignee"), person_opts, index=assignee_idx,
-                                     key="assignee_sel")
-        assignee = assignee_mode
-        if assignee_mode == free_person:
-            is_preset_a = ex_assignee in person_opts or ex_assignee in person_opts_o
-            assignee = st.text_input(
-                t("product_input.assignee_custom_label"),
-                value="" if is_preset_a else ex_assignee,
-            )
-    with col_b:
-        ex_reviewer = st.session_state.get("reviewer", "")
-        reviewer_idx = resolve_option_index(ex_reviewer, person_opts, person_opts_o)
-        reviewer_mode = st.selectbox(t("product_input.reviewer"), person_opts, index=reviewer_idx,
-                                     key="reviewer_sel")
-        reviewer = reviewer_mode
-        if reviewer_mode == free_person:
-            is_preset_r = ex_reviewer in person_opts or ex_reviewer in person_opts_o
-            reviewer = st.text_input(
-                t("product_input.reviewer_custom_label"),
-                value="" if is_preset_r else ex_reviewer,
-            )
-
-    # Normalize "選択なし" / "Sem seleção" to empty string
-    sentinel_vals = set(person_opts[:1]) | set(person_opts_o[:1])
-    if assignee in sentinel_vals:
-        assignee = ""
-    if reviewer in sentinel_vals:
-        reviewer = ""
-
     if st.button("💾 " + t("product_input.save_button"), type="primary", use_container_width=True):
         _is_ja = st.session_state.get("lang", "ja") == "ja"
         if not name.strip() and not product_url.strip() and not description.strip():
@@ -1765,8 +1710,6 @@ def page_product_input():
                 "prohibited": prohibited, "description": description,
                 "use_scenes": use_scenes, "competitor_urls": competitor_urls,
                 "notes": notes,
-                "assignee": assignee,
-                "final_reviewer": reviewer,
             }
             _exist = svc["storage"].load_product(product_id) or {}
             _save_lang     = st.session_state.get("lang", "ja")
@@ -1782,10 +1725,8 @@ def page_product_input():
                 _pi_save_in_ja,
             )
             st.session_state["product_info"] = new_info
-            st.session_state["assignee"] = assignee
-            st.session_state["reviewer"] = reviewer
             svc["storage"].save_product(product_id, new_info)
-            svc["storage"].log_activity(product_id, "商品情報保存", name, assignee)
+            svc["storage"].log_activity(product_id, "商品情報保存", name, "")
             st.markdown('<div class="cs-success">✅ ' + t("product_input.saved_msg") + '</div>',
                         unsafe_allow_html=True)
             if st.button("次へ: Coreを作る" if is_ja else "Próximo: criar Core", type="primary", use_container_width=True, key="pi_next_core"):
@@ -2060,7 +2001,7 @@ def page_core_generation():
     _CG_CORE_FIELDS = ("name", "category", "price", "target", "gender", "age",
                        "product_url", "features", "weaknesses", "brand_tone",
                        "prohibited", "description", "use_scenes", "competitor_urls",
-                       "notes", "assignee", "final_reviewer")
+                       "notes")
 
     def _cg_has_ja(text: str) -> bool:
         if not text:
@@ -2275,7 +2216,7 @@ def page_core_generation():
                 st.session_state["core_status"] = "ai_generated"
                 pid = ensure_product_id()
                 svc["storage"].save_core(pid, {"text": result, "status": "ai_generated", "core_options": core_options}, "v1 AI初稿")
-                svc["storage"].log_activity(pid, "Core生成", "auto", st.session_state.get("assignee", ""))
+                svc["storage"].log_activity(pid, "Core生成", "auto", "")
                 st.rerun()
     with col_hint:
         st.markdown(
@@ -2382,7 +2323,7 @@ def page_core_generation():
                     st.session_state["core_status"] = "edited"
                     pid = ensure_product_id()
                     svc["storage"].save_core(pid, {"text": edited_core, "status": "edited"}, "編集済み")
-                    svc["storage"].log_activity(pid, "Core編集・保存", "", st.session_state.get("assignee", ""))
+                    svc["storage"].log_activity(pid, "Core編集・保存", "", "")
                     st.success(t("core.saved_msg"))
 
             with col2:
@@ -2434,7 +2375,7 @@ def page_core_generation():
                     st.session_state["core_status"] = "edited"
                     pid = ensure_product_id()
                     svc["storage"].save_core(pid, {"text": result, "status": "edited", "core_options": improve_core_options}, "AI改善版")
-                    svc["storage"].log_activity(pid, "Core改善", " / ".join(selected_improvements), st.session_state.get("assignee", ""))
+                    svc["storage"].log_activity(pid, "Core改善", " / ".join(selected_improvements), "")
                     st.rerun()
     else:
         if method == "auto":
@@ -2539,7 +2480,7 @@ def render_generated_page(page_key: str, title: str, generate_fn, icon: str = "�
             st.session_state["generated"][page_key] = result
             pid = ensure_product_id()
             svc["storage"].save_generated(pid, page_key, {"text": result})
-            svc["storage"].log_activity(pid, f"{title}生成", "", st.session_state.get("assignee", ""))
+            svc["storage"].log_activity(pid, f"{title}生成", "", "")
             st.rerun()
 
     pid = ensure_product_id()
@@ -2647,7 +2588,7 @@ def page_product_page():
                 result = svc["generator"].generate_product_page(core, product_info, generation_options)
                 st.session_state["generated"]["product_page"] = result
                 svc["storage"].save_generated(pid, "product_page", {"text": result, "generation_options": generation_options})
-                svc["storage"].log_activity(pid, "商品ページ文章生成", "", st.session_state.get("assignee", ""))
+                svc["storage"].log_activity(pid, "商品ページ文章生成", "", "")
                 st.rerun()
 
         if st.session_state["generated"].get("product_page"):
@@ -3125,7 +3066,7 @@ def page_product_page():
                                 svc["storage"].save_generated(pid, s["key"], {"text": code, "design_options": design_options})
                         st.session_state["generated"] = gen
                         svc["storage"].log_activity(pid, "Shopifyセクション生成", "",
-                                                    st.session_state.get("assignee", ""))
+                                                    "")
                         st.rerun()
                     except Exception as e:
                         st.error(("セクション別コード生成中にエラーが発生しました" if is_ja else "Erro ao gerar código por seção") + f": {e}")
@@ -3139,7 +3080,7 @@ def page_product_page():
                     st.session_state["generated"] = gen
                     svc["storage"].save_generated(pid, "shopify_custom_liquid", {"text": result, "design_options": design_options})
                     svc["storage"].log_activity(pid, "Custom Liquid生成（全体）", "",
-                                                st.session_state.get("assignee", ""))
+                                                "")
                     st.rerun()
 
         if not sections_ready and not gen.get("shopify_custom_liquid"):
@@ -3733,8 +3674,6 @@ def page_instruction_sheet():
             ("category",     "カテゴリ"),
             ("price",        "価格"),
             ("target",       "ターゲット"),
-            ("assignee",     "担当者"),
-            ("final_reviewer","確認者"),
         ]:
             val = product_info.get(key, "")
             if val:
@@ -3778,8 +3717,6 @@ def page_instruction_sheet():
         ("price",         "価格"        if is_ja else "Preço"),
         ("target",        "ターゲット"  if is_ja else "Público-alvo"),
         ("description",   "説明"        if is_ja else "Descrição"),
-        ("assignee",      "担当者"      if is_ja else "Responsável"),
-        ("final_reviewer","確認者"      if is_ja else "Revisor"),
         ("updated_at",    "最終更新"    if is_ja else "Atualizado"),
     ]:
         val = product_info.get(key, "")
@@ -3849,7 +3786,7 @@ def page_instruction_sheet():
     # ── Notes card ────────────────────────────────────────────────────────────
     notes = product_info.get("notes", "").strip()
     if notes:
-        notes_title = "備考・担当者メモ" if is_ja else "Observações"
+        notes_title = "備考メモ" if is_ja else "Observações"
         st.markdown(
             f'<div class="ins-card">'
             f'<div class="ins-card-title">📝 {notes_title}</div>'
@@ -4148,6 +4085,7 @@ def page_custom_mode():
 # ── Main router ───────────────────────────────────────────────────────────────
 
 def main():
+    st.session_state["mode"] = "commerce"
     removed_pages = {
         "dashboard",
         "mode_selection",
@@ -4173,16 +4111,9 @@ def main():
         )
 
     page = st.session_state.get("page", "mode_selection")
-    mode = st.session_state.get("mode", "commerce")
-
-    if mode == "custom":
-        page_custom_mode()
-        return
-
     render_workflow_summary(page)
 
     page_map = {
-        "mode_selection": page_mode_selection,
         "product_input": page_product_input,
         "core_generation": page_core_generation,
         "product_page": page_product_page,
@@ -4193,7 +4124,7 @@ def main():
         "export_center": page_export_center,
     }
 
-    render_fn = page_map.get(page, page_mode_selection)
+    render_fn = page_map.get(page, page_product_input)
     render_fn()
 
 

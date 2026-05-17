@@ -14,8 +14,6 @@ def test_portuguese_save_requires_translation():
         "name": "Produto",
         "description": "Descricao",
         "product_url": "u",
-        "assignee": "Iago",
-        "final_reviewer": "Davi",
     }
     existing = {"input_ja": {"name": "古い訳"}, "translated_at": "old", "translated_by": "Davi"}
 
