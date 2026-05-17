@@ -445,7 +445,8 @@ hr {
     color: var(--app-text) !important;
 }
 [data-testid="stMain"] .block-container {
-    padding-top: 1.5rem;
+    padding-top: 4.25rem !important;
+    padding-bottom: 3rem !important;
     max-width: 1280px;
 }
 [data-testid="stMain"] .block-container::before {
