@@ -150,3 +150,4 @@ core_studio/
 | `ANTHROPIC_API_KEY` | Anthropic APIキー | 必須 |
 | `LLM_MODEL` | 使用するモデル | `claude-sonnet-4-6` |
 | `DATA_DIR` | データ保存ディレクトリ | `data` |
+| `TASK_DESTROYER_USERS` | ログインユーザーJSON。未設定時はローカル開発モード | 未設定 |

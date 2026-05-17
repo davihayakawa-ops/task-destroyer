@@ -26,6 +26,7 @@ from modules.product_input_logic import PRODUCT_FIELD_LABELS_JA, PRODUCT_TRANSLA
 from modules.selection_pages import page_ads_sns as render_page_ads_sns, page_image_prompt as render_page_image_prompt, page_video_script as render_page_video_script
 from modules.saved_data_page import page_saved_data
 from modules.i18n import load_i18n, t, tl, resolve_option_index
+from modules.auth import ensure_authentication, current_user, logout
 from modules.project_utils import (
     STATUS_BADGE_CLASS, STATUS_LABEL_JA, STATUS_LABEL_PT,
     status_badge, ensure_product_id, load_project_session,
@@ -847,7 +848,7 @@ init_state()
 # Bump this string whenever new methods are added to any service class.
 # Changing it invalidates the @st.cache_resource cache on Streamlit Cloud,
 # forcing fresh service objects that reflect the latest code.
-_SERVICES_VER = "20260518-core-market-v1"
+_SERVICES_VER = "20260518-auth-workspace-v1"
 
 
 @st.cache_resource
@@ -1134,6 +1135,20 @@ def render_sidebar():
 
         st.markdown("---")
 
+        auth_user = current_user()
+        user_label = html.escape(auth_user.get("name") or auth_user.get("email") or "User")
+        role_label = html.escape(auth_user.get("role", "member"))
+        st.markdown(
+            f'<div class="sb-mode-label">{_lt("ユーザー", "Usuário", "User", st.session_state["lang"])}</div>'
+            f'<div class="cs-note" style="margin-bottom:10px;">{user_label}<br>'
+            f'<span style="font-size:0.78rem;color:#8a93a3;">{role_label}</span></div>',
+            unsafe_allow_html=True,
+        )
+        if st.button(_lt("ログアウト", "Sair", "Sign out", st.session_state["lang"]), use_container_width=True):
+            logout()
+
+        st.markdown("---")
+
         # ── Mode badge ────────────────────────────────────────────────────
         mode = get_mode(st.session_state["mode"])
         lang = st.session_state["lang"]
@@ -1146,19 +1161,24 @@ def render_sidebar():
         )
 
         # ── Shop switcher ─────────────────────────────────────────────────
-        shops = Storage.list_shops()
+        if auth_user.get("role") == "admin":
+            shops = Storage.list_shops()
+        else:
+            workspace = auth_user.get("workspace") or "default"
+            shops = [{"id": workspace, "name": auth_user.get("name") or workspace}]
         current_shop_id = st.session_state.get("shop_id", "default")
         shop_ids = [s["id"] for s in shops]
         if current_shop_id not in shop_ids:
-            current_shop_id = "default"
+            current_shop_id = shop_ids[0] if shop_ids else "default"
             st.session_state["shop_id"] = current_shop_id
         shop_names = {s["id"]: s["name"] for s in shops}
+        shop_label = _lt("ショップ", "Loja", "Shop", lang) if auth_user.get("role") == "admin" else _lt("ワークスペース", "Workspace", "Workspace", lang)
         st.markdown(
-            f'<div class="sb-mode-label">{_lt("ショップ", "Loja", "Shop", lang)}</div>',
+            f'<div class="sb-mode-label">{shop_label}</div>',
             unsafe_allow_html=True,
         )
         selected_shop_id = st.selectbox(
-            _lt("ショップ", "Loja", "Shop", lang),
+            shop_label,
             options=shop_ids,
             index=shop_ids.index(current_shop_id),
             format_func=lambda sid: (_lt("共通", "Comum", "Shared", lang) if (sid == "default") else shop_names.get(sid, sid)),
@@ -4312,6 +4332,18 @@ def page_custom_mode():
 # ── Main router ───────────────────────────────────────────────────────────────
 
 def main():
+    if not ensure_authentication():
+        return
+
+    auth_user = current_user()
+    if auth_user.get("role") != "admin":
+        workspace = auth_user.get("workspace") or "default"
+        if st.session_state.get("shop_id") != workspace:
+            st.session_state["shop_id"] = workspace
+            st.session_state["shop_name"] = auth_user.get("name") or workspace
+            clear_active_product_context()
+            st.rerun()
+
     st.session_state["mode"] = "commerce"
     removed_pages = {
         "dashboard",

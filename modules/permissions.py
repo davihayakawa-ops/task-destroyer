@@ -1,16 +1,15 @@
-"""Permission helpers.
+"""Permission helpers."""
 
-Task Destroyer is currently a single shared workspace, so every user can view
-every page and perform every action.
-"""
+from modules.auth import current_user
 
 
 def get_current_role() -> str:
-    return "admin"
+    return current_user().get("role", "member")
 
 
 def get_current_user() -> str:
-    return "User"
+    user = current_user()
+    return user.get("name") or user.get("email") or "User"
 
 
 def can_view_page(page_id: str) -> bool:
@@ -22,4 +21,16 @@ def filter_nav_items(items: list) -> list:
 
 
 def can_perform_action(action: str) -> bool:
-    return True
+    role = get_current_role()
+    if role == "admin":
+        return True
+
+    admin_only_actions = {
+        "backup",
+        "cleanup_empty",
+        "delete_project",
+        "delete_shop",
+        "purge_trash",
+        "restore",
+    }
+    return action not in admin_only_actions
