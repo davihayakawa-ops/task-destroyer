@@ -1005,10 +1005,8 @@ _NAV_GROUPS = [
     ]),
     ("generate", "⚡ 生成", "⚡ Gerar", "⚡ Generate", [
         ("product_page",    "③ Shopifyコード",     "③ Código Shopify",     "③ Shopify Code",   "sh"),
-        ("image_prompt",    "④ 画像プロンプト",   "④ Prompts de Imagem", "④ Image Prompts", "ip"),
-        ("video_script",    "⑤ 動画台本",          "⑤ Roteiro de Vídeo",   "⑤ Video Script",   "vs"),
-        ("ads_sns",         "⑥ 広告・SNS",         "⑥ Anúncios/SNS",       "⑥ Ads/SNS",        "as_"),
-        ("export_center",   "⑦ 出力・コピー",      "⑦ Exportar/Copiar",    "⑦ Export / Copy", "exc"),
+        ("related_assets",  "④ 関連生成物",        "④ Materiais",          "④ Assets",         "ra"),
+        ("export_center",   "⑤ 出力・コピー",      "⑤ Exportar/Copiar",    "⑤ Export / Copy", "exc"),
     ]),
 ]
 
@@ -1019,6 +1017,7 @@ _BREADCRUMB_MAP_JA = {
     "saved_data":       ("📦 商品",        "保存済み商品"),
     "core_generation":  ("✨ Core",        "Core生成・編集"),
     "product_page":     ("⚡ 生成",        "商品ページ"),
+    "related_assets":   ("⚡ 生成",        "関連生成物"),
     "image_prompt":     ("⚡ 生成",        "画像プロンプト"),
     "video_script":     ("⚡ 生成",        "動画台本"),
     "ads_sns":          ("⚡ 生成",        "広告・SNS"),
@@ -1032,6 +1031,7 @@ _BREADCRUMB_MAP_PT = {
     "saved_data":       ("📦 Produto",      "Produtos Salvos"),
     "core_generation":  ("✨ Core",         "Gerar/Editar Core"),
     "product_page":     ("⚡ Gerar",        "Página do Produto"),
+    "related_assets":   ("⚡ Gerar",        "Materiais Relacionados"),
     "image_prompt":     ("⚡ Gerar",        "Prompts de Imagem"),
     "video_script":     ("⚡ Gerar",        "Roteiro de Vídeo"),
     "ads_sns":          ("⚡ Gerar",        "Anúncios/SNS"),
@@ -1045,6 +1045,7 @@ _BREADCRUMB_MAP_EN = {
     "saved_data":       ("📦 Product",             "Saved Products"),
     "core_generation":  ("✨ Core",                "Generate/Edit Core"),
     "product_page":     ("⚡ Generate",            "Product Page"),
+    "related_assets":   ("⚡ Generate",            "Related Assets"),
     "image_prompt":     ("⚡ Generate",            "Image Prompts"),
     "video_script":     ("⚡ Generate",            "Video Script"),
     "ads_sns":          ("⚡ Generate",            "Ads/SNS"),
@@ -1149,10 +1150,8 @@ def render_sidebar():
             ("product_input",   _lt("① 商品情報を入れる", "① Dados do produto", "① Product Info", lang)),
             ("core_generation", _lt("② Coreを作る", "② Criar Core", "② Build Core", lang)),
             ("product_page",    _lt("③ Shopifyコード", "③ Código Shopify", "③ Shopify Code", lang)),
-            ("image_prompt",    _lt("④ 画像プロンプト", "④ Prompts de imagem", "④ Image Prompts", lang)),
-            ("video_script",    _lt("⑤ 動画台本", "⑤ Roteiro de vídeo", "⑤ Video Script", lang)),
-            ("ads_sns",         _lt("⑥ 広告・SNS", "⑥ Anúncios/SNS", "⑥ Ads/SNS", lang)),
-            ("export_center",   _lt("⑦ 出力・コピー", "⑦ Exportar/Copiar", "⑦ Export / Copy", lang)),
+            ("related_assets",  _lt("④ 関連生成物", "④ Materiais", "④ Related Assets", lang)),
+            ("export_center",   _lt("⑤ 出力・コピー", "⑤ Exportar/Copiar", "⑤ Export / Copy", lang)),
         ]
         for page_id, label in nav_items:
             is_active = cur_page == page_id
@@ -1223,6 +1222,7 @@ def _workflow_status() -> dict:
     has_image = bool(gen.get("image_prompt") or gen.get("image_prompts") or st.session_state.get("image_prompts"))
     has_video = bool(gen.get("video_script") or gen.get("video_scripts") or st.session_state.get("video_scripts"))
     has_ads = bool(gen.get("ads_sns") or gen.get("ads_sns_items") or st.session_state.get("ads_sns_items"))
+    has_assets = bool(has_image or has_video or has_ads)
     has_exportable = bool(has_shopify or gen.get("product_page") or has_image or has_video or has_ads)
     if not has_product:
         next_label, next_page = _lt("商品情報を入力", "Preencher produto", "Enter product info", lang), "product_input"
@@ -1230,12 +1230,8 @@ def _workflow_status() -> dict:
         next_label, next_page = _lt("Coreを生成", "Gerar Core", "Generate Core", lang), "core_generation"
     elif not has_shopify:
         next_label, next_page = _lt("Shopifyコードを生成", "Gerar código Shopify", "Generate Shopify code", lang), "product_page"
-    elif not has_image:
-        next_label, next_page = _lt("画像プロンプトを生成", "Gerar prompts de imagem", "Generate image prompts", lang), "image_prompt"
-    elif not has_video:
-        next_label, next_page = _lt("動画台本を生成", "Gerar roteiro de vídeo", "Generate video script", lang), "video_script"
-    elif not has_ads:
-        next_label, next_page = _lt("広告・SNSを生成", "Gerar anúncios/SNS", "Generate ads/SNS", lang), "ads_sns"
+    elif not has_assets:
+        next_label, next_page = _lt("関連生成物を作成", "Criar materiais", "Create related assets", lang), "related_assets"
     else:
         next_label, next_page = _lt("出力・コピー", "Exportar/copiar", "Export/copy", lang), "export_center"
     return {
@@ -1245,6 +1241,7 @@ def _workflow_status() -> dict:
         "has_image": has_image,
         "has_video": has_video,
         "has_ads": has_ads,
+        "has_assets": has_assets,
         "has_exportable": has_exportable,
         "next_label": next_label,
         "next_page": next_page,
@@ -1261,10 +1258,11 @@ def render_workflow_summary(page: str):
         "core_generation": 1,
         "product_page": 2,
         "image_prompt": 3,
-        "video_script": 4,
-        "ads_sns": 5,
-        "export_center": 6,
-        "output": 6,
+        "video_script": 3,
+        "ads_sns": 3,
+        "related_assets": 3,
+        "export_center": 4,
+        "output": 4,
     }
     active_idx = active_by_page.get(page, 0)
     if lang == "ja":
@@ -1272,30 +1270,24 @@ def render_workflow_summary(page: str):
             ("1", "商品情報", "商品名・説明・特徴を入れる", s["has_product"]),
             ("2", "Core", "売り方の核を作る", s["has_core"]),
             ("3", "Shopify", "Custom Liquidを生成", s["has_shopify"]),
-            ("4", "画像", "画像AI用プロンプトを作る", s["has_image"]),
-            ("5", "動画", "動画台本・撮影指示を作る", s["has_video"]),
-            ("6", "広告・SNS", "投稿文・広告文を作る", s["has_ads"]),
-            ("7", "出力", "コピー・保存・DL", s["has_exportable"]),
+            ("4", "関連生成物", "画像・動画・広告SNSを作る", s["has_assets"]),
+            ("5", "出力", "コピー・保存・DL", s["has_exportable"]),
         ]
     elif lang == "en":
         steps = [
             ("1", "Product Info", "Name, description, and features", s["has_product"]),
             ("2", "Core", "Build the sales foundation", s["has_core"]),
             ("3", "Shopify", "Generate Custom Liquid", s["has_shopify"]),
-            ("4", "Images", "Create image AI prompts", s["has_image"]),
-            ("5", "Video", "Create scripts and direction", s["has_video"]),
-            ("6", "Ads/SNS", "Create posts and ad copy", s["has_ads"]),
-            ("7", "Export", "Copy, save, or download", s["has_exportable"]),
+            ("4", "Assets", "Create image, video, and ad/SNS assets", s["has_assets"]),
+            ("5", "Export", "Copy, save, or download", s["has_exportable"]),
         ]
     else:
         steps = [
             ("1", "Produto", "Nome, descrição e diferenciais", s["has_product"]),
             ("2", "Core", "Criar a base de venda", s["has_core"]),
             ("3", "Shopify", "Gerar Custom Liquid", s["has_shopify"]),
-            ("4", "Imagem", "Criar prompts para IA", s["has_image"]),
-            ("5", "Vídeo", "Criar roteiro e direção", s["has_video"]),
-            ("6", "Anúncios/SNS", "Criar posts e anúncios", s["has_ads"]),
-            ("7", "Exportar", "Copiar, salvar ou baixar", s["has_exportable"]),
+            ("4", "Materiais", "Criar imagem, vídeo e anúncios/SNS", s["has_assets"]),
+            ("5", "Exportar", "Copiar, salvar ou baixar", s["has_exportable"]),
         ]
     step_html = ""
     for i, (num, name, desc, done) in enumerate(steps):
@@ -1321,9 +1313,9 @@ def render_workflow_summary(page: str):
         )
     title = _lt("作業の順番", "Ordem de trabalho", "Workflow order", lang)
     sub = _lt(
-        "商品情報 → Core → Shopify → 画像 → 動画 → 広告・SNS → 出力。今のページだけ青く表示します。",
-        "Produto → Core → Shopify → imagem → vídeo → anúncios/SNS → exportação. A página atual aparece em azul.",
-        "Product info → Core → Shopify → images → video → ads/SNS → export. The current page is highlighted in blue.",
+        "商品情報 → Core → Shopify → 関連生成物 → 出力。今のページだけ青く表示します。",
+        "Produto → Core → Shopify → materiais → exportação. A página atual aparece em azul.",
+        "Product info → Core → Shopify → related assets → export. The current page is highlighted in blue.",
         lang,
     )
     next_txt = _lt("次にやること", "Próximo passo", "Next step", lang)
@@ -3417,6 +3409,155 @@ def page_ads_sns():
     render_page_ads_sns(svc, t, ensure_product_id, status_badge)
 
 
+def page_related_assets():
+    lang = st.session_state.get("lang", "ja")
+    gen = st.session_state.get("generated", {})
+    image_count = len([v for v in st.session_state.get("image_prompts", {}).values() if v])
+    video_count = len([v for v in st.session_state.get("video_scripts", {}).values() if v])
+    ads_count = len([v for v in st.session_state.get("ads_sns_items", {}).values() if v])
+    if gen.get("image_prompt") and not image_count:
+        image_count = 1
+    if gen.get("video_script") and not video_count:
+        video_count = 1
+    if gen.get("ads_sns") and not ads_count:
+        ads_count = 1
+
+    st.markdown(
+        '<div class="section-header">🧩 '
+        + _lt("関連生成物", "Materiais relacionados", "Related Assets", lang)
+        + "</div>",
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        """
+        <style>
+        .asset-launch-card {
+            background:#111827;
+            border:1px solid #243244;
+            border-radius:8px;
+            padding:18px 20px;
+            margin:10px 0 12px;
+        }
+        .asset-launch-title {
+            color:#f8fafc;
+            font-weight:800;
+            font-size:1rem;
+            margin-bottom:6px;
+        }
+        .asset-launch-sub {
+            color:#94a3b8;
+            font-size:.86rem;
+            line-height:1.65;
+        }
+        .asset-status-pill {
+            display:inline-flex;
+            align-items:center;
+            gap:6px;
+            background:#0f172a;
+            border:1px solid #334155;
+            border-radius:999px;
+            color:#cbd5e1;
+            font-size:.75rem;
+            padding:4px 10px;
+            margin-top:10px;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        f"""
+        <div class="asset-launch-card">
+          <div class="asset-launch-title">
+            {_lt("必要な販促素材だけ開いて作る", "Abra só o material necessário", "Open only the asset you need", lang)}
+          </div>
+          <div class="asset-launch-sub">
+            {_lt(
+                "画像プロンプト・動画台本・広告SNSをこのページにまとめました。最初は閉じているので、必要なものだけ開いて生成します。",
+                "Prompts de imagem, roteiros de vídeo e anúncios/SNS ficam nesta página. Tudo começa fechado; abra apenas o que precisar.",
+                "Image prompts, video scripts, and ads/SNS live on this page. Everything starts closed, so open only what you need.",
+                lang,
+            )}
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    if not st.session_state.get("core_text"):
+        st.markdown('<div class="cs-warning">⚠️ ' + t("common.no_core_warning") + '</div>',
+                    unsafe_allow_html=True)
+        if st.button("✨ " + _lt("Core生成画面へ", "Ir para Gerar Core", "Go to Build Core", lang)):
+            st.session_state["page"] = "core_generation"
+            st.rerun()
+        return
+
+    sections = [
+        (
+            "image",
+            _lt("画像プロンプト", "Prompts de imagem", "Image Prompts", lang),
+            _lt(
+                "Shopifyの商品画像、SNS投稿、広告素材に使う画像AI用プロンプトを作ります。",
+                "Crie prompts para IA de imagem usados em Shopify, posts e anúncios.",
+                "Create image AI prompts for Shopify visuals, social posts, and ad assets.",
+                lang,
+            ),
+            image_count,
+            lambda: render_page_image_prompt(svc, t, ensure_product_id, status_badge, embedded=True),
+        ),
+        (
+            "video",
+            _lt("動画台本", "Roteiros de vídeo", "Video Scripts", lang),
+            _lt(
+                "TikTok、Reels、YouTube Shorts、広告動画、Higgs用プロンプトを作ります。",
+                "Crie roteiros para TikTok, Reels, YouTube Shorts, anúncios e prompts Higgs.",
+                "Create scripts for TikTok, Reels, YouTube Shorts, ads, and Higgs prompts.",
+                lang,
+            ),
+            video_count,
+            lambda: render_page_video_script(svc, t, ensure_product_id, status_badge, embedded=True),
+        ),
+        (
+            "ads",
+            _lt("広告・SNS", "Anúncios/SNS", "Ads/SNS", lang),
+            _lt(
+                "Instagram、TikTok、Facebook、広告コピー、CTA、ハッシュタグを作ります。",
+                "Crie textos para Instagram, TikTok, Facebook, anúncios, CTAs e hashtags.",
+                "Create Instagram, TikTok, Facebook, ad copy, CTAs, and hashtags.",
+                lang,
+            ),
+            ads_count,
+            lambda: render_page_ads_sns(svc, t, ensure_product_id, status_badge, embedded=True),
+        ),
+    ]
+
+    for key, title, desc, count, renderer in sections:
+        state_key = f"asset_section_open_{key}"
+        is_open = bool(st.session_state.get(state_key, False))
+        st.markdown(
+            f"""
+            <div class="asset-launch-card">
+              <div class="asset-launch-title">{title}</div>
+              <div class="asset-launch-sub">{desc}</div>
+              <div class="asset-status-pill">{_lt("生成済み", "Gerados", "Generated", lang)}: {count}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        if st.button(
+            _lt("閉じる", "Fechar", "Close", lang) if is_open else _lt("開いて作る", "Abrir e criar", "Open and create", lang),
+            key=f"toggle_{state_key}",
+            use_container_width=True,
+            type="primary" if not is_open else "secondary",
+        ):
+            st.session_state[state_key] = not is_open
+            st.rerun()
+        if is_open:
+            renderer()
+            st.markdown("---")
+
+
 # ── Page: Bulk Pack ────────────────────────────────────────────────────────────
 
 def page_bulk_pack():
@@ -4162,6 +4303,7 @@ def main():
         "product_input": page_product_input,
         "core_generation": page_core_generation,
         "product_page": page_product_page,
+        "related_assets": page_related_assets,
         "image_prompt": page_image_prompt,
         "video_script": page_video_script,
         "ads_sns": page_ads_sns,

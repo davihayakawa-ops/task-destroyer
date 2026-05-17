@@ -742,12 +742,13 @@ def _render_item_card(svc: dict, ensure_product_id, status_badge,
             )
 
 
-def page_image_prompt(svc: dict, t, ensure_product_id, status_badge):
+def page_image_prompt(svc: dict, t, ensure_product_id, status_badge, embedded: bool = False):
     is_ja = st.session_state.get("lang", "ja") == "ja"
     lang = st.session_state.get("lang", "ja")
     st.markdown(_GEN_CSS, unsafe_allow_html=True)
-    st.markdown('<div class="section-header">🖼️ ' + t("image_prompt.title") + '</div>',
-                unsafe_allow_html=True)
+    if not embedded:
+        st.markdown('<div class="section-header">🖼️ ' + t("image_prompt.title") + '</div>',
+                    unsafe_allow_html=True)
 
     if not st.session_state.get("core_text"):
         st.markdown('<div class="cs-warning">⚠️ ' + t("common.no_core_warning") + '</div>',
@@ -852,12 +853,13 @@ def page_image_prompt(svc: dict, t, ensure_product_id, status_badge):
         ) + '</div>', unsafe_allow_html=True)
 
 
-def page_video_script(svc: dict, t, ensure_product_id, status_badge):
+def page_video_script(svc: dict, t, ensure_product_id, status_badge, embedded: bool = False):
     is_ja = st.session_state.get("lang", "ja") == "ja"
     lang = st.session_state.get("lang", "ja")
     st.markdown(_GEN_CSS, unsafe_allow_html=True)
-    st.markdown('<div class="section-header">🎬 ' + t("video_script.title") + '</div>',
-                unsafe_allow_html=True)
+    if not embedded:
+        st.markdown('<div class="section-header">🎬 ' + t("video_script.title") + '</div>',
+                    unsafe_allow_html=True)
 
     if not st.session_state.get("core_text"):
         st.markdown('<div class="cs-warning">⚠️ ' + t("common.no_core_warning") + '</div>',
@@ -1000,12 +1002,13 @@ def _video_item_label(item_key: str, is_ja: bool) -> str:
     return next((_label_by_lang(k, ja, pt, VS_TYPE_EN) for k, ja, pt in VS_ITEMS if k == item_key), item_key)
 
 
-def page_ads_sns(svc: dict, t, ensure_product_id, status_badge):
+def page_ads_sns(svc: dict, t, ensure_product_id, status_badge, embedded: bool = False):
     is_ja = st.session_state.get("lang", "ja") == "ja"
     lang = st.session_state.get("lang", "ja")
     st.markdown(_GEN_CSS, unsafe_allow_html=True)
-    st.markdown('<div class="section-header">📣 ' + t("ads_sns.title") + '</div>',
-                unsafe_allow_html=True)
+    if not embedded:
+        st.markdown('<div class="section-header">📣 ' + t("ads_sns.title") + '</div>',
+                    unsafe_allow_html=True)
 
     if not st.session_state.get("core_text"):
         st.markdown('<div class="cs-warning">⚠️ ' + t("common.no_core_warning") + '</div>',

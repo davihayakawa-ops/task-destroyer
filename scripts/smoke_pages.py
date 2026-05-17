@@ -14,6 +14,7 @@ PAGES = [
     "saved_data",
     "core_generation",
     "product_page",
+    "related_assets",
     "image_prompt",
     "video_script",
     "ads_sns",
