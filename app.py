@@ -956,15 +956,6 @@ def _apply_market_preset(note: str, target_market: str = "us", output_language: 
 def _render_market_controls(is_ja: bool):
     lang = st.session_state.get("lang", "ja")
     st.markdown("#### " + _lt("販売先・出力言語", "Mercado e idioma de saída", "Market and output language", lang))
-    st.markdown(
-        '<div class="cs-info">💡 ' + _lt(
-            "日本語・ポルトガル語で入力しても、ここで米国向け/英語を選ぶと英語で生成されます。",
-            "Mesmo com entrada em japonês ou português, selecione EUA/Inglês para gerar em inglês.",
-            "Even if the input is Japanese or Portuguese, choose US/English here to generate English output.",
-            lang,
-        ) + '</div>',
-        unsafe_allow_html=True,
-    )
     market_labels = {
         "japan": _lt("日本向け", "Japão", "Japan", lang),
         "us": _lt("米国向け", "Estados Unidos", "United States", lang),
@@ -1000,21 +991,13 @@ def _render_market_controls(is_ja: bool):
         ),
         key="generation_market_note",
     )
-    st.markdown("**" + _lt("迷った時のプリセット", "Presets rápidos", "Quick presets", lang) + "**")
-    st.caption(
-        _lt(
-            "押すと販売先が米国向け、生成言語が英語に切り替わり、追加指定も自動入力されます。",
-            "Ao clicar, o mercado muda para EUA, o idioma para inglês e a instrução é preenchida.",
-            "Clicking one switches the market to US, output language to English, and fills the instruction.",
-            lang,
-        )
-    )
-    preset_cols = st.columns(len(_US_MARKET_PRESETS))
-    for i, (preset_key, label, note) in enumerate(_US_MARKET_PRESETS):
-        with preset_cols[i]:
-            if st.button(label, key=f"market_preset_{preset_key}", use_container_width=True):
-                _apply_market_preset(note)
-                st.rerun()
+    with st.expander(_lt("迷った時のプリセット", "Presets rápidos", "Quick presets", lang), expanded=False):
+        preset_cols = st.columns(len(_US_MARKET_PRESETS))
+        for i, (preset_key, label, note) in enumerate(_US_MARKET_PRESETS):
+            with preset_cols[i]:
+                if st.button(label, key=f"market_preset_{preset_key}", use_container_width=True):
+                    _apply_market_preset(note)
+                    st.rerun()
 
 
 _NAV_GROUPS = [
@@ -1403,46 +1386,6 @@ def page_product_input():
                 unsafe_allow_html=True)
     is_ja = st.session_state.get("lang", "ja") == "ja"
     lang = st.session_state.get("lang", "ja")
-    if is_ja:
-        product_summary_html = """
-        <div class="td-page-summary">
-          <h3>このページでやること</h3>
-          <p>最低限必要なのは「商品名」「商品説明」「特徴・強み」です。入力したら一番下の保存ボタンを押して、次にCoreを作ります。</p>
-        </div>
-        <div class="td-action-grid">
-          <div class="td-action-card"><strong>必須</strong><span>商品名、説明、特徴。ここが弱いと後の文章も弱くなります。</span></div>
-          <div class="td-action-card"><strong>あると強い</strong><span>ターゲット、使用シーン、競合、禁止表現。</span></div>
-          <div class="td-action-card"><strong>次の作業</strong><span>保存後に「2. Coreを作る」へ進みます。</span></div>
-        </div>
-        """
-    elif lang == "en":
-        product_summary_html = """
-        <div class="td-page-summary">
-          <h3>What to do on this page</h3>
-          <p>The minimum inputs are product name, product description, and features/strengths. Save at the bottom, then build the Core.</p>
-        </div>
-        <div class="td-action-grid">
-          <div class="td-action-card"><strong>Required</strong><span>Product name, description, and features. Weak inputs make later copy weaker.</span></div>
-          <div class="td-action-card"><strong>Helpful</strong><span>Target audience, usage scenes, competitors, and prohibited expressions.</span></div>
-          <div class="td-action-card"><strong>Next step</strong><span>After saving, go to "2. Build Core".</span></div>
-        </div>
-        """
-    else:
-        product_summary_html = """
-        <div class="td-page-summary">
-          <h3>O que fazer nesta página</h3>
-          <p>O mínimo necessário é nome do produto, descrição e diferenciais. Depois de preencher, salve no final da página e siga para o Core.</p>
-        </div>
-        <div class="td-action-grid">
-          <div class="td-action-card"><strong>Obrigatório</strong><span>Nome, descrição e diferenciais. Se esta parte estiver fraca, os textos gerados também ficam fracos.</span></div>
-          <div class="td-action-card"><strong>Ajuda muito</strong><span>Público-alvo, cenas de uso, concorrentes e expressões proibidas.</span></div>
-          <div class="td-action-card"><strong>Próxima etapa</strong><span>Depois de salvar, vá para "2. Core".</span></div>
-        </div>
-        """
-    st.markdown(
-        product_summary_html,
-        unsafe_allow_html=True,
-    )
 
     # ── Phase 3: Project continuity UI ──────────────────────────────────────────
     if not st.session_state.get("product_id"):
@@ -1452,13 +1395,10 @@ def page_product_input():
         except Exception:
             _recent = []
         if _recent:
-            _resume_msg = ("以前のプロジェクトを継続しますか？選択すると保存済み内容（Core・生成コンテンツ含む）が復元されます。"
+            _resume_msg = ("保存済みから再開"
                            if is_ja else
-                           "Deseja continuar um projeto anterior? Selecione para restaurar Core e conteúdos salvos.")
-            st.markdown(
-                f'<div class="cs-info" style="margin-bottom:8px;">💡 <strong>{_resume_msg}</strong></div>',
-                unsafe_allow_html=True,
-            )
+                           ("Resume saved product" if lang == "en" else "Retomar salvo"))
+            st.markdown(f"**{_resume_msg}**")
             _btn_cols = st.columns(min(len(_recent), 3))
             for i, _rp in enumerate(_recent[:3]):
                 with _btn_cols[i]:
@@ -1468,11 +1408,7 @@ def page_product_input():
                         load_project_session(_rp["id"], _rp, svc)
                         st.success(f"'{_rp.get('name')}' " + ("を読み込みました" if is_ja else "carregado"))
                         st.rerun()
-            _or_new = "— または下記に新しい商品情報を入力して新規保存 —" if is_ja else "— ou insira novas informações abaixo para criar um novo projeto —"
-            st.markdown(
-                f'<div style="font-size:.75rem;color:#64748b;margin:4px 0 12px;">{_or_new}</div>',
-                unsafe_allow_html=True,
-            )
+            st.markdown("")
 
     info = st.session_state.get("product_info", {})
     _sync_generation_options_from_product_info(info)
