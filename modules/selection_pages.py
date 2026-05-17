@@ -63,6 +63,14 @@ def _info_grid(cards):
     )
 
 
+def _generation_market_options() -> dict:
+    return {
+        "target_market": st.session_state.get("generation_target_market", "japan"),
+        "output_language": st.session_state.get("generation_output_language", "ja"),
+        "market_note": st.session_state.get("generation_market_note", ""),
+    }
+
+
 def _render_quality_controls(prefix: str, is_ja: bool, page_kind: str) -> dict:
     st.markdown("### " + ("生成の方向性" if is_ja else "Direção da geração"))
     if page_kind == "image":
@@ -104,11 +112,49 @@ def _render_quality_controls(prefix: str, is_ja: bool, page_kind: str) -> dict:
         placeholder=("例：黒背景、高級感、30代女性向け" if is_ja else "Ex.: fundo escuro, premium, mulheres 30+"),
         key=f"{prefix}_note",
     )
+    st.markdown("### " + ("販売先・出力言語" if is_ja else "Mercado e idioma de saída"))
+    market_col1, market_col2 = st.columns(2)
+    market_labels = {
+        "japan": "日本向け" if is_ja else "Japão",
+        "us": "米国向け" if is_ja else "Estados Unidos",
+        "global": "グローバル" if is_ja else "Global",
+    }
+    language_labels = {
+        "ja": "日本語" if is_ja else "Japonês",
+        "en": "英語" if is_ja else "Inglês",
+        "pt": "ポルトガル語" if is_ja else "Português",
+    }
+    with market_col1:
+        target_market = st.selectbox(
+            "販売先" if is_ja else "Mercado",
+            ["japan", "us", "global"],
+            key="generation_target_market",
+            format_func=lambda v: market_labels.get(v, v),
+        )
+    with market_col2:
+        output_language = st.selectbox(
+            "生成する言語" if is_ja else "Idioma gerado",
+            ["ja", "en", "pt"],
+            key="generation_output_language",
+            format_func=lambda v: language_labels.get(v, v),
+        )
+    market_note = st.text_input(
+        "米国向けの追加指定（任意）" if is_ja else "Instrução de mercado (opcional)",
+        placeholder=(
+            "例: 米国DTCブランド風、FTCに安全、短いCTA、価格はUSD前提"
+            if is_ja else
+            "Ex.: estilo DTC dos EUA, seguro para FTC, CTA curto, preço em USD"
+        ),
+        key="generation_market_note",
+    )
     return {
         "purpose": purpose,
         "tone": tone,
         "strength": strength,
         "note": note,
+        "target_market": target_market,
+        "output_language": output_language,
+        "market_note": market_note,
     }
 
 
@@ -462,7 +508,7 @@ def _render_improve_tools(svc: dict, ensure_product_id, category_key: str,
                         )
                 with st.spinner("改善中..." if is_ja else "Melhorando..."):
                     improved = svc["generator"].improve_generated_content(
-                        current_content, core, content_type, mode, notes
+                        current_content, core, content_type, mode, notes, _generation_market_options()
                     )
                     st.session_state[category_key][item_key] = improved
                     st.session_state[f"ta_{category_key}_{item_key}"] = improved
