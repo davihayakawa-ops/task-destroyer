@@ -353,6 +353,52 @@ def _render_inline_checks(svc: dict, ensure_product_id, category_key: str,
         )
 
 
+def _render_improve_tools(svc: dict, ensure_product_id, category_key: str,
+                          item_key: str, content: str, is_ja: bool, compat_key: str):
+    checks = st.session_state.get(f"{category_key}_checks", {}).get(item_key, {})
+    current_content = st.session_state.get(f"ta_{category_key}_{item_key}", content)
+    core = st.session_state.get("core_text", "")
+    content_type = _content_type_label(compat_key, is_ja)
+
+    st.markdown('<div class="cs-info">💡 ' + (
+        "目的に合わせて生成結果をワンクリックで改善します。改善後はこの結果に置き換わります。"
+        if is_ja else
+        "Melhore o resultado com um clique. O conteúdo será substituído pela versão melhorada."
+    ) + '</div>', unsafe_allow_html=True)
+
+    improve_options = [
+        ("shorten", "短くする" if is_ja else "Encurtar"),
+        ("natural", "自然な日本語" if is_ja else "Mais natural"),
+        ("premium", "高級感を出す" if is_ja else "Mais premium"),
+        ("ad_strong", "広告向けに強く" if is_ja else "Mais forte para anúncio"),
+        ("risk_safe", "リスク表現を弱める" if is_ja else "Reduzir riscos"),
+        ("higgs", "Higgs/生成AI向け" if is_ja else "Para Higgs/IA"),
+        ("from_checks", "チェック結果から修正" if is_ja else "Corrigir pelos checks"),
+    ]
+    cols = st.columns(2)
+    for i, (mode, label) in enumerate(improve_options):
+        with cols[i % 2]:
+            if st.button("✨ " + label, key=f"improve_{category_key}_{item_key}_{mode}",
+                         use_container_width=True):
+                notes = ""
+                if mode == "from_checks":
+                    notes = "\n\n".join(v for v in (checks.get("quality"), checks.get("risk")) if v)
+                    if not notes:
+                        st.warning(
+                            "先にチェックを実行すると、指摘を反映して修正できます。今回は通常改善として進めます。"
+                            if is_ja else
+                            "Execute os checks primeiro para corrigir pelos apontamentos. Agora será uma melhoria normal."
+                        )
+                with st.spinner("改善中..." if is_ja else "Melhorando..."):
+                    improved = svc["generator"].improve_generated_content(
+                        current_content, core, content_type, mode, notes
+                    )
+                    st.session_state[category_key][item_key] = improved
+                    st.session_state[f"ta_{category_key}_{item_key}"] = improved
+                    _save_category_state(svc, ensure_product_id, category_key, compat_key)
+                st.rerun()
+
+
 def _render_item_card(svc: dict, ensure_product_id, status_badge,
                       category_key: str, item_key: str, label: str, content: str,
                       regen_fn, is_ja: bool, compat_key: str):
@@ -367,10 +413,11 @@ def _render_item_card(svc: dict, ensure_product_id, status_badge,
             '</div>',
             unsafe_allow_html=True,
         )
-        tab_copy, tab_full, tab_check = st.tabs([
+        tab_copy, tab_full, tab_check, tab_improve = st.tabs([
             "コピー用に分ける" if is_ja else "Partes para copiar",
             "全文編集" if is_ja else "Editar texto completo",
             "チェック" if is_ja else "Verificar",
+            "改善" if is_ja else "Melhorar",
         ])
         with tab_copy:
             _render_copy_parts(category_key, item_key, content, is_ja)
@@ -384,6 +431,10 @@ def _render_item_card(svc: dict, ensure_product_id, status_badge,
             )
         with tab_check:
             _render_inline_checks(
+                svc, ensure_product_id, category_key, item_key, content, is_ja, compat_key
+            )
+        with tab_improve:
+            _render_improve_tools(
                 svc, ensure_product_id, category_key, item_key, content, is_ja, compat_key
             )
         col1, col2, col3 = st.columns(3)

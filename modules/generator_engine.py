@@ -1009,3 +1009,33 @@ class GeneratorEngine:
             f"- 薬機法・景表法リスク表現、効果保証、断定表現は避ける。"
         )
         return self.llm.generate_structured(prompt)
+
+    def improve_generated_content(self, content: str, core: str, content_type: str,
+                                  improve_mode: str, check_notes: str = "") -> str:
+        mode_instructions = {
+            "shorten": "内容の要点を残しながら、短く読みやすくする。",
+            "natural": "不自然な表現を直し、日本市場向けの自然で上品な日本語にする。",
+            "premium": "安っぽさを消し、上品・信頼感・高級感が伝わる表現にする。",
+            "ad_strong": "誇大表現を避けながら、広告・SNS向けに冒頭フックとCTAを強くする。",
+            "risk_safe": "薬機法・景表法リスク、効果保証、断定表現を弱めて安全な表現にする。",
+            "higgs": "Higgs Marketing Studioや画像・動画生成AIに貼りやすい、具体的なプロンプトへ整える。",
+            "from_checks": "チェック結果の指摘を反映して、品質と安全性を改善する。",
+        }
+        instruction = mode_instructions.get(improve_mode, improve_mode)
+        prompt = (
+            f"あなたはShopify商品ページ・広告・SNS制作の編集責任者です。\n"
+            f"以下の生成結果を改善してください。\n\n"
+            f"【コンテンツ種別】\n{content_type}\n\n"
+            f"【改善方針】\n{instruction}\n\n"
+            f"【Core】\n{core[:2200]}\n\n"
+            f"【チェック結果・修正メモ】\n{check_notes or 'なし'}\n\n"
+            f"【元の生成結果】\n{content}\n\n"
+            f"【出力ルール】\n"
+            f"- 元のMarkdown見出し構造はできるだけ維持する。\n"
+            f"- 画像プロンプトの場合、英語プロンプト部分は英語のまま具体化する。\n"
+            f"- 動画台本の場合、冒頭3秒・ナレーション・テロップ・撮影指示を分かりやすくする。\n"
+            f"- SNS/広告の場合、冒頭1行とCTAを強くする。\n"
+            f"- 薬機法・景表法リスク、医療的断定、効果保証、過度なBefore/After表現は避ける。\n"
+            f"- 改善後の完成版だけを出力する。説明文や前置きは不要。"
+        )
+        return self.llm.generate_structured(prompt)
