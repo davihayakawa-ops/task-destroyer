@@ -901,38 +901,47 @@ def clear_active_product_context():
 
 
 # ── Sidebar nav data ──────────────────────────────────────────────────────────
-# (group_id, label_ja, label_pt, items)
-# items: (page_id, label_ja, label_pt, unique_key_suffix)
+# (group_id, label_ja, label_pt, label_en, items)
+# items: (page_id, label_ja, label_pt, label_en, unique_key_suffix)
+def _lt(ja: str, pt: str, en: str, lang=None) -> str:
+    lang = lang or st.session_state.get("lang", "ja")
+    if lang == "ja":
+        return ja
+    if lang == "en":
+        return en
+    return pt
+
+
 _NAV_GROUPS = [
-    ("home", "🏠 ホーム", "🏠 Início", [
-        ("dashboard",       "🏠 ダッシュボード",   "🏠 Painel",          "dash"),
-        ("mode_selection",  "🗂️ モード選択",       "🗂️ Seleção de Modo", "mode"),
+    ("home", "🏠 ホーム", "🏠 Início", "🏠 Home", [
+        ("dashboard",       "🏠 ダッシュボード",   "🏠 Painel",          "🏠 Dashboard",       "dash"),
+        ("mode_selection",  "🗂️ モード選択",       "🗂️ Seleção de Modo", "🗂️ Mode Selection",  "mode"),
     ]),
-    ("product", "📦 商品", "📦 Produto", [
-        ("product_input",   "📦 商品入力",         "📦 Entrada do Produto",  "pi"),
-        ("external_core",   "📥 外部Core取り込み", "📥 Importar Core",        "ec"),
+    ("product", "📦 商品", "📦 Produto", "📦 Product", [
+        ("product_input",   "📦 商品入力",         "📦 Entrada do Produto",  "📦 Product Input", "pi"),
+        ("external_core",   "📥 外部Core取り込み", "📥 Importar Core",        "📥 Import Core",   "ec"),
     ]),
-    ("core", "✨ Core", "✨ Core", [
-        ("core_generation", "✨ Core生成・編集",   "✨ Gerar/Editar Core", "cg"),
-        ("core_generation", "📚 Coreライブラリ",  "📚 Biblioteca de Cores","cl"),
+    ("core", "✨ Core", "✨ Core", "✨ Core", [
+        ("core_generation", "✨ Core生成・編集",   "✨ Gerar/Editar Core", "✨ Generate/Edit Core", "cg"),
+        ("core_generation", "📚 Coreライブラリ",  "📚 Biblioteca de Cores","📚 Core Library",       "cl"),
     ]),
-    ("generate", "⚡ 生成", "⚡ Gerar", [
-        ("product_page",    "📄 商品ページ",        "📄 Página do Produto",  "pp"),
-        ("product_page",    "🛒 Shopifyコード",     "🛒 Código Shopify",     "sh"),
-        ("image_prompt",    "🖼️ 画像プロンプト",   "🖼️ Prompts de Imagem", "ip"),
-        ("video_script",    "🎬 動画台本",          "🎬 Roteiro de Vídeo",   "vs"),
-        ("ads_sns",         "📣 広告・SNS",         "📣 Anúncios/SNS",       "as_"),
-        ("bulk_pack",       "🔥 一括生成",          "🔥 Geração em Lote",    "bp"),
+    ("generate", "⚡ 生成", "⚡ Gerar", "⚡ Generate", [
+        ("product_page",    "📄 商品ページ",        "📄 Página do Produto",  "📄 Product Page",   "pp"),
+        ("product_page",    "🛒 Shopifyコード",     "🛒 Código Shopify",     "🛒 Shopify Code",   "sh"),
+        ("image_prompt",    "🖼️ 画像プロンプト",   "🖼️ Prompts de Imagem", "🖼️ Image Prompts", "ip"),
+        ("video_script",    "🎬 動画台本",          "🎬 Roteiro de Vídeo",   "🎬 Video Script",   "vs"),
+        ("ads_sns",         "📣 広告・SNS",         "📣 Anúncios/SNS",       "📣 Ads/SNS",        "as_"),
+        ("bulk_pack",       "🔥 一括生成",          "🔥 Geração em Lote",    "🔥 Bulk Generation","bp"),
     ]),
-    ("review", "✅ 確認", "✅ Verificação", [
-        ("refinement",      "✍️ 日本語補正・翻訳", "✍️ Refinar/Traduzir",  "rf"),
-        ("check",           "✅ チェック",          "✅ Verificação",        "ck"),
+    ("review", "✅ 確認", "✅ Verificação", "✅ Review", [
+        ("refinement",      "✍️ 日本語補正・翻訳", "✍️ Refinar/Traduzir",  "✍️ Refine/Translate", "rf"),
+        ("check",           "✅ チェック",          "✅ Verificação",        "✅ Check",            "ck"),
     ]),
-    ("output", "📤 出力・管理", "📤 Saída / Gestão", [
-        ("export_center",     "⚡ 生成＆エクスポート","⚡ Gerar & Exportar",   "exc"),
-        ("output",            "📤 出力",              "📤 Exportar",           "out"),
-        ("saved_data",        "💾 保存データ",        "💾 Dados Salvos",       "sv"),
-        ("instruction_sheet", "📋 制作指示書",        "📋 Ficha de Produção",  "ins"),
+    ("output", "📤 出力・管理", "📤 Saída / Gestão", "📤 Output / Management", [
+        ("export_center",     "⚡ 生成＆エクスポート","⚡ Gerar & Exportar",   "⚡ Generate & Export", "exc"),
+        ("output",            "📤 出力",              "📤 Exportar",           "📤 Export",            "out"),
+        ("saved_data",        "💾 保存データ",        "💾 Dados Salvos",       "💾 Saved Data",        "sv"),
+        ("instruction_sheet", "📋 制作指示書",        "📋 Ficha de Produção",  "📋 Production Brief",  "ins"),
     ]),
 ]
 
@@ -972,6 +981,24 @@ _BREADCRUMB_MAP_PT = {
     "saved_data":       ("📤 Saída/Gestão", "Dados Salvos"),
     "instruction_sheet":("📤 Saída/Gestão", "Ficha de Produção"),
 }
+_BREADCRUMB_MAP_EN = {
+    "dashboard":        ("🏠 Home",                "Dashboard"),
+    "mode_selection":   ("🏠 Home",                "Mode Selection"),
+    "product_input":    ("📦 Product",             "Product Input"),
+    "external_core":    ("📦 Product",             "Import Core"),
+    "core_generation":  ("✨ Core",                "Generate/Edit Core"),
+    "product_page":     ("⚡ Generate",            "Product Page"),
+    "image_prompt":     ("⚡ Generate",            "Image Prompts"),
+    "video_script":     ("⚡ Generate",            "Video Script"),
+    "ads_sns":          ("⚡ Generate",            "Ads/SNS"),
+    "bulk_pack":        ("⚡ Generate",            "Bulk Generation"),
+    "refinement":       ("✅ Review",              "Refine/Translate"),
+    "check":            ("✅ Review",              "Check"),
+    "export_center":    ("📤 Output/Management",   "Generate & Export"),
+    "output":           ("📤 Output/Management",   "Export"),
+    "saved_data":       ("📤 Output/Management",   "Saved Data"),
+    "instruction_sheet":("📤 Output/Management",   "Production Brief"),
+}
 
 
 # ── Sidebar ────────────────────────────────────────────────────────────────────
@@ -989,17 +1016,23 @@ def render_sidebar():
         )
 
         # ── Language switcher ─────────────────────────────────────────────
-        lang_col1, lang_col2 = st.columns(2)
+        lang_col1, lang_col2, lang_col3 = st.columns(3)
         with lang_col1:
-            if st.button("🇯🇵 日本語", use_container_width=True,
+            if st.button("🇯🇵 JP", use_container_width=True,
                          type="primary" if st.session_state["lang"] == "ja" else "secondary"):
                 st.session_state["lang"] = "ja"
                 st.session_state["i18n"] = {}
                 st.rerun()
         with lang_col2:
-            if st.button("🇧🇷 Português", use_container_width=True,
+            if st.button("🇧🇷 PT", use_container_width=True,
                          type="primary" if st.session_state["lang"] == "pt" else "secondary"):
                 st.session_state["lang"] = "pt"
+                st.session_state["i18n"] = {}
+                st.rerun()
+        with lang_col3:
+            if st.button("🇺🇸 EN", use_container_width=True,
+                         type="primary" if st.session_state["lang"] == "en" else "secondary"):
+                st.session_state["lang"] = "en"
                 st.session_state["i18n"] = {}
                 st.rerun()
 
@@ -1009,7 +1042,7 @@ def render_sidebar():
         mode = get_mode(st.session_state["mode"])
         lang = st.session_state["lang"]
         is_ja = (lang == "ja")
-        mode_name = mode["name_ja"] if is_ja else mode["name_pt"]
+        mode_name = mode.get(f"name_{lang}") or mode["name_pt"]
         st.markdown(
             f'<div style="font-size:0.75rem;color:#6b7280;margin-bottom:10px;">'
             f'{mode["icon"]} {mode_name}</div>',
@@ -1025,14 +1058,14 @@ def render_sidebar():
             st.session_state["shop_id"] = current_shop_id
         shop_names = {s["id"]: s["name"] for s in shops}
         st.markdown(
-            f'<div class="sb-mode-label">{"ショップ" if is_ja else "Loja"}</div>',
+            f'<div class="sb-mode-label">{_lt("ショップ", "Loja", "Shop", lang)}</div>',
             unsafe_allow_html=True,
         )
         selected_shop_id = st.selectbox(
-            "ショップ" if is_ja else "Loja",
+            _lt("ショップ", "Loja", "Shop", lang),
             options=shop_ids,
             index=shop_ids.index(current_shop_id),
-            format_func=lambda sid: ("Comum" if (not is_ja and sid == "default") else shop_names.get(sid, sid)),
+            format_func=lambda sid: (_lt("共通", "Comum", "Shared", lang) if (sid == "default") else shop_names.get(sid, sid)),
             label_visibility="collapsed",
         )
         if selected_shop_id != st.session_state.get("shop_id", "default"):
@@ -1042,7 +1075,7 @@ def render_sidebar():
             st.rerun()
 
         st.markdown(
-            f'<div class="sb-mode-label">{"作業メニュー" if is_ja else "Menu de trabalho"}</div>',
+            f'<div class="sb-mode-label">{_lt("作業メニュー", "Menu de trabalho", "Work Menu", lang)}</div>',
             unsafe_allow_html=True,
         )
 
@@ -1051,11 +1084,11 @@ def render_sidebar():
         # ── Simple mode: 5 flat items ─────────────────────────────────────
         if st.session_state["nav_mode"] == "simple":
             simple_items = [
-                ("product_input",   "① 商品情報を入れる" if is_ja else "① Produto"),
-                ("core_generation", "② Coreを作る" if is_ja else "② Core"),
-                ("product_page",    "③ Shopifyコード" if is_ja else "③ Shopify"),
-                ("export_center",   "④ 出力・コピー" if is_ja else "④ Exportar"),
-                ("saved_data",      "保存済みを見る" if is_ja else "Dados salvos"),
+                ("product_input",   _lt("① 商品情報を入れる", "① Produto", "① Product Info", lang)),
+                ("core_generation", _lt("② Coreを作る", "② Core", "② Build Core", lang)),
+                ("product_page",    _lt("③ Shopifyコード", "③ Shopify", "③ Shopify Code", lang)),
+                ("export_center",   _lt("④ 出力・コピー", "④ Exportar", "④ Export / Copy", lang)),
+                ("saved_data",      _lt("保存済みを見る", "Dados salvos", "Saved Data", lang)),
             ]
             for page_id, label in simple_items:
                 is_active = cur_page == page_id
@@ -1068,28 +1101,28 @@ def render_sidebar():
                     st.session_state["page"] = page_id
                     st.rerun()
 
-            if st.button("詳細メニューを開く" if is_ja else "Menu completo",
+            if st.button(_lt("詳細メニューを開く", "Menu completo", "Open Full Menu", lang),
                          key="nav_mode_full_inline", use_container_width=True):
                 st.session_state["nav_mode"] = "full"
                 st.rerun()
 
         # ── Full mode: grouped collapsible sections ───────────────────────
         else:
-            if st.button("かんたんメニューに戻す" if is_ja else "Menu simples",
+            if st.button(_lt("かんたんメニューに戻す", "Menu simples", "Back to Simple Menu", lang),
                          key="nav_mode_simple_inline", use_container_width=True, type="primary"):
                 st.session_state["nav_mode"] = "simple"
                 st.rerun()
-            for group_id, grp_ja, grp_pt, items in _NAV_GROUPS:
+            for group_id, grp_ja, grp_pt, grp_en, items in _NAV_GROUPS:
                 filtered_items = filter_nav_items(items)
                 if not filtered_items:
                     continue
-                grp_label = grp_ja if is_ja else grp_pt
+                grp_label = _lt(grp_ja, grp_pt, grp_en, lang)
                 # Auto-expand the group that contains the current page
                 group_pages = {item[0] for item in filtered_items}
                 auto_open   = cur_page in group_pages
                 with st.expander(grp_label, expanded=auto_open):
-                    for page_id, lbl_ja, lbl_pt, key_sfx in filtered_items:
-                        label     = lbl_ja if is_ja else lbl_pt
+                    for page_id, lbl_ja, lbl_pt, lbl_en, key_sfx in filtered_items:
+                        label     = _lt(lbl_ja, lbl_pt, lbl_en, lang)
                         is_active = cur_page == page_id
                         if st.button(
                             label,
@@ -1103,7 +1136,7 @@ def render_sidebar():
         # ── Product info summary ──────────────────────────────────────────
         if st.session_state.get("product_info", {}).get("name"):
             st.markdown("---")
-            prod_lbl = "商品" if is_ja else "Produto"
+            prod_lbl = _lt("商品", "Produto", "Product", lang)
             st.markdown(
                 f'<div style="font-size:0.75rem;color:#6b7280;">{prod_lbl}</div>'
                 f'<div style="font-size:0.875rem;color:#e8e8e8;font-weight:600;">'
@@ -1126,12 +1159,12 @@ def render_sidebar():
         )
 
         st.markdown("---")
-        with st.expander("➕ " + ("ショップ追加" if is_ja else "Adicionar loja"), expanded=False):
+        with st.expander("➕ " + _lt("ショップ追加", "Adicionar loja", "Add Shop", lang), expanded=False):
             new_shop_name = st.text_input(
-                "ショップ名" if is_ja else "Nome da loja",
+                _lt("ショップ名", "Nome da loja", "Shop name", lang),
                 key="new_shop_name",
             )
-            if st.button("作成" if is_ja else "Criar", key="create_shop", use_container_width=True):
+            if st.button(_lt("作成", "Criar", "Create", lang), key="create_shop", use_container_width=True):
                 if new_shop_name.strip():
                     new_shop = Storage.create_shop(new_shop_name)
                     st.session_state["shop_id"] = new_shop["id"]
@@ -1139,21 +1172,24 @@ def render_sidebar():
                     clear_active_product_context()
                     st.rerun()
                 else:
-                    st.warning("ショップ名を入力してください。" if is_ja else "Informe o nome da loja.")
+                    st.warning(_lt("ショップ名を入力してください。", "Informe o nome da loja.", "Enter a shop name.", lang))
 
         if current_shop_id != "default":
-            with st.expander("🗑️ " + ("ショップ削除" if is_ja else "Excluir loja"), expanded=False):
+            with st.expander("🗑️ " + _lt("ショップ削除", "Excluir loja", "Delete Shop", lang), expanded=False):
                 st.caption(
-                    ("選択中ショップの保存データも削除されます。"
-                     if is_ja else
-                     "Os dados salvos da loja selecionada também serão excluídos.")
+                    _lt(
+                        "選択中ショップの保存データも削除されます。",
+                        "Os dados salvos da loja selecionada também serão excluídos.",
+                        "Saved data for the selected shop will also be deleted.",
+                        lang,
+                    )
                 )
                 confirm_shop_delete = st.checkbox(
-                    ("このショップを削除する" if is_ja else "Excluir esta loja"),
+                    _lt("このショップを削除する", "Excluir esta loja", "Delete this shop", lang),
                     key=f"confirm_delete_shop_{current_shop_id}",
                 )
                 if st.button(
-                    "削除" if is_ja else "Excluir",
+                    _lt("削除", "Excluir", "Delete", lang),
                     key=f"delete_shop_{current_shop_id}",
                     use_container_width=True,
                     disabled=not confirm_shop_delete,
@@ -1171,8 +1207,8 @@ def render_sidebar():
 
 def render_breadcrumb():
     page    = st.session_state.get("page", "")
-    is_ja   = st.session_state.get("lang", "ja") == "ja"
-    bc_map  = _BREADCRUMB_MAP_JA if is_ja else _BREADCRUMB_MAP_PT
+    lang    = st.session_state.get("lang", "ja")
+    bc_map  = {"ja": _BREADCRUMB_MAP_JA, "pt": _BREADCRUMB_MAP_PT, "en": _BREADCRUMB_MAP_EN}.get(lang, _BREADCRUMB_MAP_PT)
     if page not in bc_map:
         return
     grp, lbl = bc_map[page]
@@ -1187,7 +1223,7 @@ def render_breadcrumb():
 
 
 def _workflow_status() -> dict:
-    is_ja = st.session_state.get("lang", "ja") == "ja"
+    lang = st.session_state.get("lang", "ja")
     product_info = st.session_state.get("product_info", {})
     gen = st.session_state.get("generated", {})
     shopify_keys = [
@@ -1201,13 +1237,13 @@ def _workflow_status() -> dict:
     has_shopify = bool(gen.get("shopify_custom_liquid") or any(gen.get(k) for k in shopify_keys))
     has_exportable = bool(has_shopify or gen.get("product_page") or gen.get("image_prompt") or gen.get("video_script") or gen.get("ads_sns"))
     if not has_product:
-        next_label, next_page = ("商品情報を入力" if is_ja else "Preencher produto"), "product_input"
+        next_label, next_page = _lt("商品情報を入力", "Preencher produto", "Enter product info", lang), "product_input"
     elif not has_core:
-        next_label, next_page = ("Coreを生成" if is_ja else "Gerar Core"), "core_generation"
+        next_label, next_page = _lt("Coreを生成", "Gerar Core", "Generate Core", lang), "core_generation"
     elif not has_shopify:
-        next_label, next_page = ("Shopifyコードを生成" if is_ja else "Gerar código Shopify"), "product_page"
+        next_label, next_page = _lt("Shopifyコードを生成", "Gerar código Shopify", "Generate Shopify code", lang), "product_page"
     else:
-        next_label, next_page = ("出力・コピー" if is_ja else "Exportar/copiar"), "export_center"
+        next_label, next_page = _lt("出力・コピー", "Exportar/copiar", "Export/copy", lang), "export_center"
     return {
         "has_product": has_product,
         "has_core": has_core,
@@ -1221,7 +1257,7 @@ def _workflow_status() -> dict:
 def render_workflow_summary(page: str):
     if page in {"mode_selection", "dashboard"}:
         return
-    is_ja = st.session_state.get("lang", "ja") == "ja"
+    lang = st.session_state.get("lang", "ja")
     s = _workflow_status()
     active_by_page = {
         "product_input": 0,
@@ -1238,12 +1274,19 @@ def render_workflow_summary(page: str):
         "instruction_sheet": 3,
     }
     active_idx = active_by_page.get(page, 0)
-    if is_ja:
+    if lang == "ja":
         steps = [
             ("1", "商品情報", "商品名・説明・特徴を入れる", s["has_product"]),
             ("2", "Core", "売り方の核を作る", s["has_core"]),
             ("3", "Shopify", "Custom Liquidを生成", s["has_shopify"]),
             ("4", "出力", "コピー・保存・DL", s["has_exportable"]),
+        ]
+    elif lang == "en":
+        steps = [
+            ("1", "Product Info", "Name, description, and features", s["has_product"]),
+            ("2", "Core", "Build the sales foundation", s["has_core"]),
+            ("3", "Shopify", "Generate Custom Liquid", s["has_shopify"]),
+            ("4", "Export", "Copy, save, or download", s["has_exportable"]),
         ]
     else:
         steps = [
@@ -1255,13 +1298,18 @@ def render_workflow_summary(page: str):
     step_html = ""
     for i, (num, name, desc, done) in enumerate(steps):
         klass = "td-step"
-        status = "未完了" if is_ja else "Pendente"
+        status = _lt("未完了", "Pendente", "Pending", lang)
         if done:
             klass += " done"
-            status = "完了" if is_ja else "Pronto"
+            status = _lt("完了", "Pronto", "Ready", lang)
         if i == active_idx:
             klass += " active"
-            status = ("作業中" if not done else "確認中") if is_ja else ("Em andamento" if not done else "Conferindo")
+            status = _lt(
+                "作業中" if not done else "確認中",
+                "Em andamento" if not done else "Conferindo",
+                "In progress" if not done else "Reviewing",
+                lang,
+            )
         step_html += (
             f'<div class="{klass}">'
             f'<div class="td-step-top"><div class="td-step-name">{num}. {name}</div>'
@@ -1269,13 +1317,14 @@ def render_workflow_summary(page: str):
             f'<div class="td-step-desc">{desc}</div>'
             f'</div>'
         )
-    title = "迷ったらこの順番で進めてください" if is_ja else "Siga esta ordem"
-    sub = (
-        "まず商品情報 → Core → Shopifyコード → 出力。今やるべき作業だけ青く表示しています。"
-        if is_ja else
-        "Produto → Core → código Shopify → exportação. A etapa atual aparece em azul."
+    title = _lt("迷ったらこの順番で進めてください", "Siga esta ordem", "Follow this order if unsure", lang)
+    sub = _lt(
+        "まず商品情報 → Core → Shopifyコード → 出力。今やるべき作業だけ青く表示しています。",
+        "Produto → Core → código Shopify → exportação. A etapa atual aparece em azul.",
+        "Product info → Core → Shopify code → export. The current step is highlighted in blue.",
+        lang,
     )
-    next_txt = "次にやること" if is_ja else "Próximo passo"
+    next_txt = _lt("次にやること", "Próximo passo", "Next step", lang)
     st.markdown(
         f"""
         <div class="td-workflow">
@@ -1304,8 +1353,8 @@ def page_mode_selection():
 
     for i, mode in enumerate(modes):
         with cols[i]:
-            name = mode["name_ja"] if lang == "ja" else mode["name_pt"]
-            desc = mode["desc_ja"] if lang == "ja" else mode["desc_pt"]
+            name = mode.get(f"name_{lang}") or mode["name_pt"]
+            desc = mode.get(f"desc_{lang}") or mode["desc_pt"]
             is_selected = st.session_state["mode"] == mode["id"]
             border_color = "#3b82f6" if is_selected else "#334155"
 
@@ -1766,41 +1815,49 @@ def _filled_text(data: dict, key: str) -> str:
     return str(data.get(key) or "").strip()
 
 
-def _core_input_diagnostics(data: dict, is_ja: bool = True) -> dict:
+def _core_input_diagnostics(data: dict, lang: str = "ja") -> dict:
     checks = [
-        ("name", "商品名", "Nome do produto", 8,
+        ("name", "商品名", "Nome do produto", "Product Name", 8,
          "商品名があると、後段の見出しやCTAが具体的になります。",
-         "Com o nome do produto, títulos e CTAs ficam mais específicos."),
-        ("description", "商品説明", "Descrição do produto", 80,
+         "Com o nome do produto, títulos e CTAs ficam mais específicos.",
+         "A product name makes later headings and CTAs more specific."),
+        ("description", "商品説明", "Descrição do produto", "Product Description", 80,
          "商品説明が短いと、Coreが一般論になりやすいです。",
-         "Se a descrição for curta, o Core tende a ficar genérico."),
-        ("target", "ターゲット", "Público-alvo", 20,
+         "Se a descrição for curta, o Core tende a ficar genérico.",
+         "If the description is short, the Core tends to become generic."),
+        ("target", "ターゲット", "Público-alvo", "Target Audience", 20,
          "ターゲットが具体的だと、悩み・理想・FAQが刺さりやすくなります。",
-         "Um público claro melhora dores, desejos e FAQ."),
-        ("features", "差別化ポイント", "Diferenciais", 40,
+         "Um público claro melhora dores, desejos e FAQ.",
+         "A clear audience improves pains, ideals, and FAQ."),
+        ("features", "差別化ポイント", "Diferenciais", "Differentiators", 40,
          "特徴・強みが薄いと、USPと比較表が弱くなります。",
-         "Diferenciais fracos reduzem a força do USP e da comparação."),
-        ("use_scenes", "使用シーン", "Cenas de uso", 30,
+         "Diferenciais fracos reduzem a força do USP e da comparação.",
+         "Weak differentiators make the USP and comparison weaker."),
+        ("use_scenes", "使用シーン", "Cenas de uso", "Usage Scenes", 30,
          "使用シーンがあると、Shopifyページの情景描写が良くなります。",
-         "Cenas de uso deixam a página Shopify mais concreta."),
-        ("weaknesses", "競合/弱点メモ", "Concorrentes / pontos fracos", 30,
+         "Cenas de uso deixam a página Shopify mais concreta.",
+         "Usage scenes make the Shopify page more concrete."),
+        ("weaknesses", "競合/弱点メモ", "Concorrentes / pontos fracos", "Competitors / Weaknesses", 30,
          "競合や弱点があると、差別化と購入障壁が具体化します。",
-         "Concorrentes e objeções ajudam a diferenciar melhor."),
-        ("brand_tone", "ブランドトーン", "Tom da marca", 10,
+         "Concorrentes e objeções ajudam a diferenciar melhor.",
+         "Competitors and objections make differentiation clearer."),
+        ("brand_tone", "ブランドトーン", "Tom da marca", "Brand Tone", 10,
          "トーン指定があると、文章と見た目の方向性が揃います。",
-         "O tom alinha texto, design e sensação da marca."),
-        ("prohibited", "禁止表現", "Expressões proibidas", 10,
+         "O tom alinha texto, design e sensação da marca.",
+         "Tone guidance aligns copy, design, and brand feel."),
+        ("prohibited", "禁止表現", "Expressões proibidas", "Prohibited Expressions", 10,
          "禁止表現があると、薬機法・景表法リスクを抑えやすくなります。",
-         "Expressões proibidas reduzem riscos de linguagem inadequada."),
+         "Expressões proibidas reduzem riscos de linguagem inadequada.",
+         "Prohibited expressions reduce risky or unsuitable wording."),
     ]
     ready = []
     missing = []
     score = 0
-    for key, label_ja, label_pt, min_len, hint_ja, hint_pt in checks:
+    for key, label_ja, label_pt, label_en, min_len, hint_ja, hint_pt, hint_en in checks:
         value = _filled_text(data, key)
         ok = len(value) >= min_len
-        label = label_ja if is_ja else label_pt
-        hint = hint_ja if is_ja else hint_pt
+        label = _lt(label_ja, label_pt, label_en, lang)
+        hint = _lt(hint_ja, hint_pt, hint_en, lang)
         if ok:
             score += 1
             ready.append(label)
@@ -1850,14 +1907,14 @@ def _core_section_preview_html(title: str, body: str, score: int) -> str:
     )
 
 
-def _liquid_quality_checks(code: str, design_options: dict, selected_sections: list, is_ja: bool = True) -> list:
+def _liquid_quality_checks(code: str, design_options: dict, selected_sections: list, lang: str = "ja") -> list:
     checks = []
 
-    def add(label_ja: str, label_pt: str, ok: bool, detail_ja: str, detail_pt: str):
+    def add(label_ja: str, label_pt: str, label_en: str, ok: bool, detail_ja: str, detail_pt: str, detail_en: str):
         checks.append({
-            "label": label_ja if is_ja else label_pt,
+            "label": _lt(label_ja, label_pt, label_en, lang),
             "ok": ok,
-            "detail": detail_ja if is_ja else detail_pt,
+            "detail": _lt(detail_ja, detail_pt, detail_en, lang),
         })
 
     normalized = code or ""
@@ -1865,48 +1922,60 @@ def _liquid_quality_checks(code: str, design_options: dict, selected_sections: l
     add(
         "Shopify貼り付け形式",
         "Formato para colar no Shopify",
+        "Shopify paste format",
         "<html" not in lower and "<body" not in lower and "<head" not in lower,
         "<html>/<head>/<body> を含まないCustom Liquid向けコード",
         "Código para Custom Liquid sem <html>/<head>/<body>",
+        "Custom Liquid code without <html>/<head>/<body>",
     )
     add(
         "JavaScriptなし",
         "Sem JavaScript",
+        "No JavaScript",
         "<script" not in lower and "javascript:" not in lower,
         "Custom Liquid内で不要なJavaScriptを使っていない",
         "Não usa JavaScript desnecessário no Custom Liquid",
+        "Does not use unnecessary JavaScript inside Custom Liquid",
     )
     add(
         "td-クラス運用",
         "Classes td-",
+        "td- class usage",
         not any(not cls.startswith("td-") for cls in re.findall(r'class=\"([^\"]+)\"', normalized) for cls in cls.split()),
         "Shopifyテーマに干渉しにくい td- プレフィックス",
         "Usa prefixo td- para reduzir conflitos com o tema Shopify",
+        "Uses the td- prefix to reduce conflicts with Shopify themes",
     )
     add(
         "スマホ対応",
         "Responsivo no celular",
+        "Mobile responsive",
         "@media" in normalized and ("767px" in normalized or "768px" in normalized),
         "モバイル向けCSSが含まれている",
         "Inclui CSS para dispositivos móveis",
+        "Includes mobile CSS",
     )
     risk_words = ["治る", "必ず", "確実", "医学的に証明", "100%"]
     detected = [word for word in risk_words if word in normalized]
     add(
         "リスク表現",
         "Expressões de risco",
+        "Risky expressions",
         not detected,
         "検出: " + " / ".join(detected) if detected else "代表的な断定表現は見つかりません",
         "Detectado: " + " / ".join(detected) if detected else "Nenhuma expressão absoluta comum encontrada",
+        "Detected: " + " / ".join(detected) if detected else "No common absolute expressions found",
     )
     placeholders = ["〇〇", "ここに", "サンプル", "placeholder", "TODO"]
     found_placeholders = [word for word in placeholders if word.lower() in lower]
     add(
         "プレースホルダー",
         "Placeholders",
+        "Placeholders",
         not found_placeholders,
         "検出: " + " / ".join(found_placeholders) if found_placeholders else "仮文言は見つかりません",
         "Detectado: " + " / ".join(found_placeholders) if found_placeholders else "Nenhum texto provisório encontrado",
+        "Detected: " + " / ".join(found_placeholders) if found_placeholders else "No placeholder text found",
     )
     colors = [
         design_options.get("background_color"),
@@ -1917,27 +1986,31 @@ def _liquid_quality_checks(code: str, design_options: dict, selected_sections: l
     add(
         "指定カラー反映",
         "Cores aplicadas",
+        "Selected colors applied",
         not missing_colors,
         "未検出: " + " / ".join(missing_colors) if missing_colors else "主要カラーがコード内にあります",
         "Não detectadas: " + " / ".join(missing_colors) if missing_colors else "As cores principais aparecem no código",
+        "Missing: " + " / ".join(missing_colors) if missing_colors else "Main colors appear in the code",
     )
     add(
         "選択セクション",
         "Seções selecionadas",
+        "Selected sections",
         len(selected_sections) >= 4,
         f"{len(selected_sections)} セクション構成",
         f"Estrutura com {len(selected_sections)} seções",
+        f"Structure with {len(selected_sections)} sections",
     )
     return checks
 
 
 def _render_liquid_quality_panel(code: str, design_options: dict, selected_sections: list):
-    is_ja = st.session_state.get("lang", "ja") == "ja"
-    checks = _liquid_quality_checks(code, design_options, selected_sections, is_ja)
+    lang = st.session_state.get("lang", "ja")
+    checks = _liquid_quality_checks(code, design_options, selected_sections, lang)
     passed = sum(1 for check in checks if check["ok"])
     total = len(checks)
-    title = "生成後チェック" if is_ja else "Checklist pós-geração"
-    body = "Shopifyに貼る前の簡易チェックです。" if is_ja else "Verificação rápida antes de colar no Shopify."
+    title = _lt("生成後チェック", "Checklist pós-geração", "Post-generation checklist", lang)
+    body = _lt("Shopifyに貼る前の簡易チェックです。", "Verificação rápida antes de colar no Shopify.", "Quick check before pasting into Shopify.", lang)
     st.markdown(
         f"""
         <div class="cs-card" style="padding:14px 16px;margin:12px 0;">
@@ -1956,7 +2029,7 @@ def _render_liquid_quality_panel(code: str, design_options: dict, selected_secti
     for i, check in enumerate(checks):
         with cols[i % 2]:
             klass = "cs-success" if check["ok"] else "cs-warning"
-            mark = "OK" if check["ok"] else ("確認" if is_ja else "Revisar")
+            mark = "OK" if check["ok"] else _lt("確認", "Revisar", "Review", lang)
             st.markdown(
                 f'<div class="{klass}" style="margin-bottom:8px;"><strong>{mark} {check["label"]}</strong><br>{check["detail"]}</div>',
                 unsafe_allow_html=True,
@@ -2071,7 +2144,8 @@ def page_core_generation():
             st.markdown(f"- **translation_status**: `{_cg_project.get('translation_status', 'not set')}`")
             st.markdown(f"- **Core生成に使用するデータ**: {'core_source_data ✅' if _cg_core_source else '現在の商品情報を自動使用'}")
 
-    diag = _core_input_diagnostics(_cg_core_source, is_ja)
+    lang = st.session_state.get("lang", "ja")
+    diag = _core_input_diagnostics(_cg_core_source, lang)
     product_name = _cg_core_source.get("name") or product_info.get("name", "")
     st.markdown(
         f"""
@@ -2094,23 +2168,23 @@ def page_core_generation():
 
     diag_col1, diag_col2 = st.columns([1, 1])
     with diag_col1:
-        st.markdown("#### ✅ " + ("揃っている材料" if is_ja else "Dados prontos"))
-        ready_text = " / ".join(diag["ready"]) if diag["ready"] else ("まだ少ないです" if is_ja else "Ainda insuficiente")
+        st.markdown("#### ✅ " + _lt("揃っている材料", "Dados prontos", "Ready inputs", lang))
+        ready_text = " / ".join(diag["ready"]) if diag["ready"] else _lt("まだ少ないです", "Ainda insuficiente", "Still insufficient", lang)
         st.markdown(f'<div class="cs-info">{ready_text}</div>', unsafe_allow_html=True)
     with diag_col2:
-        st.markdown("#### ⚠️ " + ("強化すると良い材料" if is_ja else "Dados a reforçar"))
+        st.markdown("#### ⚠️ " + _lt("強化すると良い材料", "Dados a reforçar", "Inputs to strengthen", lang))
         if diag["missing"]:
             missing_html = "<br>".join(f"<strong>{item['label']}</strong>: {item['hint']}" for item in diag["missing"][:4])
             st.markdown(f'<div class="cs-warning">{missing_html}</div>', unsafe_allow_html=True)
         else:
             st.markdown(
                 '<div class="cs-success">✅ ' +
-                ("Core生成に十分な材料があります。" if is_ja else "Há material suficiente para gerar um bom Core.") +
+                _lt("Core生成に十分な材料があります。", "Há material suficiente para gerar um bom Core.", "There is enough material to generate a good Core.", lang) +
                 '</div>',
                 unsafe_allow_html=True,
             )
 
-    st.markdown("#### ⚙️ " + ("Core生成設定" if is_ja else "Configuração do Core"))
+    st.markdown("#### ⚙️ " + _lt("Core生成設定", "Configuração do Core", "Core generation settings", lang))
     strategy_labels = {
         "売れる訴求重視": "Foco em apelo de venda",
         "薬機法・景表法安全重視": "Foco em segurança de linguagem",
@@ -2137,35 +2211,58 @@ def page_core_generation():
     strategy_options = list(strategy_labels.keys())
     safety_options = list(safety_labels.keys())
     focus_options = list(focus_labels.keys())
-    fmt_strategy = (lambda v: v if is_ja else strategy_labels.get(v, v))
-    fmt_safety = (lambda v: v if is_ja else safety_labels.get(v, v))
-    fmt_focus = (lambda v: v if is_ja else focus_labels.get(v, v))
+    strategy_labels_en = {
+        "売れる訴求重視": "Sales appeal focused",
+        "薬機法・景表法安全重視": "Language safety focused",
+        "高級ブランド寄せ": "Premium brand style",
+        "悩み共感強め": "Stronger pain empathy",
+        "競合差別化強め": "Stronger competitor differentiation",
+        "SNS広告展開しやすいCore": "Core for SNS ads",
+        "Shopifyページ化しやすいCore": "Core for Shopify pages",
+    }
+    safety_labels_en = {
+        "かなり安全寄り": "Very conservative",
+        "標準": "Standard",
+        "攻めすぎない範囲で訴求強め": "More persuasive without overclaiming",
+    }
+    focus_labels_en = {
+        "悩み共感": "Pain empathy",
+        "競合との差別化": "Competitor differentiation",
+        "使用シーン": "Usage scenes",
+        "高級感": "Premium feel",
+        "FAQ化しやすさ": "FAQ readiness",
+        "画像で見せやすさ": "Easy to show in images",
+        "CTA方針": "CTA direction",
+    }
+    fmt_strategy = (lambda v: v if is_ja else (strategy_labels_en.get(v, v) if lang == "en" else strategy_labels.get(v, v)))
+    fmt_safety = (lambda v: v if is_ja else (safety_labels_en.get(v, v) if lang == "en" else safety_labels.get(v, v)))
+    fmt_focus = (lambda v: v if is_ja else (focus_labels_en.get(v, v) if lang == "en" else focus_labels.get(v, v)))
     cfg_col1, cfg_col2 = st.columns([1, 1])
     with cfg_col1:
         core_strategy = st.selectbox(
-            "生成方針" if is_ja else "Estratégia",
+            _lt("生成方針", "Estratégia", "Strategy", lang),
             strategy_options,
             key="core_strategy",
             format_func=fmt_strategy,
         )
         core_safety = st.selectbox(
-            "安全度" if is_ja else "Segurança",
+            _lt("安全度", "Segurança", "Safety", lang),
             safety_options,
             key="core_safety",
             format_func=fmt_safety,
         )
     with cfg_col2:
         core_focus = st.multiselect(
-            "重視する要素" if is_ja else "Focos",
+            _lt("重視する要素", "Focos", "Focus areas", lang),
             focus_options,
             default=["悩み共感", "競合との差別化", "使用シーン", "CTA方針"],
             key="core_focus",
             format_func=fmt_focus,
         )
         core_tone = st.text_input(
-            "文章トーン" if is_ja else "Tom",
+            _lt("文章トーン", "Tom", "Tone", lang),
             value=st.session_state.get("core_tone", _cg_core_source.get("brand_tone", "")),
-            placeholder="例: 上品、自然、信頼感、やわらかい" if is_ja else "Ex.: premium, natural, confiável, suave",
+            placeholder=_lt("例: 上品、自然、信頼感、やわらかい", "Ex.: premium, natural, confiável, suave", "Ex.: premium, natural, trustworthy, soft", lang),
             key="core_tone",
         )
     core_options = {
