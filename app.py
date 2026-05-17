@@ -3004,7 +3004,12 @@ def page_product_page():
                         if not hasattr(generator, "generate_shopify_sections"):
                             from modules.generator_engine import GeneratorEngine
                             generator = GeneratorEngine(svc["llm"])
-                        result = generator.generate_shopify_sections(core, product_info, design_options)
+                        try:
+                            result = generator.generate_shopify_sections(core, product_info, design_options)
+                        except TypeError as type_error:
+                            if "generate_shopify_sections" not in str(type_error):
+                                raise
+                            result = generator.generate_shopify_sections(core, product_info)
                         for s in SECTIONS:
                             code = result.get(s["key"], "")
                             gen[s["key"]] = code  # 空でも必ずセット（フォールバック済み）
