@@ -27,6 +27,7 @@ from modules.selection_pages import page_ads_sns as render_page_ads_sns, page_im
 from modules.saved_data_page import page_saved_data
 from modules.i18n import load_i18n, t, tl, resolve_option_index
 from modules.auth import ensure_authentication, current_user, logout
+from modules.usage_limiter import UsageLimiter
 from modules.project_utils import (
     STATUS_BADGE_CLASS, STATUS_LABEL_JA, STATUS_LABEL_PT,
     status_badge, ensure_product_id, load_project_session,
@@ -848,16 +849,18 @@ init_state()
 # Bump this string whenever new methods are added to any service class.
 # Changing it invalidates the @st.cache_resource cache on Streamlit Cloud,
 # forcing fresh service objects that reflect the latest code.
-_SERVICES_VER = "20260518-auth-workspace-v1"
+_SERVICES_VER = "20260518-usage-limits-v1"
 
 
 @st.cache_resource
 def get_services(shop_id: str = "default", _v=_SERVICES_VER):
-    llm = LLMClient()
     storage = Storage(shop_id)
+    usage_limiter = UsageLimiter(storage.data_dir, shop_id)
+    llm = LLMClient(usage_limiter=usage_limiter)
     return {
         "llm": llm,
         "storage": storage,
+        "usage_limiter": usage_limiter,
         "core_engine": CoreEngine(llm),
         "generator": GeneratorEngine(llm),
         "exporter": Exporter(),
@@ -1242,11 +1245,19 @@ def render_sidebar():
             st.markdown(f'Core: {status_badge(core_status)}', unsafe_allow_html=True)
 
         # ── API usage footer ──────────────────────────────────────────────
+        usage = svc["usage_limiter"].summary()
+        if usage["is_limited"]:
+            usage_text = f'{usage["used"]:,} / {usage["limit"]:,} calls'
+            fill_width = usage["percent"]
+        else:
+            usage_text = f'{usage["used"]:,} calls'
+            fill_width = 0
         st.markdown(
             '<div class="nd-sidebar-footer">'
             '<div style="color:#94a3b8;font-size:.6rem;letter-spacing:.1em;">API USAGE</div>'
-            '<div class="nd-use-bar"><div class="nd-use-fill" style="width:73%;"></div></div>'
-            '<div>730 / 1,000 calls</div>'
+            f'<div class="nd-use-bar"><div class="nd-use-fill" style="width:{fill_width}%;"></div></div>'
+            f'<div>{usage_text}</div>'
+            f'<div style="font-size:.72rem;color:#94a3b8;">{usage["period"]}</div>'
             '<div style="margin-top:4px;color:#94a3b8;">v2.0 · Commerce</div>'
             '</div>',
             unsafe_allow_html=True,

@@ -14,7 +14,8 @@ SYSTEM_PROMPT = """あなたはShopifyの商品ページ制作、広告制作、
 
 
 class LLMClient:
-    def __init__(self):
+    def __init__(self, usage_limiter=None):
+        self.usage_limiter = usage_limiter
         try:
             api_key = st.secrets["ANTHROPIC_API_KEY"]
         except Exception:
@@ -35,6 +36,10 @@ class LLMClient:
     def generate(self, prompt: str, system: str = "", max_tokens: int = 4096) -> str:
         if not self._available:
             return "[APIキーが設定されていません。Streamlit Cloud の Settings > Secrets に ANTHROPIC_API_KEY を設定してください]"
+        if self.usage_limiter:
+            allowed, message = self.usage_limiter.try_consume()
+            if not allowed:
+                return message
         sys_prompt = system if system else SYSTEM_PROMPT
         try:
             response = self._client.messages.create(
