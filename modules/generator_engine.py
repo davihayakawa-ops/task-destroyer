@@ -782,8 +782,19 @@ class GeneratorEngine:
 
     # ── Per-item generation ───────────────────────────────────────────────────
 
+    def _quality_instruction(self, quality_options) -> str:
+        if not quality_options:
+            return "指定なし"
+        return (
+            f"用途: {quality_options.get('purpose') or '指定なし'}\n"
+            f"雰囲気: {quality_options.get('tone') or '指定なし'}\n"
+            f"訴求の強さ: {quality_options.get('strength') or '標準'}\n"
+            f"追加指示: {quality_options.get('note') or 'なし'}"
+        )
+
     def generate_image_prompt_item(self, item_key: str, core: str,
-                                   product_name: str, category: str) -> str:
+                                   product_name: str, category: str,
+                                   quality_options=None) -> str:
         _cfg = {
             "main_visual":  ("商品ページ メインビジュアル", "白背景またはクリーンな背景で商品全体を美しく。高級感と信頼感を演出。"),
             "product_only": ("商品単体画像", "様々な角度の商品単体カット。素材・質感が伝わる接写も含める。"),
@@ -798,24 +809,40 @@ class GeneratorEngine:
         if not cfg:
             return f"[未知の項目: {item_key}]"
         item_name, instructions = cfg
+        quality_text = self._quality_instruction(quality_options)
         prompt = (
             f"あなたは画像生成AIのプロンプト作成専門家です。\n"
             f"以下のCoreと商品情報をもとに、「{item_name}」の画像生成プロンプトを作成してください。\n\n"
             f"【Core】\n{core[:2000]}\n\n"
             f"【商品情報】\n商品名: {product_name}\nカテゴリ: {category}\n\n"
             f"【この画像の目的・要件】\n{instructions}\n\n"
+            f"【今回の生成方向性】\n{quality_text}\n\n"
             f"【出力形式】\n"
             f"## {item_name}\n\n"
-            f"### 目的\n### 構図・アングル\n### 背景・セッティング\n### ライティング\n"
-            f"### カラーパレット\n### 雰囲気・スタイル\n### 商品の見せ方\n### NG要素\n\n"
+            f"### 使う場所\n"
+            f"### 推奨比率\n"
+            f"### 目的\n"
+            f"### 構図・アングル\n"
+            f"### 背景・セッティング\n"
+            f"### ライティング\n"
+            f"### カラーパレット\n"
+            f"### 雰囲気・スタイル\n"
+            f"### 商品の見せ方\n"
+            f"### 入れると良いテキスト\n"
+            f"### NG要素\n\n"
             f"### 生成AIプロンプト（英語）\n"
             f"（Midjourney/Stable Diffusion等に直接貼り付けられる英語プロンプト）\n\n"
             f"### 日本語メモ（制作担当者への補足）\n\n"
-            f"生成AIプロンプトは英語で具体的・詳細に。日本市場の美的感覚（清潔感・上品さ・信頼感）を反映すること。"
+            f"重要:\n"
+            f"- 生成AIプロンプトは英語で、被写体・構図・レンズ感・光・質感・背景・色を具体的に書く。\n"
+            f"- 商品そのものを曖昧にせず、ECで信頼される清潔感と質感を出す。\n"
+            f"- 効果保証、医療的断定、過度なBefore/After表現は避ける。\n"
+            f"- そのまま貼れる完成プロンプトとして出す。"
         )
         return self.llm.generate_structured(prompt)
 
-    def generate_video_script_item(self, item_key: str, core: str, product_name: str) -> str:
+    def generate_video_script_item(self, item_key: str, core: str, product_name: str,
+                                   quality_options=None) -> str:
         _cfg = {
             "script_15s": ("15秒動画台本", "フック(3秒)→悩み提示(4秒)→商品紹介(5秒)→CTA(3秒)の構成。"),
             "script_30s": ("30秒動画台本", "フック→悩み→ベネフィット→安心材料→CTAの流れ。"),
@@ -833,20 +860,35 @@ class GeneratorEngine:
         if not cfg:
             return f"[未知の項目: {item_key}]"
         item_name, instructions = cfg
+        quality_text = self._quality_instruction(quality_options)
         prompt = (
             f"あなたは動画台本の専門家です。\n"
             f"以下のCoreをもとに、「{item_name}」を作成してください。\n\n"
             f"【Core】\n{core[:2000]}\n\n"
             f"【商品情報】\n商品名: {product_name}\n\n"
             f"【この台本の要件】\n{instructions}\n\n"
-            f"台本を完成させてください。\n"
-            f"重要：冒頭3秒のフックを特に強くする。自然で親しみやすい日本語。"
-            f"購買意欲を高めつつ押しつけがましくない。薬機法・景表法リスク表現は避ける。"
+            f"【今回の生成方向性】\n{quality_text}\n\n"
+            f"【出力形式】\n"
+            f"## {item_name}\n"
+            f"### 狙い\n"
+            f"### 冒頭3秒フック\n"
+            f"### 完成台本\n"
+            f"### ナレーション\n"
+            f"### テロップ\n"
+            f"### 映像・撮影指示\n"
+            f"### CTA案\n"
+            f"### NG表現・注意点\n\n"
+            f"重要:\n"
+            f"- 冒頭3秒のフックを最優先する。\n"
+            f"- 視聴維持のため、1カットの意図が分かるようにする。\n"
+            f"- 自然な日本語で、押し売り感を避ける。\n"
+            f"- 薬機法・景表法リスク表現、効果保証、断定表現は避ける。"
         )
         return self.llm.generate_structured(prompt)
 
     def generate_video_script_combo(self, duration_key: str, type_key: str,
-                                    core: str, product_name: str) -> str:
+                                    core: str, product_name: str,
+                                    quality_options=None) -> str:
         _duration_cfg = {
             "15s": ("15秒", "0〜3秒: 強いフック / 4〜8秒: 悩み提示 / 9〜12秒: 商品ベネフィット / 13〜15秒: CTA"),
             "30s": ("30秒", "0〜3秒: フック / 4〜10秒: 悩み・共感 / 11〜20秒: 商品紹介・ベネフィット / 21〜27秒: 安心材料 / 28〜30秒: CTA"),
@@ -868,6 +910,7 @@ class GeneratorEngine:
         }
         duration_label, duration_structure = _duration_cfg.get(duration_key, (duration_key, "選択された秒数に合わせて構成する。"))
         type_label, type_instruction = _type_cfg.get(type_key, (type_key, "選択された生成タイプに合わせて作成する。"))
+        quality_text = self._quality_instruction(quality_options)
 
         if type_key == "higgs_marketing_studio":
             prompt = (
@@ -878,15 +921,19 @@ class GeneratorEngine:
                 f"【商品情報】\n商品名: {product_name}\n\n"
                 f"【尺】{duration_label}\n"
                 f"【推奨構成】{duration_structure}\n\n"
+                f"【今回の生成方向性】\n{quality_text}\n\n"
                 f"【出力形式】\n"
                 f"## Higgs Marketing Studio Prompt\n"
                 f"- Objective:\n- Video Length:\n- Aspect Ratio:\n- Target Audience:\n"
                 f"- Main Hook:\n- Scene-by-scene Direction:\n- Visual Style:\n"
                 f"- Product Presentation:\n- On-screen Text:\n- Voiceover Script:\n"
                 f"- Music / Sound:\n- CTA:\n- Negative Instructions:\n\n"
-                f"Marketing Studioに貼り付けやすいよう、英語中心で具体的に書くこと。"
-                f"ただし日本語担当者向けの短い補足メモも最後に付けること。"
-                f"薬機法・景表法リスク表現は避ける。"
+                f"### 日本語メモ\n\n"
+                f"重要:\n"
+                f"- Marketing Studioに貼り付けやすいよう、英語中心で具体的に書く。\n"
+                f"- カット、画角、光、商品接写、手元動作、画面テキストまで指定する。\n"
+                f"- 日本語担当者向けの短い補足メモも最後に付ける。\n"
+                f"- 薬機法・景表法リスク表現は避ける。"
             )
             return self.llm.generate_structured(prompt)
 
@@ -899,9 +946,11 @@ class GeneratorEngine:
             f"【秒数構成】{duration_structure}\n"
             f"【生成タイプ】{type_label}\n"
             f"【タイプ別要件】{type_instruction}\n\n"
+            f"【今回の生成方向性】\n{quality_text}\n\n"
             f"【出力形式】\n"
             f"## {duration_label} × {type_label}\n\n"
             f"### 狙い\n"
+            f"### 冒頭3秒フック\n"
             f"### 秒数別構成\n"
             f"### 完成台本\n"
             f"### ナレーション\n"
@@ -910,13 +959,18 @@ class GeneratorEngine:
             f"### フック案 3つ\n"
             f"### CTA案 3つ\n"
             f"### NG表現・注意点\n\n"
-            f"重要：冒頭3秒のフックを特に強くする。自然で親しみやすい日本語。"
-            f"購買意欲を高めつつ押しつけがましくない。薬機法・景表法リスク表現は避ける。"
+            f"重要:\n"
+            f"- 冒頭3秒のフックを特に強くする。\n"
+            f"- 秒数別構成は、映像・テロップ・ナレーション・目的が分かる表にする。\n"
+            f"- ターゲットが自分ごと化できる悩み、使用シーン、安心材料を入れる。\n"
+            f"- 自然で親しみやすい日本語。押しつけがましくしない。\n"
+            f"- 薬機法・景表法リスク表現、効果保証、断定表現は避ける。"
         )
         return self.llm.generate_structured(prompt)
 
     def generate_ads_sns_item(self, media: str, content_type: str,
-                              core: str, product_name: str) -> str:
+                              core: str, product_name: str,
+                              quality_options=None) -> str:
         _media_labels = {
             "instagram": "Instagram", "tiktok": "TikTok",
             "yt_shorts": "YouTube Shorts", "facebook": "Facebook",
@@ -930,13 +984,28 @@ class GeneratorEngine:
         }
         media_label = _media_labels.get(media, media)
         type_label = _type_labels.get(content_type, content_type)
+        quality_text = self._quality_instruction(quality_options)
         prompt = (
             f"あなたはSNS・広告マーケティングの専門家です。\n"
             f"以下のCoreをもとに、{media_label}向けの「{type_label}」を3〜5案作成してください。\n\n"
             f"【Core】\n{core[:2000]}\n\n"
             f"【商品情報】\n商品名: {product_name}\n\n"
             f"【媒体】{media_label}\n【生成タイプ】{type_label}\n\n"
-            f"重要：{media_label}のトーン・文化・文字数制限に合わせる。"
-            f"自然で親しみやすい日本語。絵文字を適度に使用。薬機法・景表法リスク表現は避ける。"
+            f"【今回の生成方向性】\n{quality_text}\n\n"
+            f"【出力形式】\n"
+            f"## {media_label} / {type_label}\n"
+            f"### 使いどころ\n"
+            f"### 案1\n"
+            f"### 案2\n"
+            f"### 案3\n"
+            f"### 短縮版\n"
+            f"### CTA\n"
+            f"### 注意点\n\n"
+            f"重要:\n"
+            f"- {media_label}のトーン・文化・文字数制限に合わせる。\n"
+            f"- 最初の1行でスクロールを止める。\n"
+            f"- 商品名または商品の特徴が自然に入るようにする。\n"
+            f"- 絵文字は媒体に合う範囲で使いすぎない。\n"
+            f"- 薬機法・景表法リスク表現、効果保証、断定表現は避ける。"
         )
         return self.llm.generate_structured(prompt)

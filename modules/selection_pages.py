@@ -1,3 +1,5 @@
+import html
+
 import streamlit as st
 
 from .generated_content import combine_generated_items
@@ -13,6 +15,148 @@ from .selection_config import (
     VS_PRESETS,
     VS_TYPES,
 )
+
+
+_GEN_CSS = """
+<style>
+.gen-hero{background:#111827;border:1px solid #263244;border-radius:10px;padding:16px 18px;margin:0 0 16px}
+.gen-hero h3{color:#f8fafc;font-size:1rem;font-weight:850;margin:0 0 6px}
+.gen-hero p{color:#a8b3c7;font-size:.82rem;line-height:1.65;margin:0}
+.gen-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0 0 16px}
+.gen-card{background:#111827;border:1px solid #263244;border-radius:8px;padding:13px 14px;min-height:88px}
+.gen-card strong{display:block;color:#f8fafc;font-size:.84rem;margin-bottom:5px}
+.gen-card span{display:block;color:#94a3b8;font-size:.74rem;line-height:1.55}
+.gen-plan{background:#0b1220;border:1px solid #334155;border-radius:8px;padding:12px 14px;margin:12px 0;color:#cbd5e1;font-size:.8rem}
+.gen-plan strong{color:#f8fafc}
+.gen-pill{display:inline-block;background:rgba(59,130,246,.14);border:1px solid #2563eb;color:#bfdbfe;border-radius:999px;padding:4px 10px;margin:4px 6px 4px 0;font-size:.72rem;font-weight:700}
+.gen-result-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:8px}
+.gen-result-title{color:#f8fafc;font-weight:850;font-size:.96rem}
+.gen-result-meta{color:#94a3b8;font-size:.72rem;line-height:1.5}
+@media(max-width:900px){.gen-grid{grid-template-columns:1fr}}
+</style>
+"""
+
+
+def _esc(value) -> str:
+    return html.escape(str(value or ""))
+
+
+def _hero(title: str, body: str) -> str:
+    return f'<div class="gen-hero"><h3>{_esc(title)}</h3><p>{_esc(body)}</p></div>'
+
+
+def _info_grid(cards):
+    return (
+        '<div class="gen-grid">'
+        + "".join(
+            f'<div class="gen-card"><strong>{_esc(title)}</strong><span>{_esc(body)}</span></div>'
+            for title, body in cards
+        )
+        + "</div>"
+    )
+
+
+def _render_quality_controls(prefix: str, is_ja: bool, page_kind: str) -> dict:
+    st.markdown("### " + ("生成の方向性" if is_ja else "Direção da geração"))
+    if page_kind == "image":
+        purpose_opts = ["Shopify商品ページ", "広告バナー", "SNS投稿", "Higgsfield/画像AI用", "高級ブランド風"]
+        purpose_pt = ["Página Shopify", "Banner de anúncio", "Post SNS", "Para Higgsfield/IA de imagem", "Marca premium"]
+    elif page_kind == "video":
+        purpose_opts = ["TikTok/Reels", "YouTube Shorts", "広告動画", "Higgs Marketing Studio用", "撮影指示用"]
+        purpose_pt = ["TikTok/Reels", "YouTube Shorts", "Vídeo de anúncio", "Para Higgs Marketing Studio", "Direção de filmagem"]
+    else:
+        purpose_opts = ["通常投稿", "広告運用", "商品ページ誘導", "キャンペーン", "コメント獲得"]
+        purpose_pt = ["Post normal", "Anúncio pago", "Levar à página do produto", "Campanha", "Gerar comentários"]
+    tone_opts = ["上品・信頼感", "ナチュラル", "高級感", "悩み共感", "SNS広告・強め", "ミニマル"]
+    tone_pt = ["Elegante/confiável", "Natural", "Premium", "Empatia com dor", "Anúncio SNS forte", "Minimalista"]
+    strength_opts = ["控えめ", "標準", "強め"]
+    strength_pt = ["Suave", "Padrão", "Forte"]
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        purpose = st.selectbox(
+            "用途" if is_ja else "Uso",
+            purpose_opts if is_ja else purpose_pt,
+            key=f"{prefix}_purpose",
+        )
+    with col2:
+        tone = st.selectbox(
+            "雰囲気" if is_ja else "Tom",
+            tone_opts if is_ja else tone_pt,
+            key=f"{prefix}_tone",
+        )
+    with col3:
+        strength = st.selectbox(
+            "訴求の強さ" if is_ja else "Força",
+            strength_opts if is_ja else strength_pt,
+            index=1,
+            key=f"{prefix}_strength",
+        )
+    note = st.text_input(
+        "追加指示（任意）" if is_ja else "Instrução extra (opcional)",
+        placeholder=("例：黒背景、高級感、30代女性向け" if is_ja else "Ex.: fundo escuro, premium, mulheres 30+"),
+        key=f"{prefix}_note",
+    )
+    return {
+        "purpose": purpose,
+        "tone": tone,
+        "strength": strength,
+        "note": note,
+    }
+
+
+def _render_plan(selected_labels, quality: dict, is_ja: bool):
+    if not selected_labels:
+        msg = "まだ生成対象が選ばれていません。" if is_ja else "Nenhum item selecionado ainda."
+        st.markdown(f'<div class="gen-plan">{_esc(msg)}</div>', unsafe_allow_html=True)
+        return
+    title = "生成予定" if is_ja else "Será gerado"
+    settings = (
+        f"{'用途' if is_ja else 'Uso'}: {quality.get('purpose', '-')}"
+        f" / {'雰囲気' if is_ja else 'Tom'}: {quality.get('tone', '-')}"
+        f" / {'強さ' if is_ja else 'Força'}: {quality.get('strength', '-')}"
+    )
+    pills = "".join(f'<span class="gen-pill">{_esc(label)}</span>' for label in selected_labels)
+    st.markdown(
+        f'<div class="gen-plan"><strong>{_esc(title)}: {len(selected_labels)}</strong><br>'
+        f'{_esc(settings)}<br>{pills}</div>',
+        unsafe_allow_html=True,
+    )
+
+
+def _item_meta(category: str, key: str, is_ja: bool) -> str:
+    ip = {
+        "main_visual": ("Shopifyの最初に置くメイン画像 / 16:9・4:5", "Imagem principal para Shopify / 16:9 ou 4:5"),
+        "product_only": ("商品単体を正確に見せる / 1:1", "Mostrar o produto com clareza / 1:1"),
+        "usage_scene": ("使っている場面を見せる / 4:5", "Cena de uso / 4:5"),
+        "benefit": ("ベネフィットを視覚化 / 4:5", "Visualizar benefício / 4:5"),
+        "comparison": ("違いを分かりやすく見せる / 16:9", "Mostrar diferenciais / 16:9"),
+        "ad_banner": ("広告・LP上部向け / 16:9", "Para anúncio ou topo de LP / 16:9"),
+        "sns_post": ("Instagram投稿向け / 1:1・4:5", "Para Instagram / 1:1 ou 4:5"),
+        "story": ("縦型ストーリー向け / 9:16", "Stories vertical / 9:16"),
+    }
+    vs = {
+        "tiktok": ("テンポ重視。冒頭3秒のフックを強めます。", "Ritmo rápido e gancho forte nos 3 primeiros segundos."),
+        "reels": ("見た目と保存したくなる整理を重視します。", "Foco visual e conteúdo salvável."),
+        "yt_shorts": ("短尺で理解しやすい教育・比較型にします。", "Formato educativo/comparativo curto."),
+        "ad_script": ("広告配信向けに不安解消とCTAを強めます。", "Para anúncio pago, com CTA e redução de objeções."),
+        "narration": ("読み上げやすい音声本文を作ります。", "Texto natural para narração."),
+        "timeline": ("秒数ごとの映像・テロップ・音声を表にします。", "Tabela por tempo com vídeo, texto e áudio."),
+        "shooting": ("カメラ・照明・小物まで指示します。", "Direção de câmera, luz e objetos."),
+        "higgs_marketing_studio": ("Higgsに貼る英語プロンプトを作ります。", "Prompt em inglês para colar no Higgs."),
+    }
+    ads = {
+        "post": ("通常投稿向けの本文を複数案で作ります。", "Variações para post normal."),
+        "ad_copy": ("広告配信用の短い訴求を作ります。", "Copy curta para anúncio pago."),
+        "caption": ("投稿の説明文として使いやすく整えます。", "Legenda pronta para postagem."),
+        "hashtag": ("使いやすいタグを用途別に出します。", "Hashtags por uso."),
+        "cta": ("クリック・保存・購入への導線を作ります。", "Chamadas para ação."),
+        "hook": ("冒頭で止める短いフックを作ります。", "Ganchos curtos de atenção."),
+        "comment_bait": ("自然なコメント誘導を作ります。", "Indução natural de comentários."),
+    }
+    data = {"ip": ip, "vs": vs, "ads": ads}.get(category, {})
+    ja, pt = data.get(key, ("", ""))
+    return ja if is_ja else pt
 
 
 def _load_category_state(svc: dict, category_key: str):
@@ -49,6 +193,13 @@ def _render_item_card(svc: dict, ensure_product_id, status_badge,
     pid = ensure_product_id()
 
     with st.expander(f"✅ {label}", expanded=True):
+        st.markdown(
+            '<div class="gen-result-head">'
+            f'<div><div class="gen-result-title">{_esc(label)}</div>'
+            f'<div class="gen-result-meta">{_esc("内容を確認して、必要なら編集してから保存してください。" if is_ja else "Revise, edite se necessário e salve.")}</div></div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
         new_content = st.text_area(
             "",
             value=content,
@@ -87,6 +238,7 @@ def _render_item_card(svc: dict, ensure_product_id, status_badge,
 
 def page_image_prompt(svc: dict, t, ensure_product_id, status_badge):
     is_ja = st.session_state.get("lang", "ja") == "ja"
+    st.markdown(_GEN_CSS, unsafe_allow_html=True)
     st.markdown('<div class="section-header">🖼️ ' + t("image_prompt.title") + '</div>',
                 unsafe_allow_html=True)
 
@@ -104,7 +256,24 @@ def page_image_prompt(svc: dict, t, ensure_product_id, status_badge):
     product_name = product_info.get("name", "")
     category = product_info.get("category", "")
 
-    st.markdown("### " + ("STEP 1: プリセット選択" if is_ja else "STEP 1: Selecionar Preset"))
+    st.markdown(
+        _hero(
+            "画像生成AIに貼るプロンプトを作る" if is_ja else "Criar prompts para IA de imagem",
+            "ここでは画像そのものではなく、Higgsfield・Midjourney・画像生成AIに貼れる完成プロンプトを作ります。用途と雰囲気を先に決めると品質が安定します。"
+            if is_ja else
+            "Aqui você cria prompts prontos para Higgsfield, Midjourney ou outra IA de imagem. Definir uso e tom melhora a qualidade.",
+        ),
+        unsafe_allow_html=True,
+    )
+    st.markdown(_info_grid([
+        ("Shopify用" if is_ja else "Para Shopify", "商品ページのFV・説明・使用シーンに使う画像案。" if is_ja else "Imagens para hero, explicação e uso."),
+        ("SNS用" if is_ja else "Para SNS", "Instagram投稿やストーリー向けの縦・正方形画像案。" if is_ja else "Quadrado/vertical para Instagram e stories."),
+        ("広告用" if is_ja else "Para anúncios", "視線を止める構図、悩み訴求、CTA前提の画像案。" if is_ja else "Composição para parar o scroll e vender."),
+    ]), unsafe_allow_html=True)
+
+    quality = _render_quality_controls("ip_quality", is_ja, "image")
+
+    st.markdown("### " + ("プリセットを選ぶ" if is_ja else "Escolher preset"))
     preset_cols = st.columns(len(IP_PRESETS))
     for i, (pk, pja, ppt, pitems) in enumerate(IP_PRESETS):
         with preset_cols[i]:
@@ -113,16 +282,21 @@ def page_image_prompt(svc: dict, t, ensure_product_id, status_badge):
                     st.session_state[f"chk_ip_{k}"] = (k in pitems)
                 st.rerun()
 
-    st.markdown("### " + ("STEP 2: 生成項目を選択" if is_ja else "STEP 2: Selecionar Itens"))
+    st.markdown("### " + ("生成する画像プロンプト" if is_ja else "Prompts de imagem"))
     selected = []
+    selected_labels = []
     cols = st.columns(2)
     for i, (k, ja_lbl, pt_lbl) in enumerate(IP_ITEMS):
         with cols[i % 2]:
             default = st.session_state.get(f"chk_ip_{k}", False)
             if st.checkbox(ja_lbl if is_ja else pt_lbl, value=default, key=f"chk_ip_{k}"):
                 selected.append(k)
+                selected_labels.append(ja_lbl if is_ja else pt_lbl)
+            meta = _item_meta("ip", k, is_ja)
+            if meta:
+                st.caption(meta)
 
-    st.markdown("---")
+    _render_plan(selected_labels, quality, is_ja)
     n = len(selected)
     btn_label = (f"⚡ 選択した {n} 項目を生成" if is_ja else f"⚡ Gerar {n} item(s) selecionado(s)")
     if st.button(btn_label, type="primary", disabled=(n == 0)):
@@ -131,7 +305,7 @@ def page_image_prompt(svc: dict, t, ensure_product_id, status_badge):
         for i, k in enumerate(selected):
             lbl = next((ja if is_ja else pt for kk, ja, pt in IP_ITEMS if kk == k), k)
             status.text(f"⏳ {lbl} ({i+1}/{n})")
-            result = svc["generator"].generate_image_prompt_item(k, core, product_name, category)
+            result = svc["generator"].generate_image_prompt_item(k, core, product_name, category, quality)
             st.session_state["image_prompts"][k] = result
             prog.progress((i + 1) / n)
         status.empty()
@@ -154,7 +328,7 @@ def page_image_prompt(svc: dict, t, ensure_product_id, status_badge):
             def _make_regen_fn_ip(item_key):
                 def _regen(_):
                     return svc["generator"].generate_image_prompt_item(
-                        item_key, core, product_name, category)
+                        item_key, core, product_name, category, quality)
                 return _regen
 
             _render_item_card(svc, ensure_product_id, status_badge,
@@ -169,6 +343,7 @@ def page_image_prompt(svc: dict, t, ensure_product_id, status_badge):
 
 def page_video_script(svc: dict, t, ensure_product_id, status_badge):
     is_ja = st.session_state.get("lang", "ja") == "ja"
+    st.markdown(_GEN_CSS, unsafe_allow_html=True)
     st.markdown('<div class="section-header">🎬 ' + t("video_script.title") + '</div>',
                 unsafe_allow_html=True)
 
@@ -185,7 +360,24 @@ def page_video_script(svc: dict, t, ensure_product_id, status_badge):
     product_info = st.session_state.get("product_info", {})
     product_name = product_info.get("name", "")
 
-    st.markdown("### " + ("STEP 1: プリセット選択" if is_ja else "STEP 1: Selecionar Preset"))
+    st.markdown(
+        _hero(
+            "動画の台本・撮影指示・Higgs用プロンプトを作る" if is_ja else "Criar roteiro, direção e prompt Higgs",
+            "秒数と用途を組み合わせて、ショート動画の設計図を作ります。広告用・SNS用・Higgs用で出力内容を変えます。"
+            if is_ja else
+            "Combine duração e uso para criar a estrutura do vídeo curto. A saída muda para anúncio, SNS ou Higgs.",
+        ),
+        unsafe_allow_html=True,
+    )
+    st.markdown(_info_grid([
+        ("秒数" if is_ja else "Duração", "15秒はフック重視、30秒以上は理解と安心材料まで入れます。" if is_ja else "15s foca no gancho; 30s+ inclui contexto e confiança."),
+        ("生成タイプ" if is_ja else "Tipo", "TikTok、Reels、広告、撮影指示、Higgs用を選べます。" if is_ja else "TikTok, Reels, anúncio, direção ou Higgs."),
+        ("完成形" if is_ja else "Resultado", "ナレーション・テロップ・映像指示まで分けて出します。" if is_ja else "Narração, legendas e direção visual separados."),
+    ]), unsafe_allow_html=True)
+
+    quality = _render_quality_controls("vs_quality", is_ja, "video")
+
+    st.markdown("### " + ("プリセットを選ぶ" if is_ja else "Escolher preset"))
     preset_cols = st.columns(len(VS_COMBO_PRESETS))
     for i, (pk, pja, ppt, durations, types) in enumerate(VS_COMBO_PRESETS):
         with preset_cols[i]:
@@ -196,7 +388,7 @@ def page_video_script(svc: dict, t, ensure_product_id, status_badge):
                     st.session_state[f"chk_vs_type_{k}"] = (k in types)
                 st.rerun()
 
-    st.markdown("### " + ("STEP 2: 秒数を選択" if is_ja else "STEP 2: Selecionar Duração"))
+    st.markdown("### " + ("秒数を選ぶ" if is_ja else "Escolher duração"))
     selected_durations = []
     duration_cols = st.columns(len(VS_DURATIONS))
     for i, (k, ja_lbl, pt_lbl) in enumerate(VS_DURATIONS):
@@ -205,7 +397,7 @@ def page_video_script(svc: dict, t, ensure_product_id, status_badge):
             if st.checkbox(ja_lbl if is_ja else pt_lbl, value=default, key=f"chk_vs_duration_{k}"):
                 selected_durations.append(k)
 
-    st.markdown("### " + ("STEP 3: 生成タイプを選択" if is_ja else "STEP 3: Selecionar Tipo"))
+    st.markdown("### " + ("作る内容を選ぶ" if is_ja else "Escolher conteúdo"))
     selected_types = []
     type_cols = st.columns(2)
     for i, (k, ja_lbl, pt_lbl) in enumerate(VS_TYPES):
@@ -213,10 +405,14 @@ def page_video_script(svc: dict, t, ensure_product_id, status_badge):
             default = st.session_state.get(f"chk_vs_type_{k}", k in ("tiktok", "reels"))
             if st.checkbox(ja_lbl if is_ja else pt_lbl, value=default, key=f"chk_vs_type_{k}"):
                 selected_types.append(k)
+            meta = _item_meta("vs", k, is_ja)
+            if meta:
+                st.caption(meta)
 
     selected = [(d, tp) for d in selected_durations for tp in selected_types]
+    selected_labels = [_video_combo_label(d, tp, is_ja) for d, tp in selected]
 
-    st.markdown("---")
+    _render_plan(selected_labels, quality, is_ja)
     n = len(selected)
     btn_label = (f"⚡ 選択した {n} 組み合わせを生成" if is_ja else f"⚡ Gerar {n} combinação(ões)")
     if st.button(btn_label, type="primary", disabled=(n == 0), key="vs_gen_btn"):
@@ -227,7 +423,7 @@ def page_video_script(svc: dict, t, ensure_product_id, status_badge):
             lbl = _video_combo_label(duration_key, type_key, is_ja)
             status.text(f"⏳ {lbl} ({i+1}/{n})")
             result = svc["generator"].generate_video_script_combo(
-                duration_key, type_key, core, product_name)
+                duration_key, type_key, core, product_name, quality)
             st.session_state["video_scripts"][k] = result
             prog.progress((i + 1) / n)
         status.empty()
@@ -252,8 +448,8 @@ def page_video_script(svc: dict, t, ensure_product_id, status_badge):
                     if "__" in item_key:
                         duration_key, type_key = item_key.split("__", 1)
                         return svc["generator"].generate_video_script_combo(
-                            duration_key, type_key, core, product_name)
-                    return svc["generator"].generate_video_script_item(item_key, core, product_name)
+                            duration_key, type_key, core, product_name, quality)
+                    return svc["generator"].generate_video_script_item(item_key, core, product_name, quality)
                 return _regen
 
             _render_item_card(svc, ensure_product_id, status_badge,
@@ -281,6 +477,7 @@ def _video_item_label(item_key: str, is_ja: bool) -> str:
 
 def page_ads_sns(svc: dict, t, ensure_product_id, status_badge):
     is_ja = st.session_state.get("lang", "ja") == "ja"
+    st.markdown(_GEN_CSS, unsafe_allow_html=True)
     st.markdown('<div class="section-header">📣 ' + t("ads_sns.title") + '</div>',
                 unsafe_allow_html=True)
 
@@ -297,7 +494,24 @@ def page_ads_sns(svc: dict, t, ensure_product_id, status_badge):
     product_info = st.session_state.get("product_info", {})
     product_name = product_info.get("name", "")
 
-    st.markdown("### " + ("STEP 1: プリセット選択" if is_ja else "STEP 1: Selecionar Preset"))
+    st.markdown(
+        _hero(
+            "広告・SNSの投稿文を媒体別に作る" if is_ja else "Criar textos de anúncio e SNS por canal",
+            "媒体と目的を決めて、投稿文・広告コピー・CTA・ハッシュタグを作ります。生成予定の組み合わせを確認してから実行します。"
+            if is_ja else
+            "Escolha canal e objetivo para gerar posts, copies, CTAs e hashtags. Confira as combinações antes de gerar.",
+        ),
+        unsafe_allow_html=True,
+    )
+    st.markdown(_info_grid([
+        ("媒体別" if is_ja else "Por canal", "Instagram、TikTok、Google広告など媒体の文脈に合わせます。" if is_ja else "Adapta ao contexto de Instagram, TikTok, Google etc."),
+        ("目的別" if is_ja else "Por objetivo", "投稿、広告コピー、CTA、ハッシュタグを分けて生成します。" if is_ja else "Separa post, copy, CTA e hashtags."),
+        ("使いやすさ" if is_ja else "Pronto para uso", "複数案を出し、編集・保存・ダウンロードできます。" if is_ja else "Gera variações editáveis e baixáveis."),
+    ]), unsafe_allow_html=True)
+
+    quality = _render_quality_controls("as_quality", is_ja, "ads")
+
+    st.markdown("### " + ("プリセットを選ぶ" if is_ja else "Escolher preset"))
     preset_cols = st.columns(len(AS_PRESETS))
     for i, (pk, pja, ppt, pcombos) in enumerate(AS_PRESETS):
         with preset_cols[i]:
@@ -314,8 +528,8 @@ def page_ads_sns(svc: dict, t, ensure_product_id, status_badge):
                     st.session_state["as_preset_combos"] = set()
                 st.rerun()
 
-    st.markdown("### " + ("STEP 2: 媒体と生成タイプを選択" if is_ja
-                          else "STEP 2: Selecionar Mídia e Tipo"))
+    st.markdown("### " + ("媒体と生成タイプを選ぶ" if is_ja
+                          else "Escolher mídia e tipo"))
     col_media, col_type = st.columns(2)
 
     media_options = [m for m, _ in AS_MEDIA]
@@ -339,16 +553,19 @@ def page_ads_sns(svc: dict, t, ensure_product_id, status_badge):
             default = tk in sel_type_keys
             if st.checkbox(tja if is_ja else tpt, value=default, key=f"chk_as_t_{tk}"):
                 selected_types.append(tk)
+            meta = _item_meta("ads", tk, is_ja)
+            if meta:
+                st.caption(meta)
         st.session_state["as_sel_types"] = selected_types
 
-    st.markdown("---")
     combos = [(m, ct) for m in selected_media for ct in selected_types]
     n = len(combos)
+    selected_labels = []
     if n > 0:
         media_labels_map = {mk: ml for mk, ml in AS_MEDIA}
         type_labels_map = {k: (ja if is_ja else pt) for k, ja, pt in AS_TYPES}
-        st.info(("生成する組み合わせ: " if is_ja else "Combinações a gerar: ") +
-                ", ".join(f"{media_labels_map[m]}/{type_labels_map[ct]}" for m, ct in combos))
+        selected_labels = [f"{media_labels_map[m]} / {type_labels_map[ct]}" for m, ct in combos]
+    _render_plan(selected_labels, quality, is_ja)
     btn_label = (f"⚡ {n} 組み合わせを生成" if is_ja else f"⚡ Gerar {n} combinação(ões)")
     if st.button(btn_label, type="primary", disabled=(n == 0), key="as_gen_btn"):
         prog = st.progress(0)
@@ -358,7 +575,7 @@ def page_ads_sns(svc: dict, t, ensure_product_id, status_badge):
         for i, (m, ct) in enumerate(combos):
             combo_label = f"{media_labels_map2[m]} / {type_labels_map2[ct]}"
             status.text(f"⏳ {combo_label} ({i+1}/{n})")
-            result = svc["generator"].generate_ads_sns_item(m, ct, core, product_name)
+            result = svc["generator"].generate_ads_sns_item(m, ct, core, product_name, quality)
             st.session_state["ads_sns_items"][f"{m}::{ct}"] = result
             prog.progress((i + 1) / n)
         status.empty()
@@ -388,7 +605,7 @@ def page_ads_sns(svc: dict, t, ensure_product_id, status_badge):
                 def _make_regen_fn_as(media_key, content_type_key):
                     def _regen(_):
                         return svc["generator"].generate_ads_sns_item(
-                            media_key, content_type_key, core, product_name)
+                            media_key, content_type_key, core, product_name, quality)
                     return _regen
 
                 _render_item_card(svc, ensure_product_id, status_badge,
