@@ -11,6 +11,7 @@ sys.path.insert(0, str(ROOT))
 
 PAGES = [
     "product_input",
+    "saved_data",
     "core_generation",
     "product_page",
     "image_prompt",

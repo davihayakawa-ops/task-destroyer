@@ -23,6 +23,7 @@ from modules.exporter import Exporter
 from modules.mode_registry import list_modes, get_mode
 from modules.product_input_logic import PRODUCT_FIELD_LABELS_JA, PRODUCT_TRANSLATABLE_FIELDS, prepare_product_save_data
 from modules.selection_pages import page_ads_sns as render_page_ads_sns, page_image_prompt as render_page_image_prompt, page_video_script as render_page_video_script
+from modules.saved_data_page import page_saved_data
 from modules.i18n import load_i18n, t, tl, resolve_option_index
 from modules.project_utils import (
     STATUS_BADGE_CLASS, STATUS_LABEL_JA, STATUS_LABEL_PT,
@@ -997,6 +998,7 @@ def _render_market_controls(is_ja: bool):
 _NAV_GROUPS = [
     ("product", "📦 商品", "📦 Produto", "📦 Product", [
         ("product_input",   "① 商品情報を入れる", "① Dados do Produto",    "① Product Info", "pi"),
+        ("saved_data",      "保存済み商品",       "Produtos salvos",       "Saved Products", "sd"),
     ]),
     ("core", "✨ Core", "✨ Core", "✨ Core", [
         ("core_generation", "② Coreを作る",       "② Criar Core",          "② Build Core", "cg"),
@@ -1014,6 +1016,7 @@ _BREADCRUMB_MAP_JA = {
     "dashboard":        ("🏠 ホーム",      "ダッシュボード"),
     "mode_selection":   ("🏠 ホーム",      "モード選択"),
     "product_input":    ("📦 商品",        "商品入力"),
+    "saved_data":       ("📦 商品",        "保存済み商品"),
     "core_generation":  ("✨ Core",        "Core生成・編集"),
     "product_page":     ("⚡ 生成",        "商品ページ"),
     "image_prompt":     ("⚡ 生成",        "画像プロンプト"),
@@ -1026,6 +1029,7 @@ _BREADCRUMB_MAP_PT = {
     "dashboard":        ("🏠 Início",       "Painel"),
     "mode_selection":   ("🏠 Início",       "Seleção de Modo"),
     "product_input":    ("📦 Produto",      "Entrada do Produto"),
+    "saved_data":       ("📦 Produto",      "Produtos Salvos"),
     "core_generation":  ("✨ Core",         "Gerar/Editar Core"),
     "product_page":     ("⚡ Gerar",        "Página do Produto"),
     "image_prompt":     ("⚡ Gerar",        "Prompts de Imagem"),
@@ -1038,6 +1042,7 @@ _BREADCRUMB_MAP_EN = {
     "dashboard":        ("🏠 Home",                "Dashboard"),
     "mode_selection":   ("🏠 Home",                "Mode Selection"),
     "product_input":    ("📦 Product",             "Product Input"),
+    "saved_data":       ("📦 Product",             "Saved Products"),
     "core_generation":  ("✨ Core",                "Generate/Edit Core"),
     "product_page":     ("⚡ Generate",            "Product Page"),
     "image_prompt":     ("⚡ Generate",            "Image Prompts"),
@@ -1130,6 +1135,7 @@ def render_sidebar():
 
         nav_items = [
             ("product_input",   _lt("① 商品情報を入れる", "① Dados do produto", "① Product Info", lang)),
+            ("saved_data",      _lt("保存済み商品", "Produtos salvos", "Saved Products", lang)),
             ("core_generation", _lt("② Coreを作る", "② Criar Core", "② Build Core", lang)),
             ("product_page",    _lt("③ Shopifyコード", "③ Código Shopify", "③ Shopify Code", lang)),
             ("image_prompt",    _lt("画像プロンプト", "Prompts de imagem", "Image Prompts", lang)),
@@ -1223,7 +1229,7 @@ def _workflow_status() -> dict:
 
 
 def render_workflow_summary(page: str):
-    if page in {"mode_selection", "dashboard"}:
+    if page in {"mode_selection", "dashboard", "saved_data"}:
         return
     lang = st.session_state.get("lang", "ja")
     s = _workflow_status()
@@ -4099,7 +4105,6 @@ def main():
         "bulk_pack",
         "refinement",
         "check",
-        "saved_data",
         "instruction_sheet",
     }
     if st.session_state.get("page") in removed_pages:
@@ -4128,6 +4133,7 @@ def main():
         "ads_sns": page_ads_sns,
         "output": page_output,
         "export_center": page_export_center,
+        "saved_data": lambda: page_saved_data(svc),
     }
 
     render_fn = page_map.get(page, page_product_input)

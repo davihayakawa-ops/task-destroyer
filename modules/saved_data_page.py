@@ -132,11 +132,199 @@ def _hero_html(title: str, body: str) -> str:
     )
 
 
+def _lt(ja: str, pt: str, en: str, lang: str) -> str:
+    if lang == "ja":
+        return ja
+    if lang == "en":
+        return en
+    return pt
+
+
 def page_saved_data(svc: dict) -> None:
-    st.markdown('<div class="section-header">💾 ' + t("nav.saved_data") + '</div>',
-                unsafe_allow_html=True)
-    is_ja = st.session_state.get("lang", "ja") == "ja"
+    lang = st.session_state.get("lang", "ja")
+    is_ja = lang == "ja"
     st.markdown(_SAVED_DATA_CSS, unsafe_allow_html=True)
+    st.markdown(
+        '<div class="section-header">📁 ' +
+        _lt("保存済み商品", "Produtos salvos", "Saved Products", lang) +
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
+    all_products = [
+        p for p in svc["storage"].list_products()
+        if not is_empty_project_entry(p)
+    ]
+    current_pid = st.session_state.get("product_id", "")
+
+    st.markdown(
+        _hero_html(
+            _lt("商品プロジェクトを開く", "Abrir projeto de produto", "Open a Product Project", lang),
+            _lt(
+                "過去に保存した商品、Core、Shopifyコード、画像・動画・SNS生成物を読み込みます。ここは管理画面ではなく、作業を再開するための保存ライブラリです。",
+                "Carregue produtos, Core, código Shopify e materiais gerados anteriormente. Esta é uma biblioteca para continuar o trabalho, não uma tela de administração.",
+                "Load previously saved products, Cores, Shopify code, and generated assets. This is a library for resuming work, not an admin screen.",
+                lang,
+            ),
+        ),
+        unsafe_allow_html=True,
+    )
+
+    c1, c2, c3 = st.columns([1, 1, 2])
+    with c1:
+        st.markdown(
+            f'<div class="sd-kpi"><div class="sd-kpi-label">{_lt("保存済み商品", "Produtos salvos", "Saved products", lang)}</div>'
+            f'<div class="sd-kpi-value">{len(all_products)}</div>'
+            f'<div class="sd-kpi-note">{_lt("開くとCoreも復元", "Core também é restaurado", "Core is restored too", lang)}</div></div>',
+            unsafe_allow_html=True,
+        )
+    with c2:
+        current_name = st.session_state.get("product_info", {}).get("name") or "—"
+        st.markdown(
+            f'<div class="sd-kpi"><div class="sd-kpi-label">{_lt("現在の商品", "Produto atual", "Current product", lang)}</div>'
+            f'<div class="sd-kpi-value" style="font-size:1rem;line-height:1.35;">{html.escape(str(current_name))}</div>'
+            f'<div class="sd-kpi-note">ID: {html.escape(str(current_pid or "—"))}</div></div>',
+            unsafe_allow_html=True,
+        )
+    with c3:
+        st.markdown(
+            '<div class="sd-action-grid" style="grid-template-columns:1fr 1fr;">'
+            f'<div class="sd-action-card"><strong>{_lt("読み込む", "Carregar", "Load", lang)}</strong><span>{_lt("商品情報・Core・生成済み内容をまとめて復元します。", "Restaura informações, Core e conteúdos gerados.", "Restores product info, Core, and generated content.", lang)}</span></div>'
+            f'<div class="sd-action-card"><strong>{_lt("保存する", "Salvar", "Save", lang)}</strong><span>{_lt("商品入力画面で保存すると、この一覧に残ります。", "Ao salvar na tela de produto, ele aparece nesta lista.", "Saving from Product Info keeps it in this list.", lang)}</span></div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+
+    ctrl_col1, ctrl_col2 = st.columns([3, 1])
+    with ctrl_col1:
+        search = st.text_input(
+            "🔍",
+            placeholder=_lt("商品名で検索", "Buscar por nome do produto", "Search by product name", lang),
+            label_visibility="collapsed",
+        )
+    with ctrl_col2:
+        if st.button("＋ " + _lt("新規商品", "Novo produto", "New Product", lang), use_container_width=True):
+            for key in (
+                "product_id", "core_text", "core_status", "core_strategy",
+                "core_safety", "core_focus", "core_tone",
+            ):
+                st.session_state.pop(key, None)
+            st.session_state["product_info"] = {}
+            st.session_state["generated"] = {}
+            for key in ("image_prompts", "video_scripts", "ads_sns_items"):
+                st.session_state.pop(key, None)
+            st.session_state["page"] = "product_input"
+            st.rerun()
+
+    products = all_products
+    if search:
+        q = search.lower()
+        products = [
+            p for p in products
+            if q in str(p.get("name", "")).lower()
+            or q in str(p.get("category", "")).lower()
+        ]
+
+    tab_projects, tab_cores = st.tabs([
+        _lt("商品プロジェクト", "Projetos de produto", "Product Projects", lang),
+        _lt("現在のCore履歴", "Histórico do Core atual", "Current Core History", lang),
+    ])
+
+    with tab_projects:
+        if not products:
+            msg = _lt(
+                "保存済みの商品プロジェクトがありません。商品情報を入力して保存すると、ここから再開できます。",
+                "Nenhum projeto salvo. Salve as informações do produto para continuar daqui depois.",
+                "No saved product projects yet. Save product info first, then you can resume from here.",
+                lang,
+            )
+            st.markdown(f'<div class="cs-info">💡 {msg}</div>', unsafe_allow_html=True)
+        else:
+            for p in products:
+                pid = p["id"]
+                name = p.get("name") or "—"
+                category = p.get("category", "")
+                is_current = pid == current_pid
+                header = (
+                    ("✅ " if is_current else "📦 ") +
+                    f"{name}" +
+                    (f" / {category}" if category else "")
+                )
+                with st.expander(header, expanded=is_current):
+                    info_col, action_col = st.columns([3, 1])
+                    with info_col:
+                        rows = [
+                            (_lt("最終更新", "Atualizado", "Updated", lang), p.get("updated_at", "-")),
+                            (_lt("価格", "Preço", "Price", lang), p.get("price", "-")),
+                            (_lt("ターゲット", "Público-alvo", "Target", lang), p.get("target", "-")),
+                            (_lt("説明", "Descrição", "Description", lang), p.get("description", "-")),
+                        ]
+                        for label, value in rows:
+                            if value:
+                                st.markdown(f"**{label}:** {value}")
+                        st.caption(f"ID: {pid}")
+                    with action_col:
+                        if st.button(
+                            "📂 " + _lt("この商品を開く", "Abrir produto", "Open product", lang),
+                            key=f"library_load_{pid}",
+                            use_container_width=True,
+                            type="primary" if not is_current else "secondary",
+                        ):
+                            load_project_session(pid, p, svc)
+                            st.session_state["page"] = "product_input"
+                            st.success(
+                                f"{name} " +
+                                _lt("を読み込みました", "carregado", "loaded", lang)
+                            )
+                            st.rerun()
+                        if is_current:
+                            st.markdown(
+                                '<div class="cs-success">✅ ' +
+                                _lt("現在開いています", "Aberto agora", "Currently open", lang) +
+                                '</div>',
+                                unsafe_allow_html=True,
+                            )
+
+    with tab_cores:
+        if not current_pid:
+            st.markdown(
+                '<div class="cs-info">💡 ' +
+                _lt("先に商品プロジェクトを開いてください。", "Abra um projeto primeiro.", "Open a product project first.", lang) +
+                '</div>',
+                unsafe_allow_html=True,
+            )
+        else:
+            cores = svc["storage"].list_cores(current_pid)
+            if not cores:
+                st.markdown(
+                    '<div class="cs-info">💡 ' +
+                    _lt("この商品の保存済みCoreはまだありません。", "Este produto ainda não tem Core salvo.", "This product has no saved Core yet.", lang) +
+                    '</div>',
+                    unsafe_allow_html=True,
+                )
+            else:
+                for c in reversed(cores):
+                    with st.expander(f"📝 {c.get('version_label', 'Core')} ({c.get('created_at', '-')})"):
+                        core_text = c.get("core", {}).get("text", "")
+                        st.text_area(
+                            "Core",
+                            value=core_text[:2000] + ("..." if len(core_text) > 2000 else ""),
+                            height=220,
+                            key=f"library_core_{c['id']}",
+                            disabled=True,
+                        )
+                        if st.button(
+                            "📂 " + _lt("このCoreを使う", "Usar este Core", "Use this Core", lang),
+                            key=f"library_use_core_{c['id']}",
+                            use_container_width=True,
+                        ):
+                            st.session_state["core_text"] = core_text
+                            st.session_state["core_status"] = c.get("status", "ai_generated")
+                            st.session_state["page"] = "core_generation"
+                            st.success(_lt("Coreを読み込みました", "Core carregado", "Core loaded", lang))
+                            st.rerun()
+
+    return
 
     if is_ja:
         st.markdown(
