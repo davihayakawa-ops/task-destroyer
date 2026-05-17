@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, List, Optional
 import uuid
 
+from .audit_logger import AuditLogger
 from .generated_content import ITEM_COMPAT_KEYS, combine_generated_items
 
 DATA_DIR = Path(os.getenv("DATA_DIR", "data"))
@@ -21,7 +22,7 @@ DEFAULT_SHOP_NAME = "共通"
 _BACKUP_DIRS = [
     "projects", "core_library", "activity_logs",
     "delete_logs", "bulk_packs", "ab_tests", "reviews",
-    "performance_notes", "category_templates", "trash",
+    "performance_notes", "category_templates", "trash", "audit_logs",
 ]
 
 # API error patterns used for diagnostics
@@ -224,6 +225,7 @@ class Storage:
         self.shop_id = _sanitize_shop_id(shop_id or DEFAULT_SHOP_ID)
         self.shop_name = self.get_shop_name(self.shop_id)
         self.data_dir = _shop_data_dir(self.shop_id)
+        self.audit = AuditLogger(self.data_dir, self.shop_id)
         _ensure_dir(self.data_dir / "projects")
         _ensure_dir(self.data_dir / "core_library")
         _ensure_dir(self.data_dir / "activity_logs")
@@ -238,6 +240,7 @@ class Storage:
         data["updated_at"] = _now()
         path = self.data_dir / "projects" / f"{product_id}.json"
         path.write_text(json.dumps(data, ensure_ascii=False, indent=2))
+        self.audit.log("storage", "save_product", "ok", product_id=product_id)
         return product_id
 
     def load_product(self, product_id: str) -> Optional[dict]:
@@ -498,6 +501,8 @@ class Storage:
                 self.save_delete_log(product_id, deleted_by, reason, [str(project_file)])
             except Exception:
                 pass
+            self.audit.log("storage", "delete_project", "ok", product_id=product_id, actor=deleted_by,
+                           detail={"mode": "trash"})
             return {
                 "success": True,
                 "message": "ゴミ箱に移動しました",
@@ -527,6 +532,8 @@ class Storage:
                 self.save_delete_log(product_id, deleted_by, reason, deleted)
             except Exception:
                 pass
+            self.audit.log("storage", "delete_project", "ok", product_id=product_id, actor=deleted_by,
+                           detail={"mode": "cleanup", "deleted_count": len(deleted)})
             return {
                 "success": True,
                 "message": "削除しました",
@@ -564,6 +571,8 @@ class Storage:
             self.save_delete_log(product_id, deleted_by, reason, deleted)
         except Exception:
             pass
+        self.audit.log("storage", "delete_project", "ok", product_id=product_id, actor=deleted_by,
+                       detail={"mode": "delete", "deleted_count": len(deleted)})
 
         return {
             "success": True,
@@ -615,7 +624,9 @@ class Storage:
             zip_name = f"backup_before_{label}_{ts}.zip"
         zip_path = self.data_dir / "backups" / zip_name
         with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
-            self._zip_data_dirs(zf)
+            file_count = self._zip_data_dirs(zf)
+        self.audit.log("storage", "create_backup", "ok",
+                       detail={"filename": zip_name, "file_count": file_count})
         return zip_path
 
     def create_backup_bytes(self) -> tuple:
@@ -636,6 +647,8 @@ class Storage:
             zip_path.write_bytes(zip_bytes)
         except Exception:
             pass
+        self.audit.log("storage", "create_backup_bytes", "ok",
+                       detail={"filename": zip_name, "file_count": file_count})
 
         return zip_bytes, zip_name, file_count
 
@@ -738,6 +751,8 @@ class Storage:
                         target.write_bytes(src.read())
                     restored += 1
 
+            self.audit.log("storage", "restore_from_backup", "ok",
+                           detail={"restored_count": restored, "pre_backup": str(pre_backup)})
             return {
                 "success": True,
                 "message": f"{restored} ファイルを復元しました",
@@ -745,6 +760,8 @@ class Storage:
                 "restored_count": restored,
             }
         except Exception as e:
+            self.audit.log("storage", "restore_from_backup", "error",
+                           detail={"message": str(e)[:300]})
             return {"success": False, "message": f"復元中にエラーが発生しました: {e}"}
 
     # ── Trash ─────────────────────────────────────────────────────────────────
@@ -798,8 +815,13 @@ class Storage:
             clean_data = {k: v for k, v in data.items() if k != "_trash_meta"}
             orig.write_text(json.dumps(clean_data, ensure_ascii=False, indent=2))
             trash_path.unlink()
+            self.audit.log("storage", "restore_from_trash", "ok",
+                           product_id=str(meta.get("product_id") or ""),
+                           detail={"filename": trash_path.name})
             return {"success": True, "message": "復元しました", "restored_to": str(orig)}
         except Exception as e:
+            self.audit.log("storage", "restore_from_trash", "error",
+                           detail={"filename": trash_path.name, "message": str(e)[:300]})
             return {"success": False, "message": f"復元中にエラーが発生しました: {e}"}
 
     def purge_trash(self, filename: str) -> dict:
@@ -811,8 +833,11 @@ class Storage:
             return {"success": False, "message": "ファイルが見つかりません"}
         try:
             trash_path.unlink()
+            self.audit.log("storage", "purge_trash", "ok", detail={"filename": trash_path.name})
             return {"success": True, "message": "完全削除しました"}
         except Exception as e:
+            self.audit.log("storage", "purge_trash", "error",
+                           detail={"filename": trash_path.name, "message": str(e)[:300]})
             return {"success": False, "message": f"削除中にエラーが発生しました: {e}"}
 
     # ── Diagnostics ───────────────────────────────────────────────────────────
@@ -853,6 +878,7 @@ class Storage:
 
         backups = self.list_backups()
         trash = self.list_trash()
+        audit_stats = self.audit.stats()
 
         dir_sizes = {}
         for dir_name in _BACKUP_DIRS + ["backups"]:
@@ -871,4 +897,5 @@ class Storage:
             "data_dir": str(self.data_dir),
             "dir_file_counts": dir_sizes,
             "error_content_files": error_files,
+            "audit_stats": audit_stats,
         }

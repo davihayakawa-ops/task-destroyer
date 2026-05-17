@@ -29,6 +29,7 @@ from modules.i18n import load_i18n, t, tl, resolve_option_index
 from modules.auth import ensure_authentication, current_user, load_users, logout
 from modules.config import render_config_guard
 from modules.usage_limiter import UsageLimiter
+from modules.audit_logger import AuditLogger
 from modules.project_utils import (
     STATUS_BADGE_CLASS, STATUS_LABEL_JA, STATUS_LABEL_PT,
     status_badge, ensure_product_id, load_project_session,
@@ -850,18 +851,20 @@ init_state()
 # Bump this string whenever new methods are added to any service class.
 # Changing it invalidates the @st.cache_resource cache on Streamlit Cloud,
 # forcing fresh service objects that reflect the latest code.
-_SERVICES_VER = "20260518-config-guard-v1"
+_SERVICES_VER = "20260518-audit-logs-v1"
 
 
 @st.cache_resource
 def get_services(shop_id: str = "default", _v=_SERVICES_VER):
     storage = Storage(shop_id)
     usage_limiter = UsageLimiter(storage.data_dir, shop_id)
-    llm = LLMClient(usage_limiter=usage_limiter)
+    audit_logger = AuditLogger(storage.data_dir, shop_id)
+    llm = LLMClient(usage_limiter=usage_limiter, audit_logger=audit_logger)
     return {
         "llm": llm,
         "storage": storage,
         "usage_limiter": usage_limiter,
+        "audit_logger": audit_logger,
         "core_engine": CoreEngine(llm),
         "generator": GeneratorEngine(llm),
         "exporter": Exporter(),

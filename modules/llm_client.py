@@ -14,8 +14,9 @@ SYSTEM_PROMPT = """あなたはShopifyの商品ページ制作、広告制作、
 
 
 class LLMClient:
-    def __init__(self, usage_limiter=None):
+    def __init__(self, usage_limiter=None, audit_logger=None):
         self.usage_limiter = usage_limiter
+        self.audit_logger = audit_logger
         api_key = secret_or_env("ANTHROPIC_API_KEY")
 
         self.model = secret_or_env("LLM_MODEL", "claude-sonnet-4-6")
@@ -32,26 +33,47 @@ class LLMClient:
 
     def generate(self, prompt: str, system: str = "", max_tokens: int = 4096) -> str:
         if not self._available:
+            if self.audit_logger:
+                self.audit_logger.log("llm", "generate", "blocked", detail={"reason": "missing_api_key"})
             return "[APIキーが設定されていません。Streamlit Cloud の Settings > Secrets に ANTHROPIC_API_KEY を設定してください]"
         if self.usage_limiter:
             allowed, message = self.usage_limiter.try_consume()
             if not allowed:
+                if self.audit_logger:
+                    self.audit_logger.log("llm", "generate", "blocked", detail={"reason": "usage_limit"})
                 return message
         sys_prompt = system if system else SYSTEM_PROMPT
         try:
+            if self.audit_logger:
+                self.audit_logger.log(
+                    "llm", "generate", "started",
+                    detail={"model": self.model, "max_tokens": max_tokens, "prompt_chars": len(prompt or "")},
+                )
             response = self._client.messages.create(
                 model=self.model,
                 max_tokens=max_tokens,
                 system=sys_prompt,
                 messages=[{"role": "user", "content": prompt}],
             )
-            return response.content[0].text
+            text = response.content[0].text
+            if self.audit_logger:
+                self.audit_logger.log(
+                    "llm", "generate", "ok",
+                    detail={"model": self.model, "output_chars": len(text or "")},
+                )
+            return text
         except anthropic.AuthenticationError:
             self._available = False
+            if self.audit_logger:
+                self.audit_logger.log("llm", "generate", "error", detail={"error_type": "authentication"})
             return "[APIキー認証エラー：Streamlit Cloud の Settings > Secrets で ANTHROPIC_API_KEY を確認してください]"
         except anthropic.RateLimitError:
+            if self.audit_logger:
+                self.audit_logger.log("llm", "generate", "error", detail={"error_type": "rate_limit"})
             return "[レート制限エラー：しばらく待ってから再試行してください]"
         except anthropic.APIError as e:
+            if self.audit_logger:
+                self.audit_logger.log("llm", "generate", "error", detail={"error_type": "api_error", "message": str(e)[:300]})
             return f"[Anthropic APIエラー：{e}]"
 
     def generate_structured(self, prompt: str, system: str = "", max_tokens: int = 8192) -> str:

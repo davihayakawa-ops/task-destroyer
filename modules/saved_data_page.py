@@ -672,6 +672,7 @@ def page_saved_data(svc: dict) -> None:
         if dx:
             errors = dx.get("error_content_files", [])
             last_bk = dx.get("last_backup_at") or "—"
+            audit_stats = dx.get("audit_stats", {}) or {}
             kpi_items = [
                 ("保存プロジェクト" if is_ja else "Projetos salvos", dx.get("total_projects", 0),
                  "読み込み可能な商品数" if is_ja else "Produtos disponíveis"),
@@ -685,6 +686,10 @@ def page_saved_data(svc: dict) -> None:
                  "保存済みZIPの数" if is_ja else "Quantidade de ZIPs salvos"),
                 ("最終バックアップ" if is_ja else "Último backup", last_bk,
                  "直近の保管日時" if is_ja else "Data mais recente"),
+                ("直近エラー" if is_ja else "Erros recentes", audit_stats.get("recent_errors", 0),
+                 "生成・操作ログ内の失敗" if is_ja else "Falhas em geração/operações"),
+                ("直近生成" if is_ja else "Gerações recentes", audit_stats.get("recent_llm_calls", 0),
+                 "監査ログ内のLLMイベント" if is_ja else "Eventos LLM no log"),
             ]
             st.markdown(
                 '<div class="sd-kpi-grid">'
@@ -740,6 +745,24 @@ def page_saved_data(svc: dict) -> None:
                         )
                     st.caption("自動削除・上書きはしません。手動で確認してください。" if is_ja
                                else "Nenhuma ação automática. Verifique manualmente.")
+
+                recent_events = audit_stats.get("recent_events", [])
+                if recent_events:
+                    st.markdown("**" + ("直近の運用ログ" if is_ja else "Logs operacionais recentes") + "**")
+                    rows = []
+                    for ev in recent_events[:12]:
+                        rows.append(
+                            "<div>"
+                            f"<code>{html.escape(str(ev.get('timestamp', '')))}</code> "
+                            f"{html.escape(str(ev.get('status', '')))} "
+                            f"{html.escape(str(ev.get('event_type', '')))} / "
+                            f"{html.escape(str(ev.get('action', '')))} "
+                            f"<span style='color:#94a3b8;'>"
+                            f"{html.escape(str(ev.get('actor', '')))}"
+                            "</span>"
+                            "</div>"
+                        )
+                    st.markdown(f'<div class="sd-list">{"".join(rows)}</div>', unsafe_allow_html=True)
 
     # ── Tab 4: バックアップ ────────────────────────────────────────────────────
     with tab4:

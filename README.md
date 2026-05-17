@@ -161,3 +161,4 @@ core_studio/
 - `TASK_DESTROYER_USERS` を設定し、`password` ではなく `password_hash` を使う
 - `TASK_DESTROYER_MONTHLY_CALL_LIMIT` を 1 以上にする
 - `.env` や `.streamlit/secrets.toml` はGitにコミットしない
+- 生成・削除・バックアップなどの運用ログは `data/.../audit_logs/` に保存されます
