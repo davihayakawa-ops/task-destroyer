@@ -445,9 +445,13 @@ hr {
     color: var(--app-text) !important;
 }
 [data-testid="stMain"] .block-container {
-    padding-top: 4.25rem !important;
-    padding-bottom: 3rem !important;
-    max-width: 1280px;
+    padding-top: 3.25rem !important;
+    padding-bottom: 2.5rem !important;
+    padding-left: 2rem !important;
+    padding-right: 2rem !important;
+    max-width: min(1360px, calc(100vw - 340px)) !important;
+    margin-left: 0 !important;
+    margin-right: auto !important;
 }
 [data-testid="stMain"] .block-container::before {
     display: none !important;
