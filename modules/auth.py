@@ -12,18 +12,15 @@ If no users are configured, the app runs in local development mode.
 import hashlib
 import hmac
 import json
-import os
 from typing import Any
 
 import streamlit as st
 
+from modules.config import secret_or_env
+
 
 def _secret_or_env(key: str, default: str = "") -> str:
-    try:
-        value = st.secrets.get(key, "")
-    except Exception:
-        value = ""
-    return str(value or os.getenv(key, default) or "").strip()
+    return secret_or_env(key, default)
 
 
 def _hash_password(password: str) -> str:

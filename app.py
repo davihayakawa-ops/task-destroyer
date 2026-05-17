@@ -26,7 +26,8 @@ from modules.product_input_logic import PRODUCT_FIELD_LABELS_JA, PRODUCT_TRANSLA
 from modules.selection_pages import page_ads_sns as render_page_ads_sns, page_image_prompt as render_page_image_prompt, page_video_script as render_page_video_script
 from modules.saved_data_page import page_saved_data
 from modules.i18n import load_i18n, t, tl, resolve_option_index
-from modules.auth import ensure_authentication, current_user, logout
+from modules.auth import ensure_authentication, current_user, load_users, logout
+from modules.config import render_config_guard
 from modules.usage_limiter import UsageLimiter
 from modules.project_utils import (
     STATUS_BADGE_CLASS, STATUS_LABEL_JA, STATUS_LABEL_PT,
@@ -849,7 +850,7 @@ init_state()
 # Bump this string whenever new methods are added to any service class.
 # Changing it invalidates the @st.cache_resource cache on Streamlit Cloud,
 # forcing fresh service objects that reflect the latest code.
-_SERVICES_VER = "20260518-usage-limits-v1"
+_SERVICES_VER = "20260518-config-guard-v1"
 
 
 @st.cache_resource
@@ -4343,6 +4344,10 @@ def page_custom_mode():
 # ── Main router ───────────────────────────────────────────────────────────────
 
 def main():
+    users = load_users()
+    if not render_config_guard(users):
+        return
+
     if not ensure_authentication():
         return
 

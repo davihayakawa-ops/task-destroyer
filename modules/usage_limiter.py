@@ -1,20 +1,15 @@
 """Workspace-scoped API usage limits."""
 
 import json
-import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-import streamlit as st
+from modules.config import secret_or_env
 
 
 def _secret_or_env(key: str, default: str = "") -> str:
-    try:
-        value = st.secrets.get(key, "")
-    except Exception:
-        value = ""
-    return str(value or os.getenv(key, default) or "").strip()
+    return secret_or_env(key, default)
 
 
 def _now() -> str:

@@ -149,6 +149,15 @@ core_studio/
 |--------|------|-----------|
 | `ANTHROPIC_API_KEY` | Anthropic APIキー | 必須 |
 | `LLM_MODEL` | 使用するモデル | `claude-sonnet-4-6` |
+| `APP_ENV` | `development` / `production`。本番では設定チェックが厳格化されます | `development` |
 | `DATA_DIR` | データ保存ディレクトリ | `data` |
 | `TASK_DESTROYER_USERS` | ログインユーザーJSON。未設定時はローカル開発モード | 未設定 |
 | `TASK_DESTROYER_MONTHLY_CALL_LIMIT` | ワークスペースごとの月間LLM呼び出し上限。`0`で無効 | `1000` |
+
+## 本番公開前チェック
+
+- `APP_ENV=production` を設定する
+- `ANTHROPIC_API_KEY` は Streamlit Secrets などサーバー側Secretsに置く
+- `TASK_DESTROYER_USERS` を設定し、`password` ではなく `password_hash` を使う
+- `TASK_DESTROYER_MONTHLY_CALL_LIMIT` を 1 以上にする
+- `.env` や `.streamlit/secrets.toml` はGitにコミットしない

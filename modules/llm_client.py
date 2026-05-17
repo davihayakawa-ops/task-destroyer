@@ -1,8 +1,8 @@
-import os
-import streamlit as st
 import anthropic
 from anthropic import Anthropic
 from dotenv import load_dotenv
+
+from modules.config import secret_or_env
 
 load_dotenv()
 
@@ -16,12 +16,9 @@ SYSTEM_PROMPT = """あなたはShopifyの商品ページ制作、広告制作、
 class LLMClient:
     def __init__(self, usage_limiter=None):
         self.usage_limiter = usage_limiter
-        try:
-            api_key = st.secrets["ANTHROPIC_API_KEY"]
-        except Exception:
-            api_key = os.getenv("ANTHROPIC_API_KEY", "")
+        api_key = secret_or_env("ANTHROPIC_API_KEY")
 
-        self.model = os.getenv("LLM_MODEL", "claude-sonnet-4-6")
+        self.model = secret_or_env("LLM_MODEL", "claude-sonnet-4-6")
         if api_key:
             self._available = True
             self._client = Anthropic(api_key=api_key)
