@@ -997,18 +997,18 @@ def _render_market_controls(is_ja: bool):
 
 _NAV_GROUPS = [
     ("product", "📦 商品", "📦 Produto", "📦 Product", [
-        ("product_input",   "① 商品情報を入れる", "① Dados do Produto",    "① Product Info", "pi"),
         ("saved_data",      "保存済み商品",       "Produtos salvos",       "Saved Products", "sd"),
+        ("product_input",   "① 商品情報を入れる", "① Dados do Produto",    "① Product Info", "pi"),
     ]),
     ("core", "✨ Core", "✨ Core", "✨ Core", [
         ("core_generation", "② Coreを作る",       "② Criar Core",          "② Build Core", "cg"),
     ]),
     ("generate", "⚡ 生成", "⚡ Gerar", "⚡ Generate", [
         ("product_page",    "③ Shopifyコード",     "③ Código Shopify",     "③ Shopify Code",   "sh"),
-        ("image_prompt",    "🖼️ 画像プロンプト",   "🖼️ Prompts de Imagem", "🖼️ Image Prompts", "ip"),
-        ("video_script",    "🎬 動画台本",          "🎬 Roteiro de Vídeo",   "🎬 Video Script",   "vs"),
-        ("ads_sns",         "📣 広告・SNS",         "📣 Anúncios/SNS",       "📣 Ads/SNS",        "as_"),
-        ("export_center",     "④ 出力・コピー",      "④ Exportar/Copiar",    "④ Export / Copy", "exc"),
+        ("image_prompt",    "④ 画像プロンプト",   "④ Prompts de Imagem", "④ Image Prompts", "ip"),
+        ("video_script",    "⑤ 動画台本",          "⑤ Roteiro de Vídeo",   "⑤ Video Script",   "vs"),
+        ("ads_sns",         "⑥ 広告・SNS",         "⑥ Anúncios/SNS",       "⑥ Ads/SNS",        "as_"),
+        ("export_center",   "⑦ 出力・コピー",      "⑦ Exportar/Copiar",    "⑦ Export / Copy", "exc"),
     ]),
 ]
 
@@ -1126,22 +1126,33 @@ def render_sidebar():
             clear_active_product_context()
             st.rerun()
 
+        cur_page = st.session_state.get("page", "")
+
+        st.markdown(
+            f'<div class="sb-mode-label">{_lt("プロジェクト", "Projeto", "Project", lang)}</div>',
+            unsafe_allow_html=True,
+        )
+        if st.button(
+            _lt("保存済み商品", "Produtos salvos", "Saved Products", lang),
+            key="simple_nav_saved_data",
+            use_container_width=True,
+            type="primary" if cur_page == "saved_data" else "secondary",
+        ):
+            st.session_state["page"] = "saved_data"
+            st.rerun()
+
         st.markdown(
             f'<div class="sb-mode-label">{_lt("作業メニュー", "Menu de trabalho", "Work Menu", lang)}</div>',
             unsafe_allow_html=True,
         )
-
-        cur_page = st.session_state.get("page", "")
-
         nav_items = [
             ("product_input",   _lt("① 商品情報を入れる", "① Dados do produto", "① Product Info", lang)),
-            ("saved_data",      _lt("保存済み商品", "Produtos salvos", "Saved Products", lang)),
             ("core_generation", _lt("② Coreを作る", "② Criar Core", "② Build Core", lang)),
             ("product_page",    _lt("③ Shopifyコード", "③ Código Shopify", "③ Shopify Code", lang)),
-            ("image_prompt",    _lt("画像プロンプト", "Prompts de imagem", "Image Prompts", lang)),
-            ("video_script",    _lt("動画台本", "Roteiro de vídeo", "Video Script", lang)),
-            ("ads_sns",         _lt("広告・SNS", "Anúncios/SNS", "Ads/SNS", lang)),
-            ("export_center",   _lt("④ 出力・コピー", "④ Exportar/Copiar", "④ Export / Copy", lang)),
+            ("image_prompt",    _lt("④ 画像プロンプト", "④ Prompts de imagem", "④ Image Prompts", lang)),
+            ("video_script",    _lt("⑤ 動画台本", "⑤ Roteiro de vídeo", "⑤ Video Script", lang)),
+            ("ads_sns",         _lt("⑥ 広告・SNS", "⑥ Anúncios/SNS", "⑥ Ads/SNS", lang)),
+            ("export_center",   _lt("⑦ 出力・コピー", "⑦ Exportar/Copiar", "⑦ Export / Copy", lang)),
         ]
         for page_id, label in nav_items:
             is_active = cur_page == page_id
