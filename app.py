@@ -705,7 +705,7 @@ hr {
 }
 .td-step-grid {
     display:grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 8px;
 }
 .td-step {
@@ -1220,19 +1220,31 @@ def _workflow_status() -> dict:
     has_product = bool(product_info.get("name") or product_info.get("product_url") or product_info.get("description"))
     has_core = bool(st.session_state.get("core_text"))
     has_shopify = bool(gen.get("shopify_custom_liquid") or any(gen.get(k) for k in shopify_keys))
-    has_exportable = bool(has_shopify or gen.get("product_page") or gen.get("image_prompt") or gen.get("video_script") or gen.get("ads_sns"))
+    has_image = bool(gen.get("image_prompt") or gen.get("image_prompts") or st.session_state.get("image_prompts"))
+    has_video = bool(gen.get("video_script") or gen.get("video_scripts") or st.session_state.get("video_scripts"))
+    has_ads = bool(gen.get("ads_sns") or gen.get("ads_sns_items") or st.session_state.get("ads_sns_items"))
+    has_exportable = bool(has_shopify or gen.get("product_page") or has_image or has_video or has_ads)
     if not has_product:
         next_label, next_page = _lt("商品情報を入力", "Preencher produto", "Enter product info", lang), "product_input"
     elif not has_core:
         next_label, next_page = _lt("Coreを生成", "Gerar Core", "Generate Core", lang), "core_generation"
     elif not has_shopify:
         next_label, next_page = _lt("Shopifyコードを生成", "Gerar código Shopify", "Generate Shopify code", lang), "product_page"
+    elif not has_image:
+        next_label, next_page = _lt("画像プロンプトを生成", "Gerar prompts de imagem", "Generate image prompts", lang), "image_prompt"
+    elif not has_video:
+        next_label, next_page = _lt("動画台本を生成", "Gerar roteiro de vídeo", "Generate video script", lang), "video_script"
+    elif not has_ads:
+        next_label, next_page = _lt("広告・SNSを生成", "Gerar anúncios/SNS", "Generate ads/SNS", lang), "ads_sns"
     else:
         next_label, next_page = _lt("出力・コピー", "Exportar/copiar", "Export/copy", lang), "export_center"
     return {
         "has_product": has_product,
         "has_core": has_core,
         "has_shopify": has_shopify,
+        "has_image": has_image,
+        "has_video": has_video,
+        "has_ads": has_ads,
         "has_exportable": has_exportable,
         "next_label": next_label,
         "next_page": next_page,
@@ -1248,11 +1260,11 @@ def render_workflow_summary(page: str):
         "product_input": 0,
         "core_generation": 1,
         "product_page": 2,
-        "image_prompt": 2,
-        "video_script": 2,
-        "ads_sns": 2,
-        "export_center": 3,
-        "output": 3,
+        "image_prompt": 3,
+        "video_script": 4,
+        "ads_sns": 5,
+        "export_center": 6,
+        "output": 6,
     }
     active_idx = active_by_page.get(page, 0)
     if lang == "ja":
@@ -1260,21 +1272,30 @@ def render_workflow_summary(page: str):
             ("1", "商品情報", "商品名・説明・特徴を入れる", s["has_product"]),
             ("2", "Core", "売り方の核を作る", s["has_core"]),
             ("3", "Shopify", "Custom Liquidを生成", s["has_shopify"]),
-            ("4", "出力", "コピー・保存・DL", s["has_exportable"]),
+            ("4", "画像", "画像AI用プロンプトを作る", s["has_image"]),
+            ("5", "動画", "動画台本・撮影指示を作る", s["has_video"]),
+            ("6", "広告・SNS", "投稿文・広告文を作る", s["has_ads"]),
+            ("7", "出力", "コピー・保存・DL", s["has_exportable"]),
         ]
     elif lang == "en":
         steps = [
             ("1", "Product Info", "Name, description, and features", s["has_product"]),
             ("2", "Core", "Build the sales foundation", s["has_core"]),
             ("3", "Shopify", "Generate Custom Liquid", s["has_shopify"]),
-            ("4", "Export", "Copy, save, or download", s["has_exportable"]),
+            ("4", "Images", "Create image AI prompts", s["has_image"]),
+            ("5", "Video", "Create scripts and direction", s["has_video"]),
+            ("6", "Ads/SNS", "Create posts and ad copy", s["has_ads"]),
+            ("7", "Export", "Copy, save, or download", s["has_exportable"]),
         ]
     else:
         steps = [
             ("1", "Produto", "Nome, descrição e diferenciais", s["has_product"]),
             ("2", "Core", "Criar a base de venda", s["has_core"]),
             ("3", "Shopify", "Gerar Custom Liquid", s["has_shopify"]),
-            ("4", "Exportar", "Copiar, salvar ou baixar", s["has_exportable"]),
+            ("4", "Imagem", "Criar prompts para IA", s["has_image"]),
+            ("5", "Vídeo", "Criar roteiro e direção", s["has_video"]),
+            ("6", "Anúncios/SNS", "Criar posts e anúncios", s["has_ads"]),
+            ("7", "Exportar", "Copiar, salvar ou baixar", s["has_exportable"]),
         ]
     step_html = ""
     for i, (num, name, desc, done) in enumerate(steps):
@@ -1298,29 +1319,31 @@ def render_workflow_summary(page: str):
             f'<div class="td-step-desc">{desc}</div>'
             f'</div>'
         )
-    title = _lt("迷ったらこの順番で進めてください", "Siga esta ordem", "Follow this order if unsure", lang)
+    title = _lt("作業の順番", "Ordem de trabalho", "Workflow order", lang)
     sub = _lt(
-        "まず商品情報 → Core → Shopifyコード → 出力。今やるべき作業だけ青く表示しています。",
-        "Produto → Core → código Shopify → exportação. A etapa atual aparece em azul.",
-        "Product info → Core → Shopify code → export. The current step is highlighted in blue.",
+        "商品情報 → Core → Shopify → 画像 → 動画 → 広告・SNS → 出力。今のページだけ青く表示します。",
+        "Produto → Core → Shopify → imagem → vídeo → anúncios/SNS → exportação. A página atual aparece em azul.",
+        "Product info → Core → Shopify → images → video → ads/SNS → export. The current page is highlighted in blue.",
         lang,
     )
     next_txt = _lt("次にやること", "Próximo passo", "Next step", lang)
-    st.markdown(
-        f"""
-        <div class="td-workflow">
-          <div class="td-workflow-head">
-            <div>
-              <div class="td-workflow-title">{title}</div>
-              <div class="td-workflow-sub">{sub}</div>
+    expander_label = _lt("作業の順番を確認する", "Ver ordem de trabalho", "Show workflow order", lang)
+    with st.expander(f"{expander_label} / {next_txt}: {s['next_label']}", expanded=False):
+        st.markdown(
+            f"""
+            <div class="td-workflow">
+              <div class="td-workflow-head">
+                <div>
+                  <div class="td-workflow-title">{title}</div>
+                  <div class="td-workflow-sub">{sub}</div>
+                </div>
+                <div class="td-next-pill">{next_txt}: {s["next_label"]}</div>
+              </div>
+              <div class="td-step-grid">{step_html}</div>
             </div>
-            <div class="td-next-pill">{next_txt}: {s["next_label"]}</div>
-          </div>
-          <div class="td-step-grid">{step_html}</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+            """,
+            unsafe_allow_html=True,
+        )
 
 
 # ── Page: Mode Selection ──────────────────────────────────────────────────────
