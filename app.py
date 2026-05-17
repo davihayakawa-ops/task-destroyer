@@ -953,6 +953,44 @@ def _apply_market_preset(note: str, target_market: str = "us", output_language: 
     st.session_state["generation_market_note"] = note
 
 
+def _price_options_for_market(lang: str, target_market: str, free_input_label: str) -> list:
+    if target_market not in {"us", "global"}:
+        return []
+    if lang == "en":
+        return [
+            "Up to $10", "$10 to $25", "$25 to $50", "$50 to $100",
+            "$100 to $200", "$200 to $500", "Over $500", free_input_label,
+        ]
+    if lang == "pt":
+        return [
+            "Até US$10", "US$10 a US$25", "US$25 a US$50", "US$50 a US$100",
+            "US$100 a US$200", "US$200 a US$500", "Acima de US$500", free_input_label,
+        ]
+    return [
+        "〜$10", "$10〜$25", "$25〜$50", "$50〜$100",
+        "$100〜$200", "$200〜$500", "$500以上", free_input_label,
+    ]
+
+
+def _price_placeholder_for_market(lang: str, target_market: str) -> str:
+    if target_market in {"us", "global"}:
+        return _lt("例：$39.99", "Ex.: US$39.99", "Example: $39.99", lang)
+    return t("product_input.price_custom_placeholder")
+
+
+def _resolve_option_index_multi(saved: str, opts: list, alt_lists: list) -> int:
+    if not saved:
+        return 0
+    for i, opt in enumerate(opts):
+        if opt == saved:
+            return i
+    for alt in alt_lists:
+        for i, opt in enumerate(alt):
+            if opt == saved:
+                return min(i, len(opts) - 1)
+    return len(opts) - 1
+
+
 def _render_market_controls(is_ja: bool):
     lang = st.session_state.get("lang", "ja")
     st.markdown("#### " + _lt("販売先・出力言語", "Mercado e idioma de saída", "Market and output language", lang))
@@ -1441,7 +1479,7 @@ def page_product_input():
 
     # ── Load localised option lists (tl() always returns a list) ─────
     categories   = tl("product_input.categories")
-    price_opts   = tl("product_input.price_options")
+    price_opts_base = tl("product_input.price_options")
     target_opts  = tl("product_input.target_options")
     gender_opts  = tl("product_input.gender_options")
     age_opts     = tl("product_input.age_options")
@@ -1459,7 +1497,7 @@ def page_product_input():
 
     # Other-language option lists for cross-language index resolution
     categories_o  = _other_list("product_input.categories")
-    price_opts_o  = _other_list("product_input.price_options")
+    price_opts_o_base = _other_list("product_input.price_options")
     target_opts_o = _other_list("product_input.target_options")
     gender_opts_o = _other_list("product_input.gender_options")
     age_opts_o    = _other_list("product_input.age_options")
@@ -1518,6 +1556,18 @@ def page_product_input():
     )
     _render_market_controls(is_ja)
     st.markdown("---")
+    price_market = st.session_state.get("generation_target_market", "japan")
+    dollar_price_opts = _price_options_for_market(lang, price_market, free_input)
+    price_opts = dollar_price_opts or price_opts_base
+    price_alt_opts = [
+        price_opts_base,
+        price_opts_o_base,
+        _price_options_for_market("ja", price_market, "自由入力"),
+        _price_options_for_market("en", price_market, "Free input"),
+        _price_options_for_market("pt", price_market, "Entrada livre"),
+    ]
+    price_alt_opts = [opts for opts in price_alt_opts if opts]
+    price_placeholder = _price_placeholder_for_market(lang, price_market)
 
     # ── 基本情報 ──────────────────────────────────────────────────────
     st.markdown(
@@ -1542,15 +1592,15 @@ def page_product_input():
         )
 
     ex_price = info.get("price", "")
-    price_idx = resolve_option_index(ex_price, price_opts, price_opts_o)
+    price_idx = _resolve_option_index_multi(ex_price, price_opts, price_alt_opts)
     price_mode = st.selectbox(t("product_input.price"), price_opts, index=price_idx)
     price = price_mode
     if price_mode == free_input:
-        is_preset_price = ex_price in price_opts or ex_price in price_opts_o
+        is_preset_price = any(ex_price in opts for opts in [price_opts] + price_alt_opts)
         price = st.text_input(
             t("product_input.price_custom_label"),
             value="" if is_preset_price else ex_price,
-            placeholder=t("product_input.price_custom_placeholder"),
+            placeholder=price_placeholder,
         )
 
     st.markdown("---")
