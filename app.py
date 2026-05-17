@@ -965,14 +965,6 @@ def _render_market_controls(is_ja: bool):
         ) + '</div>',
         unsafe_allow_html=True,
     )
-    st.markdown("**" + _lt("米国向けプリセット", "Presets para EUA", "US presets", lang) + "**")
-    preset_cols = st.columns(len(_US_MARKET_PRESETS))
-    for i, (preset_key, label, note) in enumerate(_US_MARKET_PRESETS):
-        with preset_cols[i]:
-            if st.button(label, key=f"market_preset_{preset_key}", use_container_width=True):
-                _apply_market_preset(note)
-                st.rerun()
-
     market_labels = {
         "japan": _lt("日本向け", "Japão", "Japan", lang),
         "us": _lt("米国向け", "Estados Unidos", "United States", lang),
@@ -1008,6 +1000,21 @@ def _render_market_controls(is_ja: bool):
         ),
         key="generation_market_note",
     )
+    st.markdown("**" + _lt("迷った時のプリセット", "Presets rápidos", "Quick presets", lang) + "**")
+    st.caption(
+        _lt(
+            "押すと販売先が米国向け、生成言語が英語に切り替わり、追加指定も自動入力されます。",
+            "Ao clicar, o mercado muda para EUA, o idioma para inglês e a instrução é preenchida.",
+            "Clicking one switches the market to US, output language to English, and fills the instruction.",
+            lang,
+        )
+    )
+    preset_cols = st.columns(len(_US_MARKET_PRESETS))
+    for i, (preset_key, label, note) in enumerate(_US_MARKET_PRESETS):
+        with preset_cols[i]:
+            if st.button(label, key=f"market_preset_{preset_key}", use_container_width=True):
+                _apply_market_preset(note)
+                st.rerun()
 
 
 _NAV_GROUPS = [
