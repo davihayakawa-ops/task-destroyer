@@ -71,6 +71,41 @@ def _generation_market_options() -> dict:
     }
 
 
+_US_MARKET_PRESETS = [
+    (
+        "us_dtc",
+        "US DTC",
+        "米国DTCブランド風。短い見出し、ベネフィット先行、レビュー/FAQで不安解消、FTC-safeで自然な英語。",
+    ),
+    (
+        "amazon",
+        "Amazon",
+        "Amazon商品ページ風。検索意図、機能ベネフィット、比較しやすい箇条書き、レビュー前提の信頼材料を強める。",
+    ),
+    (
+        "meta_ads",
+        "Meta Ads",
+        "Meta広告向け。冒頭フック、悩み共感、短いCTA、広告審査に安全な表現、スクロール停止コピーを重視。",
+    ),
+    (
+        "tiktok_shop",
+        "TikTok Shop",
+        "TikTok Shop向け。UGC風、速いテンポ、実演・使用感・短いフック、買いやすいCTAを重視。",
+    ),
+    (
+        "premium_us",
+        "Premium US",
+        "米国プレミアムブランド風。過度に煽らず、上質感・余白・信頼・簡潔なコピー・落ち着いたCTAを重視。",
+    ),
+]
+
+
+def _apply_market_preset(note: str, target_market: str = "us", output_language: str = "en"):
+    st.session_state["generation_target_market"] = target_market
+    st.session_state["generation_output_language"] = output_language
+    st.session_state["generation_market_note"] = note
+
+
 def _render_quality_controls(prefix: str, is_ja: bool, page_kind: str) -> dict:
     st.markdown("### " + ("生成の方向性" if is_ja else "Direção da geração"))
     if page_kind == "image":
@@ -113,6 +148,14 @@ def _render_quality_controls(prefix: str, is_ja: bool, page_kind: str) -> dict:
         key=f"{prefix}_note",
     )
     st.markdown("### " + ("販売先・出力言語" if is_ja else "Mercado e idioma de saída"))
+    st.markdown("**" + ("米国向けプリセット" if is_ja else "Presets para EUA") + "**")
+    preset_cols = st.columns(len(_US_MARKET_PRESETS))
+    for i, (preset_key, label, preset_note) in enumerate(_US_MARKET_PRESETS):
+        with preset_cols[i]:
+            if st.button(label, key=f"{prefix}_market_preset_{preset_key}", use_container_width=True):
+                _apply_market_preset(preset_note)
+                st.rerun()
+
     market_col1, market_col2 = st.columns(2)
     market_labels = {
         "japan": "日本向け" if is_ja else "Japão",

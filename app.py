@@ -920,6 +920,41 @@ def _generation_options_from_state() -> dict:
     }
 
 
+_US_MARKET_PRESETS = [
+    (
+        "us_dtc",
+        "US DTC",
+        "米国DTCブランド風。短い見出し、ベネフィット先行、レビュー/FAQで不安解消、FTC-safeで自然な英語。",
+    ),
+    (
+        "amazon",
+        "Amazon",
+        "Amazon商品ページ風。検索意図、機能ベネフィット、比較しやすい箇条書き、レビュー前提の信頼材料を強める。",
+    ),
+    (
+        "meta_ads",
+        "Meta Ads",
+        "Meta広告向け。冒頭フック、悩み共感、短いCTA、広告審査に安全な表現、スクロール停止コピーを重視。",
+    ),
+    (
+        "tiktok_shop",
+        "TikTok Shop",
+        "TikTok Shop向け。UGC風、速いテンポ、実演・使用感・短いフック、買いやすいCTAを重視。",
+    ),
+    (
+        "premium_us",
+        "Premium US",
+        "米国プレミアムブランド風。過度に煽らず、上質感・余白・信頼・簡潔なコピー・落ち着いたCTAを重視。",
+    ),
+]
+
+
+def _apply_market_preset(note: str, target_market: str = "us", output_language: str = "en"):
+    st.session_state["generation_target_market"] = target_market
+    st.session_state["generation_output_language"] = output_language
+    st.session_state["generation_market_note"] = note
+
+
 def _render_market_controls(is_ja: bool):
     lang = st.session_state.get("lang", "ja")
     st.markdown("#### " + _lt("販売先・出力言語", "Mercado e idioma de saída", "Market and output language", lang))
@@ -932,6 +967,14 @@ def _render_market_controls(is_ja: bool):
         ) + '</div>',
         unsafe_allow_html=True,
     )
+    st.markdown("**" + _lt("米国向けプリセット", "Presets para EUA", "US presets", lang) + "**")
+    preset_cols = st.columns(len(_US_MARKET_PRESETS))
+    for i, (preset_key, label, note) in enumerate(_US_MARKET_PRESETS):
+        with preset_cols[i]:
+            if st.button(label, key=f"market_preset_{preset_key}", use_container_width=True):
+                _apply_market_preset(note)
+                st.rerun()
+
     market_labels = {
         "japan": _lt("日本向け", "Japão", "Japan", lang),
         "us": _lt("米国向け", "Estados Unidos", "United States", lang),
