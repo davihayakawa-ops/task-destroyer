@@ -37,6 +37,7 @@ _GEN_CSS = """
 .gen-copy-card{background:#0b1220;border:1px solid #263244;border-radius:8px;padding:10px 12px}
 .gen-copy-card strong{display:block;color:#f8fafc;font-size:.78rem;margin-bottom:4px}
 .gen-copy-card span{display:block;color:#94a3b8;font-size:.68rem;line-height:1.45}
+.gen-check-box{background:#0b1220;border:1px solid #263244;border-radius:8px;padding:12px 14px;margin:10px 0;color:#cbd5e1;font-size:.82rem;line-height:1.7;white-space:pre-wrap}
 @media(max-width:900px){.gen-grid{grid-template-columns:1fr}}
 @media(max-width:900px){.gen-copy-grid{grid-template-columns:1fr}}
 </style>
@@ -259,28 +260,97 @@ def _render_copy_parts(category_key: str, item_key: str, content: str, is_ja: bo
 def _load_category_state(svc: dict, category_key: str):
     """Load per-item results from storage if not already in session_state."""
     if category_key in st.session_state:
+        st.session_state.setdefault(f"{category_key}_checks", {})
         return
     pid = st.session_state.get("product_id", "")
     if pid:
         try:
             saved = svc["storage"].load_generated(pid, category_key)
             if saved and isinstance(saved.get("content"), dict):
-                st.session_state[category_key] = saved["content"].get("items", {})
+                content = saved["content"]
+                st.session_state[category_key] = content.get("items", {})
+                st.session_state[f"{category_key}_checks"] = content.get("checks", {})
                 return
         except Exception:
             pass
     st.session_state[category_key] = {}
+    st.session_state[f"{category_key}_checks"] = {}
 
 
 def _save_category_state(svc: dict, ensure_product_id, category_key: str,
                          compat_key: str):
     """Persist items to storage and update backward-compat combined text for dashboard."""
     items = st.session_state.get(category_key, {})
+    checks = st.session_state.get(f"{category_key}_checks", {})
     pid = ensure_product_id()
-    svc["storage"].save_generated(pid, category_key, {"items": items})
+    svc["storage"].save_generated(pid, category_key, {"items": items, "checks": checks})
     combined = combine_generated_items(items)
     if combined:
         st.session_state["generated"][compat_key] = combined
+
+
+def _content_type_label(compat_key: str, is_ja: bool) -> str:
+    if is_ja:
+        return {
+            "image_prompt": "画像プロンプト",
+            "video_script": "動画台本",
+            "ads_sns": "広告・SNS",
+        }.get(compat_key, compat_key)
+    return {
+        "image_prompt": "prompt de imagem",
+        "video_script": "roteiro de vídeo",
+        "ads_sns": "anúncio/SNS",
+    }.get(compat_key, compat_key)
+
+
+def _render_inline_checks(svc: dict, ensure_product_id, category_key: str,
+                          item_key: str, content: str, is_ja: bool, compat_key: str):
+    checks_key = f"{category_key}_checks"
+    st.session_state.setdefault(checks_key, {})
+    item_checks = st.session_state[checks_key].get(item_key, {})
+    current_content = st.session_state.get(f"ta_{category_key}_{item_key}", content)
+    core = st.session_state.get("core_text", "")
+
+    st.markdown('<div class="cs-info">💡 ' + (
+        "生成結果がCoreと合っているか、誇大表現がないかを確認します。"
+        if is_ja else
+        "Verifica se o conteúdo está alinhado ao Core e se há expressões de risco."
+    ) + '</div>', unsafe_allow_html=True)
+
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("🔍 " + ("品質チェック" if is_ja else "Verificar qualidade"),
+                     key=f"quality_{category_key}_{item_key}", use_container_width=True):
+            with st.spinner("チェック中..." if is_ja else "Verificando..."):
+                result = svc["checker"].check_consistency(
+                    core, current_content, _content_type_label(compat_key, is_ja)
+                )
+                item_checks["quality"] = result
+                st.session_state[checks_key][item_key] = item_checks
+                _save_category_state(svc, ensure_product_id, category_key, compat_key)
+            st.rerun()
+    with col2:
+        if st.button("⚠️ " + ("リスク表現チェック" if is_ja else "Verificar riscos"),
+                     key=f"risk_{category_key}_{item_key}", use_container_width=True):
+            with st.spinner("チェック中..." if is_ja else "Verificando..."):
+                result = svc["checker"].check_risk_expressions(current_content)
+                item_checks["risk"] = result
+                st.session_state[checks_key][item_key] = item_checks
+                _save_category_state(svc, ensure_product_id, category_key, compat_key)
+            st.rerun()
+
+    if item_checks.get("quality"):
+        st.markdown("**" + ("品質チェック結果" if is_ja else "Resultado de qualidade") + "**")
+        st.markdown(
+            f'<div class="gen-check-box">{_esc(item_checks["quality"])}</div>',
+            unsafe_allow_html=True,
+        )
+    if item_checks.get("risk"):
+        st.markdown("**" + ("リスク表現チェック結果" if is_ja else "Resultado de riscos") + "**")
+        st.markdown(
+            f'<div class="gen-check-box">{_esc(item_checks["risk"])}</div>',
+            unsafe_allow_html=True,
+        )
 
 
 def _render_item_card(svc: dict, ensure_product_id, status_badge,
@@ -297,9 +367,10 @@ def _render_item_card(svc: dict, ensure_product_id, status_badge,
             '</div>',
             unsafe_allow_html=True,
         )
-        tab_copy, tab_full = st.tabs([
+        tab_copy, tab_full, tab_check = st.tabs([
             "コピー用に分ける" if is_ja else "Partes para copiar",
             "全文編集" if is_ja else "Editar texto completo",
+            "チェック" if is_ja else "Verificar",
         ])
         with tab_copy:
             _render_copy_parts(category_key, item_key, content, is_ja)
@@ -310,6 +381,10 @@ def _render_item_card(svc: dict, ensure_product_id, status_badge,
                 height=300,
                 key=f"ta_{category_key}_{item_key}",
                 label_visibility="collapsed",
+            )
+        with tab_check:
+            _render_inline_checks(
+                svc, ensure_product_id, category_key, item_key, content, is_ja, compat_key
             )
         col1, col2, col3 = st.columns(3)
         with col1:
