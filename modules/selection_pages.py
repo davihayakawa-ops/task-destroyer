@@ -131,6 +131,77 @@ def _render_plan(selected_labels, quality: dict, is_ja: bool):
     )
 
 
+def _set_video_selection(durations, types):
+    for key, _, _ in VS_DURATIONS:
+        st.session_state[f"chk_vs_duration_{key}"] = key in durations
+    for key, _, _ in VS_TYPES:
+        st.session_state[f"chk_vs_type_{key}"] = key in types
+
+
+def _render_video_goal_cards(is_ja: bool):
+    goals = [
+        (
+            "sns_start",
+            "迷ったらこれ" if is_ja else "Recomendado",
+            "まずSNS動画を作る" if is_ja else "Criar vídeo SNS",
+            "15秒・30秒 / TikTok・Reels・ナレーション。最初の広告テストや投稿に使いやすいセット。"
+            if is_ja else
+            "15s e 30s / TikTok, Reels e narração. Bom para primeiro teste ou post.",
+            ["15s", "30s"],
+            ["tiktok", "reels", "narration"],
+        ),
+        (
+            "higgs_video",
+            "動画AI用" if is_ja else "Para IA",
+            "Higgsで動画生成" if is_ja else "Gerar no Higgs",
+            "30秒 / Higgs用プロンプト・秒数別構成・撮影指示。Higgsfieldに貼る素材を作ります。"
+            if is_ja else
+            "30s / prompt Higgs, cronograma e direção. Cria material para colar no Higgsfield.",
+            ["30s"],
+            ["higgs_marketing_studio", "timeline", "shooting"],
+        ),
+        (
+            "ad_test",
+            "広告向け" if is_ja else "Anúncio",
+            "広告素材を作る" if is_ja else "Criar material de anúncio",
+            "30秒・45秒 / 広告台本・撮影指示・秒数別構成。不安解消とCTAを強めます。"
+            if is_ja else
+            "30s e 45s / roteiro de anúncio, direção e cronograma. Reforça objeções e CTA.",
+            ["30s", "45s"],
+            ["ad_script", "shooting", "timeline"],
+        ),
+        (
+            "shorts_one",
+            "YouTube用" if is_ja else "YouTube",
+            "Shortsを作る" if is_ja else "Criar Shorts",
+            "30秒・60秒 / Shorts台本・秒数別構成・Higgs用。説明型の短尺動画に向いています。"
+            if is_ja else
+            "30s e 60s / Shorts, cronograma e Higgs. Bom para vídeos explicativos curtos.",
+            ["30s", "60s"],
+            ["yt_shorts", "timeline", "higgs_marketing_studio"],
+        ),
+    ]
+    st.markdown("### " + ("1. 目的から選ぶ" if is_ja else "1. Escolha pelo objetivo"))
+    st.markdown('<div class="cs-info">💡 ' + (
+        "何を選べばいいか分からない場合は、左上の「まずSNS動画を作る」を押してください。必要な秒数と内容が自動で選ばれます。"
+        if is_ja else
+        "Se não souber o que escolher, clique no recomendado. A duração e os conteúdos serão selecionados automaticamente."
+    ) + '</div>', unsafe_allow_html=True)
+    cols = st.columns(2)
+    for i, (goal_id, tag, title, body, durations, types) in enumerate(goals):
+        with cols[i % 2]:
+            st.markdown(
+                f'<div class="gen-card"><strong>{_esc(tag)} / {_esc(title)}</strong>'
+                f'<span>{_esc(body)}</span></div>',
+                unsafe_allow_html=True,
+            )
+            if st.button("この目的でセット" if is_ja else "Usar este objetivo",
+                         key=f"vs_goal_{goal_id}", use_container_width=True,
+                         type="primary" if i == 0 else "secondary"):
+                _set_video_selection(durations, types)
+                st.rerun()
+
+
 def _item_meta(category: str, key: str, is_ja: bool) -> str:
     ip = {
         "main_visual": ("Shopifyの最初に置くメイン画像 / 16:9・4:5", "Imagem principal para Shopify / 16:9 ou 4:5"),
@@ -609,18 +680,17 @@ def page_video_script(svc: dict, t, ensure_product_id, status_badge):
 
     quality = _render_quality_controls("vs_quality", is_ja, "video")
 
-    st.markdown("### " + ("プリセットを選ぶ" if is_ja else "Escolher preset"))
-    preset_cols = st.columns(len(VS_COMBO_PRESETS))
-    for i, (pk, pja, ppt, durations, types) in enumerate(VS_COMBO_PRESETS):
-        with preset_cols[i]:
-            if st.button(pja if is_ja else ppt, key=f"vs_preset_{pk}", use_container_width=True):
-                for k, _, _ in VS_DURATIONS:
-                    st.session_state[f"chk_vs_duration_{k}"] = (k in durations)
-                for k, _, _ in VS_TYPES:
-                    st.session_state[f"chk_vs_type_{k}"] = (k in types)
-                st.rerun()
+    _render_video_goal_cards(is_ja)
 
-    st.markdown("### " + ("秒数を選ぶ" if is_ja else "Escolher duração"))
+    with st.expander("細かいセットを選ぶ" if is_ja else "Escolher outros presets", expanded=False):
+        preset_cols = st.columns(len(VS_COMBO_PRESETS))
+        for i, (pk, pja, ppt, durations, types) in enumerate(VS_COMBO_PRESETS):
+            with preset_cols[i]:
+                if st.button(pja if is_ja else ppt, key=f"vs_preset_{pk}", use_container_width=True):
+                    _set_video_selection(durations, types)
+                    st.rerun()
+
+    st.markdown("### " + ("2. 秒数を確認する" if is_ja else "2. Conferir duração"))
     selected_durations = []
     duration_cols = st.columns(len(VS_DURATIONS))
     for i, (k, ja_lbl, pt_lbl) in enumerate(VS_DURATIONS):
@@ -629,17 +699,26 @@ def page_video_script(svc: dict, t, ensure_product_id, status_badge):
             if st.checkbox(ja_lbl if is_ja else pt_lbl, value=default, key=f"chk_vs_duration_{k}"):
                 selected_durations.append(k)
 
-    st.markdown("### " + ("作る内容を選ぶ" if is_ja else "Escolher conteúdo"))
+    st.markdown("### " + ("3. 作る内容を確認する" if is_ja else "3. Conferir conteúdo"))
     selected_types = []
-    type_cols = st.columns(2)
-    for i, (k, ja_lbl, pt_lbl) in enumerate(VS_TYPES):
-        with type_cols[i % 2]:
-            default = st.session_state.get(f"chk_vs_type_{k}", k in ("tiktok", "reels"))
-            if st.checkbox(ja_lbl if is_ja else pt_lbl, value=default, key=f"chk_vs_type_{k}"):
-                selected_types.append(k)
-            meta = _item_meta("vs", k, is_ja)
-            if meta:
-                st.caption(meta)
+    type_groups = [
+        ("台本" if is_ja else "Roteiros", {"tiktok", "reels", "yt_shorts", "ad_script"}),
+        ("制作素材" if is_ja else "Materiais", {"narration", "timeline", "shooting"}),
+        ("AI用" if is_ja else "Para IA", {"higgs_marketing_studio"}),
+    ]
+    type_cols = st.columns(3)
+    for col, (group_label, keys) in zip(type_cols, type_groups):
+        with col:
+            st.markdown("**" + group_label + "**")
+            for k, ja_lbl, pt_lbl in VS_TYPES:
+                if k not in keys:
+                    continue
+                default = st.session_state.get(f"chk_vs_type_{k}", False)
+                if st.checkbox(ja_lbl if is_ja else pt_lbl, value=default, key=f"chk_vs_type_{k}"):
+                    selected_types.append(k)
+                meta = _item_meta("vs", k, is_ja)
+                if meta:
+                    st.caption(meta)
 
     selected = [(d, tp) for d in selected_durations for tp in selected_types]
     selected_labels = [_video_combo_label(d, tp, is_ja) for d, tp in selected]
