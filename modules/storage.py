@@ -98,6 +98,18 @@ def _sanitize_shop_id(value: str) -> str:
     return cleaned or f"shop-{str(uuid.uuid4())[:8]}"
 
 
+def _safe_file_stem(value: str, fallback: str = "") -> str:
+    raw = str(value or "").strip()
+    if raw.endswith(".json"):
+        raw = raw[:-5]
+    chars = []
+    for ch in raw:
+        if ch.isascii() and (ch.isalnum() or ch in ("-", "_")):
+            chars.append(ch)
+    cleaned = "".join(chars).strip("._-")
+    return cleaned or fallback or str(uuid.uuid4())[:8]
+
+
 def _shop_data_dir(shop_id: str) -> Path:
     shop_id = _sanitize_shop_id(shop_id)
     if shop_id == DEFAULT_SHOP_ID:
@@ -143,6 +155,14 @@ def _read_shop_registry() -> list:
 def _write_shop_registry(shops: list) -> None:
     _ensure_dir(DATA_DIR)
     _registry_path().write_text(json.dumps(shops, ensure_ascii=False, indent=2))
+
+
+def _is_under(path: Path, base: Path) -> bool:
+    try:
+        path.resolve().relative_to(base.resolve())
+        return True
+    except ValueError:
+        return False
 
 
 class Storage:
@@ -214,12 +234,14 @@ class Storage:
     # ── Product Info ──────────────────────────────────────────────────────────
 
     def save_product(self, product_id: str, data: dict) -> str:
+        product_id = _safe_file_stem(product_id)
         data["updated_at"] = _now()
         path = self.data_dir / "projects" / f"{product_id}.json"
         path.write_text(json.dumps(data, ensure_ascii=False, indent=2))
         return product_id
 
     def load_product(self, product_id: str) -> Optional[dict]:
+        product_id = _safe_file_stem(product_id)
         path = self.data_dir / "projects" / f"{product_id}.json"
         if not path.exists():
             return None
@@ -254,6 +276,7 @@ class Storage:
     # ── Core Library ──────────────────────────────────────────────────────────
 
     def save_core(self, product_id: str, core_data: dict, version_label: str = "") -> str:
+        product_id = _safe_file_stem(product_id)
         core_id = str(uuid.uuid4())[:8]
         entry = {
             "id": core_id,
@@ -268,6 +291,7 @@ class Storage:
         return core_id
 
     def list_cores(self, product_id: str) -> List[dict]:
+        product_id = _safe_file_stem(product_id)
         result = []
         for p in sorted((self.data_dir / "core_library").glob(f"{product_id}_*.json")):
             try:
@@ -285,6 +309,8 @@ class Storage:
     # ── Generated Content ─────────────────────────────────────────────────────
 
     def save_generated(self, product_id: str, content_type: str, content: dict) -> str:
+        product_id = _safe_file_stem(product_id)
+        content_type = _safe_file_stem(content_type, "generated")
         content_id = str(uuid.uuid4())[:8]
         entry = {
             "id": content_id,
@@ -299,6 +325,8 @@ class Storage:
         return content_id
 
     def load_generated(self, product_id: str, content_type: str) -> Optional[dict]:
+        product_id = _safe_file_stem(product_id)
+        content_type = _safe_file_stem(content_type, "generated")
         matches = sorted((self.data_dir / "projects").glob(f"{product_id}_{content_type}_*.json"))
         if not matches:
             return None
@@ -310,6 +338,7 @@ class Storage:
     def load_all_generated(self, product_id: str) -> dict:
         """Load the latest generated text for every content_type saved for this product.
         Returns {content_type: text_string}."""
+        product_id = _safe_file_stem(product_id)
         # Collect unique content_types from file names {pid}_{ct}_{id}.json
         content_types = set()
         for p in (self.data_dir / "projects").glob(f"{product_id}_*.json"):
@@ -379,6 +408,7 @@ class Storage:
     # ── Activity Log ──────────────────────────────────────────────────────────
 
     def log_activity(self, product_id: str, action: str, detail: str = "", user: str = ""):
+        product_id = _safe_file_stem(product_id)
         entry = {
             "product_id": product_id,
             "action": action,
@@ -391,6 +421,7 @@ class Storage:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
     def get_activity_log(self, product_id: str) -> List[dict]:
+        product_id = _safe_file_stem(product_id)
         log_path = self.data_dir / "activity_logs" / f"{product_id}.jsonl"
         if not log_path.exists():
             return []
@@ -407,20 +438,24 @@ class Storage:
     def delete_project(self, product_id: str, deleted_by: str = "",
                        reason: str = "", file_path: str = "",
                        use_trash: bool = True) -> dict:
-        # Normalise: strip whitespace and any accidental .json suffix
-        product_id = str(product_id).strip()
-        if product_id.endswith(".json"):
-            product_id = product_id[:-5]
+        product_id = _safe_file_stem(product_id)
 
         deleted = []
         project_file = None
         searched = []
+        projects_dir = (self.data_dir / "projects").resolve()
 
-        # 1. Trust the absolute path from list_products() if provided
+        # 1. Accept the provided absolute path only when it is inside this workspace.
         if file_path:
-            fp = Path(file_path)
+            fp = Path(file_path).expanduser().resolve()
             searched.append(str(fp))
-            if fp.exists():
+            if (
+                fp.exists()
+                and fp.is_file()
+                and fp.suffix == ".json"
+                and fp.name == f"{product_id}.json"
+                and _is_under(fp, projects_dir)
+            ):
                 project_file = fp
 
         # 2. Fall back: search all plausible locations
@@ -432,8 +467,8 @@ class Storage:
                 s = str(c.resolve())
                 if s not in searched:
                     searched.append(s)
-                if c.exists():
-                    project_file = c
+                if c.exists() and _is_under(c, projects_dir):
+                    project_file = c.resolve()
                     break
 
         # ── Trash mode: move main file only, keep associated files intact ──────
@@ -475,6 +510,8 @@ class Storage:
             # Clean up any remaining associated files and treat as success.
             try:
                 for p in list((self.data_dir / "projects").glob(f"{product_id}_*.json")):
+                    if not _is_under(p, projects_dir):
+                        continue
                     deleted.append(str(p))
                     p.unlink()
                 for p in list((self.data_dir / "core_library").glob(f"{product_id}_*.json")):
@@ -535,6 +572,7 @@ class Storage:
         }
 
     def save_delete_log(self, product_id: str, deleted_by: str, reason: str, files: list):
+        product_id = _safe_file_stem(product_id)
         _ensure_dir(self.data_dir / "delete_logs")
         entry = {
             "product_id": product_id,
@@ -662,7 +700,9 @@ class Storage:
 
         try:
             if isinstance(zip_source, (str, Path)):
-                zp = Path(zip_source)
+                zp = Path(zip_source).expanduser().resolve()
+                if not _is_under(zp, self.data_dir / "backups"):
+                    return {"success": False, "message": "ワークスペース外のZIPは復元できません"}
                 if not zp.exists():
                     return {"success": False, "message": f"ZIPファイルが見つかりません: {zip_source}"}
                 zip_data = zp.read_bytes()
@@ -678,14 +718,21 @@ class Storage:
             restored = 0
             with zipfile.ZipFile(io.BytesIO(zip_data), "r") as zf:
                 for member in zf.namelist():
-                    # Security: reject path traversal
-                    if member.startswith("/") or ".." in member:
+                    member_path = Path(member)
+                    # Security: reject absolute paths and path traversal.
+                    if member_path.is_absolute() or any(part == ".." for part in member_path.parts):
+                        continue
+                    if not member_path.parts or member.endswith("/"):
+                        continue
+                    if member_path.parts[0] not in _BACKUP_DIRS:
                         continue
                     # Never restore env/secret files
                     base = Path(member).name.lower()
                     if base in (".env", "secrets.toml") or "secret" in base:
                         continue
-                    target = self.data_dir / member
+                    target = (self.data_dir / member_path).resolve()
+                    if not _is_under(target, self.data_dir):
+                        continue
                     _ensure_dir(target.parent)
                     with zf.open(member) as src:
                         target.write_bytes(src.read())
@@ -730,7 +777,9 @@ class Storage:
 
     def restore_from_trash(self, filename: str) -> dict:
         """Move a file from trash back to its original location."""
-        trash_path = self.data_dir / "trash" / filename
+        trash_path = (self.data_dir / "trash" / Path(str(filename)).name).resolve()
+        if not _is_under(trash_path, self.data_dir / "trash"):
+            return {"success": False, "message": "不正なファイル名です"}
         if not trash_path.exists():
             return {"success": False, "message": "ゴミ箱にファイルが見つかりません"}
         try:
@@ -740,7 +789,10 @@ class Storage:
             if not original_path:
                 return {"success": False, "message": "元のパス情報がありません"}
 
-            orig = Path(original_path)
+            orig = Path(original_path).expanduser().resolve()
+            projects_dir = (self.data_dir / "projects").resolve()
+            if not _is_under(orig, projects_dir) or orig.suffix != ".json":
+                return {"success": False, "message": "復元先がワークスペース外です"}
             _ensure_dir(orig.parent)
             # Remove trash metadata before restoring
             clean_data = {k: v for k, v in data.items() if k != "_trash_meta"}
@@ -752,7 +804,9 @@ class Storage:
 
     def purge_trash(self, filename: str) -> dict:
         """Permanently delete a single file from trash."""
-        trash_path = self.data_dir / "trash" / filename
+        trash_path = (self.data_dir / "trash" / Path(str(filename)).name).resolve()
+        if not _is_under(trash_path, self.data_dir / "trash"):
+            return {"success": False, "message": "不正なファイル名です"}
         if not trash_path.exists():
             return {"success": False, "message": "ファイルが見つかりません"}
         try:
