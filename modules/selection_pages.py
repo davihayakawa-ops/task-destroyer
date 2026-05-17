@@ -1,4 +1,5 @@
 import html
+import re
 
 import streamlit as st
 
@@ -32,7 +33,12 @@ _GEN_CSS = """
 .gen-result-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:8px}
 .gen-result-title{color:#f8fafc;font-weight:850;font-size:.96rem}
 .gen-result-meta{color:#94a3b8;font-size:.72rem;line-height:1.5}
+.gen-copy-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:8px 0 12px}
+.gen-copy-card{background:#0b1220;border:1px solid #263244;border-radius:8px;padding:10px 12px}
+.gen-copy-card strong{display:block;color:#f8fafc;font-size:.78rem;margin-bottom:4px}
+.gen-copy-card span{display:block;color:#94a3b8;font-size:.68rem;line-height:1.45}
 @media(max-width:900px){.gen-grid{grid-template-columns:1fr}}
+@media(max-width:900px){.gen-copy-grid{grid-template-columns:1fr}}
 </style>
 """
 
@@ -159,6 +165,97 @@ def _item_meta(category: str, key: str, is_ja: bool) -> str:
     return ja if is_ja else pt
 
 
+def _extract_markdown_section(content: str, heading: str) -> str:
+    pattern = rf"(?ms)^##+\s*{re.escape(heading)}\s*\n(.*?)(?=^##+\s+|\Z)"
+    match = re.search(pattern, content or "")
+    if match:
+        return match.group(1).strip()
+    alt_pattern = rf"(?ms)^[-*]\s*{re.escape(heading)}\s*:\s*(.*?)(?=^[-*]\s+[\w /-]+:|\Z)"
+    alt_match = re.search(alt_pattern, content or "")
+    if alt_match:
+        return alt_match.group(1).strip()
+    return ""
+
+
+def _copy_sections(category_key: str, item_key: str, content: str, is_ja: bool):
+    if category_key == "image_prompts":
+        return [
+            ("生成AIプロンプト（英語）" if is_ja else "Prompt em inglês", _extract_markdown_section(content, "生成AIプロンプト（英語）")),
+            ("日本語メモ" if is_ja else "Notas", _extract_markdown_section(content, "日本語メモ（制作担当者への補足）") or _extract_markdown_section(content, "日本語メモ")),
+            ("NG要素" if is_ja else "Itens proibidos", _extract_markdown_section(content, "NG要素")),
+            ("入れると良いテキスト" if is_ja else "Texto recomendado", _extract_markdown_section(content, "入れると良いテキスト")),
+        ]
+    if category_key == "video_scripts":
+        if "higgs_marketing_studio" in item_key:
+            return [
+                ("Higgs用プロンプト" if is_ja else "Prompt Higgs", _extract_markdown_section(content, "Higgs Marketing Studio Prompt") or content),
+                ("Scene direction" if is_ja else "Direção de cenas", _extract_markdown_section(content, "Scene-by-scene Direction")),
+                ("Voiceover" if is_ja else "Voiceover", _extract_markdown_section(content, "Voiceover Script")),
+                ("日本語メモ" if is_ja else "Notas", _extract_markdown_section(content, "日本語メモ")),
+            ]
+        return [
+            ("冒頭3秒フック" if is_ja else "Gancho inicial", _extract_markdown_section(content, "冒頭3秒フック")),
+            ("完成台本" if is_ja else "Roteiro completo", _extract_markdown_section(content, "完成台本")),
+            ("ナレーション" if is_ja else "Narração", _extract_markdown_section(content, "ナレーション")),
+            ("テロップ" if is_ja else "Legendas", _extract_markdown_section(content, "テロップ")),
+            ("映像・撮影指示" if is_ja else "Direção visual", _extract_markdown_section(content, "映像・撮影指示")),
+            ("CTA案" if is_ja else "CTAs", _extract_markdown_section(content, "CTA案 3つ") or _extract_markdown_section(content, "CTA案")),
+        ]
+    if category_key == "ads_sns_items":
+        return [
+            ("案1" if is_ja else "Opção 1", _extract_markdown_section(content, "案1")),
+            ("案2" if is_ja else "Opção 2", _extract_markdown_section(content, "案2")),
+            ("案3" if is_ja else "Opção 3", _extract_markdown_section(content, "案3")),
+            ("短縮版" if is_ja else "Versão curta", _extract_markdown_section(content, "短縮版")),
+            ("CTA" if is_ja else "CTA", _extract_markdown_section(content, "CTA")),
+            ("注意点" if is_ja else "Cuidados", _extract_markdown_section(content, "注意点")),
+        ]
+    return []
+
+
+def _render_copy_parts(category_key: str, item_key: str, content: str, is_ja: bool):
+    sections = [(label, text) for label, text in _copy_sections(category_key, item_key, content, is_ja) if text]
+    if not sections:
+        st.markdown('<div class="cs-info">💡 ' + (
+            "分割できる項目が見つかりませんでした。全文タブから確認してください。"
+            if is_ja else
+            "Nenhuma seção separável encontrada. Confira na aba de texto completo."
+        ) + '</div>', unsafe_allow_html=True)
+        return
+    st.markdown(
+        '<div class="gen-copy-grid">'
+        + "".join(
+            f'<div class="gen-copy-card"><strong>{_esc(label)}</strong>'
+            f'<span>{_esc(str(len(text)))} {"文字" if is_ja else "caracteres"}</span></div>'
+            for label, text in sections
+        )
+        + "</div>",
+        unsafe_allow_html=True,
+    )
+    labels = [label for label, _ in sections]
+    selected_label = st.selectbox(
+        "コピーする部分" if is_ja else "Parte para copiar",
+        labels,
+        key=f"copy_part_{category_key}_{item_key}",
+    )
+    selected_text = next(text for label, text in sections if label == selected_label)
+    st.text_area(
+        "コピー用テキスト" if is_ja else "Texto para copiar",
+        value=selected_text,
+        height=180,
+        key=f"copy_text_{category_key}_{item_key}_{selected_label}",
+    )
+    safe_fname = item_key.replace("::", "_").replace("/", "_")
+    st.download_button(
+        "⬇️ " + ("この部分をダウンロード" if is_ja else "Baixar esta parte"),
+        data=selected_text.encode("utf-8"),
+        file_name=f"{safe_fname}_{selected_label}.txt",
+        mime="text/plain",
+        key=f"dl_part_{category_key}_{item_key}_{selected_label}",
+        use_container_width=True,
+    )
+
+
 def _load_category_state(svc: dict, category_key: str):
     """Load per-item results from storage if not already in session_state."""
     if category_key in st.session_state:
@@ -200,19 +297,28 @@ def _render_item_card(svc: dict, ensure_product_id, status_badge,
             '</div>',
             unsafe_allow_html=True,
         )
-        new_content = st.text_area(
-            "",
-            value=content,
-            height=300,
-            key=f"ta_{category_key}_{item_key}",
-            label_visibility="collapsed",
-        )
+        tab_copy, tab_full = st.tabs([
+            "コピー用に分ける" if is_ja else "Partes para copiar",
+            "全文編集" if is_ja else "Editar texto completo",
+        ])
+        with tab_copy:
+            _render_copy_parts(category_key, item_key, content, is_ja)
+        with tab_full:
+            new_content = st.text_area(
+                "全文" if is_ja else "Texto completo",
+                value=content,
+                height=300,
+                key=f"ta_{category_key}_{item_key}",
+                label_visibility="collapsed",
+            )
         col1, col2, col3 = st.columns(3)
         with col1:
             if st.button("💾 " + ("保存" if is_ja else "Salvar"),
                          key=f"save_{category_key}_{item_key}",
                          use_container_width=True, type="primary"):
-                st.session_state[category_key][item_key] = new_content
+                st.session_state[category_key][item_key] = st.session_state.get(
+                    f"ta_{category_key}_{item_key}", content
+                )
                 _save_category_state(svc, ensure_product_id, category_key, compat_key)
                 st.success("✅ " + ("保存しました" if is_ja else "Salvo!"))
         with col2:
