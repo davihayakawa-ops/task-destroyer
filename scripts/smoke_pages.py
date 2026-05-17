@@ -16,7 +16,6 @@ PAGES = [
     "image_prompt",
     "video_script",
     "ads_sns",
-    "bulk_pack",
     "export_center",
 ]
 

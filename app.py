@@ -1015,7 +1015,6 @@ def _render_market_controls(is_ja: bool):
 _NAV_GROUPS = [
     ("product", "📦 商品", "📦 Produto", "📦 Product", [
         ("product_input",   "① 商品情報を入れる", "① Dados do Produto",    "① Product Info", "pi"),
-        ("external_core",   "📥 外部Core取り込み", "📥 Importar Core",        "📥 Import Core",   "ec"),
     ]),
     ("core", "✨ Core", "✨ Core", "✨ Core", [
         ("core_generation", "② Coreを作る",       "② Criar Core",          "② Build Core", "cg"),
@@ -1025,7 +1024,6 @@ _NAV_GROUPS = [
         ("image_prompt",    "🖼️ 画像プロンプト",   "🖼️ Prompts de Imagem", "🖼️ Image Prompts", "ip"),
         ("video_script",    "🎬 動画台本",          "🎬 Roteiro de Vídeo",   "🎬 Video Script",   "vs"),
         ("ads_sns",         "📣 広告・SNS",         "📣 Anúncios/SNS",       "📣 Ads/SNS",        "as_"),
-        ("bulk_pack",       "🔥 一括生成",          "🔥 Geração em Lote",    "🔥 Bulk Generation","bp"),
         ("export_center",     "④ 出力・コピー",      "④ Exportar/Copiar",    "④ Export / Copy", "exc"),
     ]),
 ]
@@ -1034,13 +1032,11 @@ _BREADCRUMB_MAP_JA = {
     "dashboard":        ("🏠 ホーム",      "ダッシュボード"),
     "mode_selection":   ("🏠 ホーム",      "モード選択"),
     "product_input":    ("📦 商品",        "商品入力"),
-    "external_core":    ("📦 商品",        "外部Core取り込み"),
     "core_generation":  ("✨ Core",        "Core生成・編集"),
     "product_page":     ("⚡ 生成",        "商品ページ"),
     "image_prompt":     ("⚡ 生成",        "画像プロンプト"),
     "video_script":     ("⚡ 生成",        "動画台本"),
     "ads_sns":          ("⚡ 生成",        "広告・SNS"),
-    "bulk_pack":        ("⚡ 生成",        "一括生成"),
     "export_center":    ("⚡ 生成",        "出力・コピー"),
     "output":           ("⚡ 生成",        "出力・コピー"),
 }
@@ -1048,13 +1044,11 @@ _BREADCRUMB_MAP_PT = {
     "dashboard":        ("🏠 Início",       "Painel"),
     "mode_selection":   ("🏠 Início",       "Seleção de Modo"),
     "product_input":    ("📦 Produto",      "Entrada do Produto"),
-    "external_core":    ("📦 Produto",      "Importar Core"),
     "core_generation":  ("✨ Core",         "Gerar/Editar Core"),
     "product_page":     ("⚡ Gerar",        "Página do Produto"),
     "image_prompt":     ("⚡ Gerar",        "Prompts de Imagem"),
     "video_script":     ("⚡ Gerar",        "Roteiro de Vídeo"),
     "ads_sns":          ("⚡ Gerar",        "Anúncios/SNS"),
-    "bulk_pack":        ("⚡ Gerar",        "Geração em Lote"),
     "export_center":    ("⚡ Gerar",        "Exportar/Copiar"),
     "output":           ("⚡ Gerar",        "Exportar/Copiar"),
 }
@@ -1062,13 +1056,11 @@ _BREADCRUMB_MAP_EN = {
     "dashboard":        ("🏠 Home",                "Dashboard"),
     "mode_selection":   ("🏠 Home",                "Mode Selection"),
     "product_input":    ("📦 Product",             "Product Input"),
-    "external_core":    ("📦 Product",             "Import Core"),
     "core_generation":  ("✨ Core",                "Generate/Edit Core"),
     "product_page":     ("⚡ Generate",            "Product Page"),
     "image_prompt":     ("⚡ Generate",            "Image Prompts"),
     "video_script":     ("⚡ Generate",            "Video Script"),
     "ads_sns":          ("⚡ Generate",            "Ads/SNS"),
-    "bulk_pack":        ("⚡ Generate",            "Bulk Generation"),
     "export_center":    ("⚡ Generate",            "Export / Copy"),
     "output":           ("⚡ Generate",            "Export / Copy"),
 }
@@ -1255,13 +1247,11 @@ def render_workflow_summary(page: str):
     s = _workflow_status()
     active_by_page = {
         "product_input": 0,
-        "external_core": 1,
         "core_generation": 1,
         "product_page": 2,
         "image_prompt": 2,
         "video_script": 2,
         "ads_sns": 2,
-        "bulk_pack": 2,
         "export_center": 3,
         "output": 3,
     }
@@ -2264,95 +2254,38 @@ def page_core_generation():
         "tone": core_tone,
     }
 
-    # Core method selection
-    st.markdown("#### " + t("core_method.title"))
-    methods = [
-        ("auto", t("core_method.auto"), t("core_method.auto_desc")),
-        ("import", t("core_method.import"), t("core_method.import_desc")),
-        ("reuse", t("core_method.reuse"), t("core_method.reuse_desc")),
-    ]
-    if st.session_state.get("core_method") not in {method_id for method_id, _, _ in methods}:
-        st.session_state["core_method"] = "auto"
-
-    method_cols = st.columns(len(methods))
-    for i, (method_id, label, desc) in enumerate(methods):
-        with method_cols[i]:
-            is_sel = st.session_state.get("core_method") == method_id
-            border = "#3b82f6" if is_sel else "#334155"
-            st.markdown(
-                f'<div style="background:#111827;border:1px solid {border};border-radius:8px;'
-                f'padding:14px;text-align:left;cursor:pointer;min-height:96px;box-shadow:0 10px 28px rgba(0,0,0,.18);">'
-                f'<div style="font-weight:800;font-size:0.9rem;color:#f8fafc;">{label}</div>'
-                f'<div style="font-size:0.75rem;color:#94a3b8;margin-top:7px;line-height:1.55;">{desc}</div>'
-                f'</div>',
-                unsafe_allow_html=True,
-            )
-            if st.button(label, key=f"method_{method_id}", use_container_width=True,
-                         type="primary" if is_sel else "secondary"):
-                st.session_state["core_method"] = method_id
-                st.rerun()
-
-    st.markdown("---")
-    method = st.session_state.get("core_method", "auto")
+    st.session_state["core_method"] = "auto"
 
     # ── Auto generation ──
-    if method == "auto":
-        st.markdown("**📦 " + ("商品情報からCore自動生成" if is_ja else "Gerar Core automaticamente") + "**")
+    st.markdown("**📦 " + ("商品情報からCore自動生成" if is_ja else "Gerar Core automaticamente") + "**")
 
-        info_summary = "\n".join(
-            f"- **{k}**: {v}" for k, v in product_info.items() if v
-        )
-        with st.expander("入力中の商品情報を確認" if is_ja else "Ver informações do produto", expanded=False):
-            st.markdown(info_summary)
+    info_summary = "\n".join(
+        f"- **{k}**: {v}" for k, v in product_info.items() if v
+    )
+    with st.expander("入力中の商品情報を確認" if is_ja else "Ver informações do produto", expanded=False):
+        st.markdown(info_summary)
 
-        col_gen, col_hint = st.columns([2, 1])
-        with col_gen:
-            btn_label = "✨ " + t("core.generate_btn") + " / " + core_strategy
-            if st.button(btn_label, type="primary", use_container_width=True):
-                with st.spinner(t("core.generating_msg")):
-                    result = svc["core_engine"].generate_from_product(_cg_core_source, core_options)
-                    st.session_state["core_text"] = result
-                    st.session_state["core_status"] = "ai_generated"
-                    pid = ensure_product_id()
-                    svc["storage"].save_core(pid, {"text": result, "status": "ai_generated", "core_options": core_options}, "v1 AI初稿")
-                    svc["storage"].log_activity(pid, "Core生成", "auto", st.session_state.get("assignee", ""))
-                    st.rerun()
-        with col_hint:
-            st.markdown(
-                '<div class="cs-info">💡 ' + (
-                    '入力診断の不足項目を埋めるほど、Liquidの文章と構成が具体的になります。'
-                    if is_ja else
-                    'Quanto mais dados, mais específico fica o Liquid.'
-                ) + '</div>',
-                unsafe_allow_html=True,
-            )
-
-    elif method == "import":
-        st.markdown('<div class="cs-info">📥 ' + (
-            "外部Coreやメモを使う場合は、取り込み専用画面で標準Coreに変換できます。"
-            if is_ja else
-            "Use a tela de importação para normalizar um Core externo."
-        ) + '</div>', unsafe_allow_html=True)
-        if st.button("📥 " + ("外部Core取り込みへ移動" if is_ja else "Ir para Importar Core"), type="primary"):
-            st.session_state["page"] = "external_core"
-            st.rerun()
-
-    # ── Reuse saved core ──
-    elif method == "reuse":
-        pid = ensure_product_id()
-        cores = svc["storage"].list_cores(pid)
-        if not cores:
-            st.markdown('<div class="cs-info">💡 ' + ("保存済みCoreがありません。まずCoreを生成してください。" if is_ja else "Nenhum Core salvo. Gere um Core primeiro.") + '</div>',
-                        unsafe_allow_html=True)
-        else:
-            options = [f"{c['version_label']} ({c.get('status', '')})" for c in cores]
-            sel = st.selectbox("保存済みCoreを選択" if is_ja else "Selecionar Core salvo", options)
-            if st.button("📂 " + ("このCoreを使用" if is_ja else "Usar este Core"), type="primary"):
-                idx = options.index(sel)
-                st.session_state["core_text"] = cores[idx]["core"].get("text", "")
-                st.session_state["core_status"] = cores[idx].get("status", "ai_generated")
-                st.success("Coreを読み込みました" if is_ja else "Core carregado")
+    col_gen, col_hint = st.columns([2, 1])
+    with col_gen:
+        btn_label = "✨ " + t("core.generate_btn") + " / " + core_strategy
+        if st.button(btn_label, type="primary", use_container_width=True):
+            with st.spinner(t("core.generating_msg")):
+                result = svc["core_engine"].generate_from_product(_cg_core_source, core_options)
+                st.session_state["core_text"] = result
+                st.session_state["core_status"] = "ai_generated"
+                pid = ensure_product_id()
+                svc["storage"].save_core(pid, {"text": result, "status": "ai_generated", "core_options": core_options}, "v1 AI初稿")
+                svc["storage"].log_activity(pid, "Core生成", "auto", st.session_state.get("assignee", ""))
                 st.rerun()
+    with col_hint:
+        st.markdown(
+            '<div class="cs-info">💡 ' + (
+                '入力診断の不足項目を埋めるほど、Liquidの文章と構成が具体的になります。'
+                if is_ja else
+                'Quanto mais dados, mais específico fica o Liquid.'
+            ) + '</div>',
+            unsafe_allow_html=True,
+        )
 
     # ── Core editor ──
     if st.session_state.get("core_text"):
@@ -4218,6 +4151,8 @@ def main():
     removed_pages = {
         "dashboard",
         "mode_selection",
+        "external_core",
+        "bulk_pack",
         "refinement",
         "check",
         "saved_data",
@@ -4249,13 +4184,11 @@ def main():
     page_map = {
         "mode_selection": page_mode_selection,
         "product_input": page_product_input,
-        "external_core": page_external_core,
         "core_generation": page_core_generation,
         "product_page": page_product_page,
         "image_prompt": page_image_prompt,
         "video_script": page_video_script,
         "ads_sns": page_ads_sns,
-        "bulk_pack": page_bulk_pack,
         "output": page_output,
         "export_center": page_export_center,
     }
