@@ -70,6 +70,10 @@ def load_project_session(pid: str, p: dict, svc: dict):
                                         if k not in ("id", "file_path")}
     st.session_state["assignee"] = p.get("assignee", "")
     st.session_state["reviewer"] = p.get("final_reviewer", "")
+    st.session_state["generation_target_market"] = p.get("target_market") or "japan"
+    st.session_state["generation_output_language"] = p.get("output_language") or "ja"
+    st.session_state["generation_market_note"] = p.get("market_note") or ""
+    st.session_state["_market_loaded_for_product"] = pid
 
     # Core
     try:

@@ -5,6 +5,7 @@ import re
 import uuid
 import io
 import base64
+import html
 from pathlib import Path
 from datetime import datetime
 from dotenv import load_dotenv
@@ -823,6 +824,9 @@ def init_state():
         "nav_mode": "simple",
         "shop_id": "default",
         "shop_name": "共通",
+        "generation_target_market": "japan",
+        "generation_output_language": "ja",
+        "generation_market_note": "",
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -843,7 +847,7 @@ init_state()
 # Bump this string whenever new methods are added to any service class.
 # Changing it invalidates the @st.cache_resource cache on Streamlit Cloud,
 # forcing fresh service objects that reflect the latest code.
-_SERVICES_VER = "20260517-market-output-v1"
+_SERVICES_VER = "20260518-core-market-v1"
 
 
 @st.cache_resource
@@ -877,6 +881,7 @@ def clear_active_product_context():
         "image_prompts", "video_scripts", "ads_sns_items",
         "confirm_delete_id", "confirm_delete_file_path", "confirm_delete_name",
         "_bk_ready_bytes", "_bk_ready_fname", "_bk_ready_count", "_bk_ready_err",
+        "_market_loaded_for_product",
     ):
         st.session_state.pop(key, None)
 
@@ -901,6 +906,16 @@ def _generation_options_from_state() -> dict:
         "output_language": st.session_state.get("generation_output_language", "ja"),
         "market_note": st.session_state.get("generation_market_note", ""),
     }
+
+
+def _sync_generation_options_from_product_info(info: dict):
+    product_marker = st.session_state.get("product_id") or "__new__"
+    if st.session_state.get("_market_loaded_for_product") == product_marker:
+        return
+    st.session_state["generation_target_market"] = info.get("target_market") or "japan"
+    st.session_state["generation_output_language"] = info.get("output_language") or "ja"
+    st.session_state["generation_market_note"] = info.get("market_note") or ""
+    st.session_state["_market_loaded_for_product"] = product_marker
 
 
 _US_MARKET_PRESETS = [
@@ -1453,6 +1468,7 @@ def page_product_input():
             )
 
     info = st.session_state.get("product_info", {})
+    _sync_generation_options_from_product_info(info)
     lang = st.session_state.get("lang", "ja")
     other_lang = "pt" if lang == "ja" else "ja"
     other_i18n = load_i18n(other_lang)
@@ -1551,6 +1567,14 @@ def page_product_input():
             )
         else:
             st.caption("🇧🇷 Português原文を表示中　—　保存すると原文データが更新されます")
+
+    st.markdown(
+        f'<div class="cs-card-title"><span class="icon">🌎</span> '
+        f'{_lt("販売先を決める", "Definir mercado", "Choose market", lang)}</div>',
+        unsafe_allow_html=True,
+    )
+    _render_market_controls(is_ja)
+    st.markdown("---")
 
     # ── 基本情報 ──────────────────────────────────────────────────────
     st.markdown(
@@ -1754,6 +1778,7 @@ def page_product_input():
                 "prohibited": prohibited, "description": description,
                 "use_scenes": use_scenes, "competitor_urls": competitor_urls,
                 "notes": notes,
+                **_generation_options_from_state(),
             }
             _exist = svc["storage"].load_product(product_id) or {}
             _save_lang     = st.session_state.get("lang", "ja")
@@ -2038,6 +2063,7 @@ def page_core_generation():
     )
 
     product_info = st.session_state.get("product_info", {})
+    _sync_generation_options_from_product_info(product_info)
     if not product_info.get("name"):
         st.markdown('<div class="cs-warning">⚠️ ' + t("common.no_product_warning") + '</div>',
                     unsafe_allow_html=True)
@@ -2160,6 +2186,26 @@ def page_core_generation():
             )
 
     st.markdown("#### ⚙️ " + _lt("Core生成設定", "Configuração do Core", "Core generation settings", lang))
+    _market_opts = _generation_options_from_state()
+    _market_label = {
+        "japan": _lt("日本向け", "Japão", "Japan", lang),
+        "us": _lt("米国向け", "Estados Unidos", "United States", lang),
+        "global": _lt("グローバル", "Global", "Global", lang),
+    }.get(_market_opts["target_market"], _market_opts["target_market"])
+    _output_label = {
+        "ja": _lt("日本語", "Japonês", "Japanese", lang),
+        "en": _lt("英語", "Inglês", "English", lang),
+        "pt": _lt("ポルトガル語", "Português", "Portuguese", lang),
+    }.get(_market_opts["output_language"], _market_opts["output_language"])
+    _safe_market_note = html.escape(str(_market_opts.get("market_note") or ""))
+    st.markdown(
+        '<div class="cs-info">🌎 '
+        + _lt("商品情報で選んだ販売先", "Mercado definido no produto", "Market selected in product info", lang)
+        + f': <strong>{_market_label}</strong> / {_lt("出力", "Saída", "Output", lang)}: <strong>{_output_label}</strong>'
+        + (f'<br>{_lt("追加指定", "Instrução", "Instruction", lang)}: {_safe_market_note}' if _safe_market_note else "")
+        + '</div>',
+        unsafe_allow_html=True,
+    )
     strategy_labels = {
         "売れる訴求重視": "Foco em apelo de venda",
         "薬機法・景表法安全重視": "Foco em segurança de linguagem",
@@ -2245,6 +2291,7 @@ def page_core_generation():
         "safety": core_safety,
         "focus": core_focus,
         "tone": core_tone,
+        **_generation_options_from_state(),
     }
 
     st.session_state["core_method"] = "auto"

@@ -612,6 +612,10 @@ def page_saved_data(svc: dict) -> None:
                                             k: v for k, v in _refreshed.items()
                                             if k not in ("id", "file_path")
                                         }
+                                        st.session_state["generation_target_market"] = _refreshed.get("target_market") or "japan"
+                                        st.session_state["generation_output_language"] = _refreshed.get("output_language") or "ja"
+                                        st.session_state["generation_market_note"] = _refreshed.get("market_note") or ""
+                                        st.session_state["_market_loaded_for_product"] = pid
                                         st.success("翻訳が完了しました。" if is_ja else "Tradução concluída.")
                                         st.rerun()
                                     except Exception as _te:
