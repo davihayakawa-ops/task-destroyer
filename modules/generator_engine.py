@@ -1,4 +1,5 @@
 import re
+from typing import Optional
 from .llm_client import LLMClient
 
 PRODUCT_PAGE_PROMPT = """
@@ -204,12 +205,7 @@ CUSTOM_LIQUID_PROMPT = """
 9. CTAエリア（購入を促す一言 ＋ 区切り線）
 
 【デザイン方針】
-- 背景色: #faf8f4（温かみのあるオフホワイト）
-- テキスト色: #2b2b2b
-- アクセントカラー: #3d6b4f（落ち着いたグリーン）
-- 角丸: 14px〜18px
-- 余白はゆったりとる
-- カードには薄いボーダー (#eee) と白背景
+{design_instructions}
 
 【出力形式】
 コードのみを出力してください。説明文・コメント・マークダウン記法（```）は不要です。
@@ -268,7 +264,7 @@ _SHOPIFY_RULES = """【共通ルール】
 - コードのみ出力。マークダウン(```)や説明文は不要
 【フォント】大見出し:clamp(28px,4vw,48px) / セクション見出し:clamp(24px,3vw,36px) / 小見出し:clamp(18px,2vw,24px) / 本文:clamp(16px,1.4vw,18px);line-height:1.8
 【レイアウト】max-width:1100px;margin:0 auto;padding:80px 24px → スマホ:padding:48px 16px
-【デザイン】背景:#faf8f4 / テキスト:#2b2b2b / アクセント:#3d6b4f / カード:#fff;border:1px solid #e8e4de;border-radius:16px
+【デザイン】{design_instructions}
 各セクションは<style>タグを含む単体で動作するコードにする。"""
 
 _SECTION_BASE_PROMPT = """あなたはShopifyのカスタムLiquid制作の専門家です。
@@ -435,25 +431,64 @@ details[open]時にsummary::after が「－」になるCSSを入れること。"
 ]
 
 
-def _fallback_css() -> str:
+DEFAULT_DESIGN_OPTIONS = {
+    "mood": "上品・信頼感",
+    "palette": "ナチュラルグリーン",
+    "background_color": "#faf8f4",
+    "text_color": "#2b2b2b",
+    "accent_color": "#3d6b4f",
+    "card_color": "#ffffff",
+    "border_color": "#e8e4de",
+    "radius": "16px",
+    "spacing": "ゆったり",
+    "cta_strength": "控えめ",
+}
+
+
+def _design_options(design_options: Optional[dict] = None) -> dict:
+    opts = {**DEFAULT_DESIGN_OPTIONS, **(design_options or {})}
+    for key in ("background_color", "text_color", "accent_color", "card_color", "border_color"):
+        value = str(opts.get(key, "")).strip()
+        opts[key] = value if re.fullmatch(r"#[0-9a-fA-F]{6}", value) else DEFAULT_DESIGN_OPTIONS[key]
+    opts["radius"] = str(opts.get("radius") or DEFAULT_DESIGN_OPTIONS["radius"]).strip()
+    return opts
+
+
+def _design_instructions(design_options: Optional[dict] = None) -> str:
+    opts = _design_options(design_options)
+    return (
+        f"雰囲気:{opts['mood']} / パレット:{opts['palette']} / "
+        f"背景:{opts['background_color']} / テキスト:{opts['text_color']} / "
+        f"アクセント:{opts['accent_color']} / カード:{opts['card_color']} / "
+        f"ボーダー:{opts['border_color']} / 角丸:{opts['radius']} / "
+        f"余白:{opts['spacing']} / CTAの強さ:{opts['cta_strength']} / "
+        f"構成:{opts.get('section_preset', '標準構成')} / "
+        f"使用セクション:{'、'.join(opts.get('selected_sections', [])) if isinstance(opts.get('selected_sections'), list) else opts.get('selected_sections', '')}。"
+        "この指定を最優先し、すべてのセクションで色・余白・トーンを統一すること。"
+    )
+
+
+def _fallback_css(design_options: Optional[dict] = None) -> str:
+    opts = _design_options(design_options)
     return """<style>
-:root{--td-bg:#faf8f4;--td-text:#2b2b2b;--td-accent:#3d6b4f;--td-card:#fff;--td-border:#e8e4de;--td-radius:16px;--td-font-lg:clamp(28px,4vw,48px);--td-font-md:clamp(24px,3vw,36px);--td-font-sm:clamp(18px,2vw,24px);--td-font-body:clamp(16px,1.4vw,18px)}
+:root{--td-bg:%(background_color)s;--td-text:%(text_color)s;--td-accent:%(accent_color)s;--td-card:%(card_color)s;--td-border:%(border_color)s;--td-radius:%(radius)s;--td-font-lg:clamp(28px,4vw,48px);--td-font-md:clamp(24px,3vw,36px);--td-font-sm:clamp(18px,2vw,24px);--td-font-body:clamp(16px,1.4vw,18px)}
 .td-section{background:var(--td-bg);padding:80px 24px}
 .td-container{max-width:1100px;margin:0 auto}
 .td-badge{display:inline-block;background:var(--td-accent);color:#fff;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:600;letter-spacing:.05em}
 @media(max-width:767px){.td-section{padding:48px 16px}}
-</style>"""
+</style>""" % opts
 
 
-def _fallback_hero(product_name: str) -> str:
+def _fallback_hero(product_name: str, design_options: Optional[dict] = None) -> str:
+    opts = _design_options(design_options)
     return f"""<style>
-.td-hero{{background:linear-gradient(135deg,#faf8f4 0%,#f0ece4 100%);padding:80px 24px;text-align:center}}
+.td-hero{{background:{opts['background_color']};padding:80px 24px;text-align:center}}
 .td-hero .td-container{{max-width:1100px;margin:0 auto}}
 .td-hero .td-badge{{margin-bottom:24px;display:inline-block}}
-.td-hero h1{{font-size:clamp(28px,4vw,52px);color:#2b2b2b;font-weight:700;line-height:1.3;margin-bottom:16px}}
-.td-hero-sub{{font-size:clamp(16px,1.6vw,20px);color:#5a5a5a;line-height:1.8;margin-bottom:48px}}
+.td-hero h1{{font-size:clamp(28px,4vw,52px);color:{opts['text_color']};font-weight:700;line-height:1.3;margin-bottom:16px}}
+.td-hero-sub{{font-size:clamp(16px,1.6vw,20px);color:{opts['text_color']};opacity:.78;line-height:1.8;margin-bottom:48px}}
 .td-hero-benefits{{display:flex;justify-content:center;gap:20px;flex-wrap:wrap;margin-bottom:40px}}
-.td-hero-benefit{{background:#fff;border:1px solid #e8e4de;border-radius:12px;padding:14px 22px;font-size:clamp(15px,1.3vw,17px);color:#3d6b4f;font-weight:600}}
+.td-hero-benefit{{background:{opts['card_color']};border:1px solid {opts['border_color']};border-radius:{opts['radius']};padding:14px 22px;font-size:clamp(15px,1.3vw,17px);color:{opts['accent_color']};font-weight:600}}
 .td-hero-trust{{font-size:13px;color:#aaa}}
 @media(max-width:767px){{.td-hero{{padding:48px 16px}}.td-hero-benefits{{flex-direction:column;align-items:center}}.td-hero-benefit{{width:100%;text-align:center}}}}
 </style>
@@ -472,16 +507,17 @@ def _fallback_hero(product_name: str) -> str:
 </section>"""
 
 
-def _fallback_about(product_name: str) -> str:
+def _fallback_about(product_name: str, design_options: Optional[dict] = None) -> str:
+    opts = _design_options(design_options)
     return f"""<style>
-.td-about{{background:#faf8f4;padding:80px 24px}}
+.td-about{{background:{opts['background_color']};padding:80px 24px}}
 .td-about .td-container{{max-width:960px;margin:0 auto;text-align:center}}
-.td-about h2{{font-size:clamp(24px,3vw,36px);color:#2b2b2b;margin-bottom:16px}}
-.td-about-lead{{font-size:clamp(16px,1.5vw,20px);color:#5a5a5a;line-height:1.9;margin-bottom:40px}}
+.td-about h2{{font-size:clamp(24px,3vw,36px);color:{opts['text_color']};margin-bottom:16px}}
+.td-about-lead{{font-size:clamp(16px,1.5vw,20px);color:{opts['text_color']};opacity:.78;line-height:1.9;margin-bottom:40px}}
 .td-about-points{{display:flex;gap:20px;justify-content:center;flex-wrap:wrap}}
-.td-about-point{{background:#fff;border:1px solid #e8e4de;border-radius:14px;padding:24px 28px;max-width:280px;text-align:left}}
-.td-about-point h3{{font-size:clamp(16px,1.4vw,18px);color:#3d6b4f;margin-bottom:8px;font-weight:700}}
-.td-about-point p{{font-size:clamp(15px,1.3vw,16px);color:#5a5a5a;line-height:1.8;margin:0}}
+.td-about-point{{background:{opts['card_color']};border:1px solid {opts['border_color']};border-radius:{opts['radius']};padding:24px 28px;max-width:280px;text-align:left}}
+.td-about-point h3{{font-size:clamp(16px,1.4vw,18px);color:{opts['accent_color']};margin-bottom:8px;font-weight:700}}
+.td-about-point p{{font-size:clamp(15px,1.3vw,16px);color:{opts['text_color']};opacity:.75;line-height:1.8;margin:0}}
 @media(max-width:767px){{.td-about{{padding:48px 16px}}.td-about-points{{flex-direction:column;align-items:center}}.td-about-point{{max-width:100%;width:100%}}}}
 </style>
 <section class="td-about">
@@ -497,14 +533,15 @@ def _fallback_about(product_name: str) -> str:
 </section>"""
 
 
-def _fallback_problem(product_name: str) -> str:
+def _fallback_problem(product_name: str, design_options: Optional[dict] = None) -> str:
+    opts = _design_options(design_options)
     return f"""<style>
-.td-problem{{background:#f3f0eb;padding:80px 24px}}
+.td-problem{{background:{opts['background_color']};padding:80px 24px}}
 .td-problem .td-container{{max-width:960px;margin:0 auto}}
-.td-problem h2{{font-size:clamp(24px,3vw,36px);color:#2b2b2b;text-align:center;margin-bottom:48px}}
+.td-problem h2{{font-size:clamp(24px,3vw,36px);color:{opts['text_color']};text-align:center;margin-bottom:48px}}
 .td-problem-list{{list-style:none;padding:0;margin:0 0 40px;display:grid;gap:12px}}
-.td-problem-list li{{background:#fff;border-left:4px solid #e0d8cf;border-radius:8px;padding:16px 20px;font-size:clamp(16px,1.4vw,18px);color:#5a5a5a;line-height:1.7}}
-.td-problem-solution{{background:#3d6b4f;color:#fff;border-radius:16px;padding:32px 36px;text-align:center}}
+.td-problem-list li{{background:{opts['card_color']};border-left:4px solid {opts['accent_color']};border-radius:{opts['radius']};padding:16px 20px;font-size:clamp(16px,1.4vw,18px);color:{opts['text_color']};opacity:.82;line-height:1.7}}
+.td-problem-solution{{background:{opts['accent_color']};color:#fff;border-radius:{opts['radius']};padding:32px 36px;text-align:center}}
 .td-problem-solution h3{{font-size:clamp(20px,2.2vw,26px);margin-bottom:12px}}
 .td-problem-solution p{{font-size:clamp(16px,1.4vw,18px);line-height:1.8;opacity:.9;margin:0}}
 @media(max-width:767px){{.td-problem{{padding:48px 16px}}.td-problem-solution{{padding:24px 20px}}}}
@@ -526,16 +563,17 @@ def _fallback_problem(product_name: str) -> str:
 </section>"""
 
 
-def _fallback_features(product_name: str) -> str:
+def _fallback_features(product_name: str, design_options: Optional[dict] = None) -> str:
+    opts = _design_options(design_options)
     return f"""<style>
-.td-features{{background:#faf8f4;padding:80px 24px}}
+.td-features{{background:{opts['background_color']};padding:80px 24px}}
 .td-features .td-container{{max-width:1100px;margin:0 auto}}
-.td-features h2{{font-size:clamp(24px,3vw,36px);color:#2b2b2b;text-align:center;margin-bottom:48px}}
+.td-features h2{{font-size:clamp(24px,3vw,36px);color:{opts['text_color']};text-align:center;margin-bottom:48px}}
 .td-features-grid{{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}}
-.td-feature-card{{background:#fff;border:1px solid #e8e4de;border-radius:16px;padding:32px 24px;text-align:center}}
+.td-feature-card{{background:{opts['card_color']};border:1px solid {opts['border_color']};border-radius:{opts['radius']};padding:32px 24px;text-align:center}}
 .td-feat-icon{{font-size:2.5rem;margin-bottom:16px}}
-.td-feature-card h3{{font-size:clamp(17px,1.6vw,20px);color:#3d6b4f;margin-bottom:10px;font-weight:700}}
-.td-feature-card p{{font-size:clamp(15px,1.3vw,16px);color:#5a5a5a;line-height:1.8;margin:0}}
+.td-feature-card h3{{font-size:clamp(17px,1.6vw,20px);color:{opts['accent_color']};margin-bottom:10px;font-weight:700}}
+.td-feature-card p{{font-size:clamp(15px,1.3vw,16px);color:{opts['text_color']};opacity:.76;line-height:1.8;margin:0}}
 @media(max-width:767px){{.td-features{{padding:48px 16px}}.td-features-grid{{grid-template-columns:1fr}}}}
 </style>
 <section class="td-features">
@@ -550,16 +588,17 @@ def _fallback_features(product_name: str) -> str:
 </section>"""
 
 
-def _fallback_scenes(product_name: str) -> str:
+def _fallback_scenes(product_name: str, design_options: Optional[dict] = None) -> str:
+    opts = _design_options(design_options)
     return f"""<style>
-.td-scenes{{background:#faf8f4;padding:80px 24px}}
+.td-scenes{{background:{opts['background_color']};padding:80px 24px}}
 .td-scenes .td-container{{max-width:1100px;margin:0 auto}}
-.td-scenes h2{{font-size:clamp(24px,3vw,36px);color:#2b2b2b;text-align:center;margin-bottom:48px}}
+.td-scenes h2{{font-size:clamp(24px,3vw,36px);color:{opts['text_color']};text-align:center;margin-bottom:48px}}
 .td-scenes-grid{{display:grid;grid-template-columns:repeat(2,1fr);gap:24px}}
-.td-scene-card{{background:#fff;border:1px solid #e8e4de;border-radius:16px;padding:32px;}}
+.td-scene-card{{background:{opts['card_color']};border:1px solid {opts['border_color']};border-radius:{opts['radius']};padding:32px;}}
 .td-scene-card .td-scene-icon{{font-size:2rem;margin-bottom:12px}}
-.td-scene-card h3{{font-size:clamp(18px,2vw,22px);color:#3d6b4f;margin-bottom:8px}}
-.td-scene-card p{{font-size:clamp(16px,1.4vw,18px);line-height:1.8;color:#5a5a5a;margin:0}}
+.td-scene-card h3{{font-size:clamp(18px,2vw,22px);color:{opts['accent_color']};margin-bottom:8px}}
+.td-scene-card p{{font-size:clamp(16px,1.4vw,18px);line-height:1.8;color:{opts['text_color']};opacity:.76;margin:0}}
 @media(max-width:767px){{.td-scenes-grid{{grid-template-columns:1fr}}.td-scenes{{padding:48px 16px}}}}
 </style>
 <section class="td-scenes">
@@ -575,17 +614,18 @@ def _fallback_scenes(product_name: str) -> str:
 </section>"""
 
 
-def _fallback_comparison(product_name: str) -> str:
+def _fallback_comparison(product_name: str, design_options: Optional[dict] = None) -> str:
+    opts = _design_options(design_options)
     return f"""<style>
-.td-comparison{{background:#f3f0eb;padding:80px 24px}}
+.td-comparison{{background:{opts['background_color']};padding:80px 24px}}
 .td-comparison .td-container{{max-width:960px;margin:0 auto}}
-.td-comparison h2{{font-size:clamp(24px,3vw,36px);color:#2b2b2b;text-align:center;margin-bottom:48px}}
-.td-comp-table{{width:100%;border-collapse:collapse;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.07)}}
-.td-comp-table th{{background:#3d6b4f;color:#fff;padding:16px 20px;font-size:clamp(15px,1.3vw,17px);text-align:center}}
-.td-comp-table td{{padding:16px 20px;border-bottom:1px solid #e8e4de;font-size:clamp(15px,1.3vw,17px);line-height:1.7;text-align:center}}
+.td-comparison h2{{font-size:clamp(24px,3vw,36px);color:{opts['text_color']};text-align:center;margin-bottom:48px}}
+.td-comp-table{{width:100%;border-collapse:collapse;background:{opts['card_color']};border-radius:{opts['radius']};overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.07)}}
+.td-comp-table th{{background:{opts['accent_color']};color:#fff;padding:16px 20px;font-size:clamp(15px,1.3vw,17px);text-align:center}}
+.td-comp-table td{{padding:16px 20px;border-bottom:1px solid {opts['border_color']};font-size:clamp(15px,1.3vw,17px);line-height:1.7;text-align:center}}
 .td-comp-table tr:last-child td{{border-bottom:none}}
-.td-comp-table td:first-child{{text-align:left;font-weight:600;color:#2b2b2b}}
-.td-comp-check{{color:#3d6b4f;font-weight:700}}
+.td-comp-table td:first-child{{text-align:left;font-weight:600;color:{opts['text_color']}}}
+.td-comp-check{{color:{opts['accent_color']};font-weight:700}}
 .td-comp-x{{color:#aaa}}
 @media(max-width:767px){{.td-comparison{{padding:48px 16px}}.td-comp-table th,.td-comp-table td{{padding:12px 10px;font-size:14px}}}}
 </style>
@@ -607,16 +647,17 @@ def _fallback_comparison(product_name: str) -> str:
 </section>"""
 
 
-def _fallback_faq(product_name: str) -> str:
+def _fallback_faq(product_name: str, design_options: Optional[dict] = None) -> str:
+    opts = _design_options(design_options)
     return f"""<style>
-.td-faq{{background:#faf8f4;padding:80px 24px}}
+.td-faq{{background:{opts['background_color']};padding:80px 24px}}
 .td-faq .td-container{{max-width:960px;margin:0 auto}}
-.td-faq h2{{font-size:clamp(24px,3vw,36px);color:#2b2b2b;text-align:center;margin-bottom:48px}}
-.td-faq details{{background:#fff;border:1px solid #e8e4de;border-radius:12px;margin-bottom:12px;overflow:hidden}}
-.td-faq summary{{padding:20px 24px;font-size:clamp(16px,1.4vw,18px);font-weight:600;cursor:pointer;list-style:none;color:#2b2b2b}}
+.td-faq h2{{font-size:clamp(24px,3vw,36px);color:{opts['text_color']};text-align:center;margin-bottom:48px}}
+.td-faq details{{background:{opts['card_color']};border:1px solid {opts['border_color']};border-radius:{opts['radius']};margin-bottom:12px;overflow:hidden}}
+.td-faq summary{{padding:20px 24px;font-size:clamp(16px,1.4vw,18px);font-weight:600;cursor:pointer;list-style:none;color:{opts['text_color']}}}
 .td-faq summary::after{{content:"＋";float:right;transition:.3s}}
 .td-faq details[open] summary::after{{content:"－"}}
-.td-faq .td-faq-body{{padding:0 24px 20px;font-size:clamp(16px,1.4vw,18px);line-height:1.8;color:#5a5a5a}}
+.td-faq .td-faq-body{{padding:0 24px 20px;font-size:clamp(16px,1.4vw,18px);line-height:1.8;color:{opts['text_color']};opacity:.75}}
 @media(max-width:767px){{.td-faq{{padding:48px 16px}}.td-faq summary{{padding:16px}}.td-faq .td-faq-body{{padding:0 16px 16px}}}}
 </style>
 <section class="td-faq">
@@ -631,9 +672,10 @@ def _fallback_faq(product_name: str) -> str:
 </section>"""
 
 
-def _fallback_cta(product_name: str) -> str:
+def _fallback_cta(product_name: str, design_options: Optional[dict] = None) -> str:
+    opts = _design_options(design_options)
     return f"""<style>
-.td-cta{{background:#3d6b4f;padding:80px 24px;text-align:center}}
+.td-cta{{background:{opts['accent_color']};padding:80px 24px;text-align:center}}
 .td-cta .td-container{{max-width:800px;margin:0 auto}}
 .td-cta h2{{font-size:clamp(24px,3vw,36px);color:#fff;margin-bottom:16px}}
 .td-cta p{{font-size:clamp(16px,1.5vw,19px);color:rgba(255,255,255,.85);line-height:1.8;margin-bottom:40px}}
@@ -672,7 +714,7 @@ class GeneratorEngine:
         prompt = SNS_PROMPT.format(core=core, product_name=product_name)
         return self.llm.generate_structured(prompt)
 
-    def generate_custom_liquid(self, core: str, product_info: dict) -> str:
+    def generate_custom_liquid(self, core: str, product_info: dict, design_options: Optional[dict] = None) -> str:
         prompt = CUSTOM_LIQUID_PROMPT.format(
             core=core,
             product_name=product_info.get("name", ""),
@@ -682,6 +724,7 @@ class GeneratorEngine:
             features=product_info.get("features", ""),
             target=product_info.get("target", ""),
             use_scenes=product_info.get("use_scenes", ""),
+            design_instructions=_design_instructions(design_options),
         )
         return self.llm.generate_structured(prompt, max_tokens=8192)
 
@@ -703,12 +746,13 @@ class GeneratorEngine:
         except Exception:
             return fallback_fn()
 
-    def generate_shopify_sections(self, core: str, product_info: dict) -> dict:
+    def generate_shopify_sections(self, core: str, product_info: dict, design_options: Optional[dict] = None) -> dict:
         product_name = product_info.get("name", "")
+        design_options = _design_options(design_options)
         # Truncate core to avoid 400 "prompt too long" errors from the API
         core_trimmed = core[:3500] if len(core) > 3500 else core
         args = dict(
-            rules=_SHOPIFY_RULES,
+            rules=_SHOPIFY_RULES.format(design_instructions=_design_instructions(design_options)),
             core=core_trimmed,
             product_name=product_name,
             category=product_info.get("category", ""),
@@ -719,15 +763,15 @@ class GeneratorEngine:
             use_scenes=product_info.get("use_scenes", ""),
         )
         fallbacks = {
-            "shopify_common_css":               _fallback_css,
-            "shopify_hero_section_code":        lambda: _fallback_hero(product_name),
-            "shopify_about_section_code":       lambda: _fallback_about(product_name),
-            "shopify_problem_section_code":     lambda: _fallback_problem(product_name),
-            "shopify_features_section_code":    lambda: _fallback_features(product_name),
-            "shopify_usage_scene_section_code": lambda: _fallback_scenes(product_name),
-            "shopify_comparison_section_code":  lambda: _fallback_comparison(product_name),
-            "shopify_faq_section_code":         lambda: _fallback_faq(product_name),
-            "shopify_cta_section_code":         lambda: _fallback_cta(product_name),
+            "shopify_common_css":               lambda: _fallback_css(design_options),
+            "shopify_hero_section_code":        lambda: _fallback_hero(product_name, design_options),
+            "shopify_about_section_code":       lambda: _fallback_about(product_name, design_options),
+            "shopify_problem_section_code":     lambda: _fallback_problem(product_name, design_options),
+            "shopify_features_section_code":    lambda: _fallback_features(product_name, design_options),
+            "shopify_usage_scene_section_code": lambda: _fallback_scenes(product_name, design_options),
+            "shopify_comparison_section_code":  lambda: _fallback_comparison(product_name, design_options),
+            "shopify_faq_section_code":         lambda: _fallback_faq(product_name, design_options),
+            "shopify_cta_section_code":         lambda: _fallback_cta(product_name, design_options),
         }
         sections = {}
         for key, marker, instructions in SHOPIFY_SECTION_CONFIGS:

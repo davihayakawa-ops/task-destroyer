@@ -194,6 +194,160 @@ _ND_CSS = """
 .nd-empty { text-align:center; padding:36px 20px;
     color:#374151; font-size:.82rem; }
 .nd-scroll { max-height:400px; overflow-y:auto; }
+
+/* ── Enterprise visual overrides ─────────────────────────────── */
+.nd-header {
+    background:#ffffff !important;
+    border:1px solid #e2e8f0 !important;
+    border-radius:8px !important;
+    box-shadow:0 1px 2px rgba(15,23,42,.04) !important;
+}
+.nd-header::before,
+.nd-header::after,
+.nd-kpi::after {
+    display:none !important;
+}
+.nd-header-eyebrow {
+    color:#64748b !important;
+    letter-spacing:.08em !important;
+}
+.nd-header-title {
+    color:#0f172a !important;
+    letter-spacing:0 !important;
+}
+.nd-header-sub {
+    color:#64748b !important;
+    letter-spacing:0 !important;
+}
+.nd-status-dot {
+    background:#2563eb !important;
+    box-shadow:none !important;
+    animation:none !important;
+}
+.nd-badge-sys {
+    background:#eff6ff !important;
+    color:#1d4ed8 !important;
+    border:1px solid #bfdbfe !important;
+    border-radius:6px !important;
+    letter-spacing:.04em !important;
+}
+.nd-credit-val { color:#1d4ed8 !important; }
+.nd-credit-label { color:#64748b !important; }
+.nd-credit-bar { background:#e2e8f0 !important; border-radius:999px !important; }
+.nd-credit-fill {
+    background:#2563eb !important;
+    box-shadow:none !important;
+    border-radius:999px !important;
+}
+.nd-kpi,
+.nd-card,
+.nd-ex-tile {
+    background:#ffffff !important;
+    border:1px solid #e2e8f0 !important;
+    border-radius:8px !important;
+    box-shadow:0 1px 2px rgba(15,23,42,.04) !important;
+}
+.nd-kpi:hover,
+.nd-card:hover,
+.nd-ex-tile:hover {
+    border-color:#cbd5e1 !important;
+    box-shadow:0 4px 12px rgba(15,23,42,.06) !important;
+}
+.nd-kpi-val,
+.nd-card-ttl,
+.nd-ex-ttl,
+.nd-tbl td.name {
+    color:#0f172a !important;
+}
+.nd-kpi-lbl,
+.nd-sec-lbl,
+.nd-ex-dsc,
+.nd-tbl th,
+.nd-tbl td,
+.nd-tbl td.date,
+.nd-card-meta span {
+    color:#64748b !important;
+}
+.nd-sec-lbl {
+    border-bottom:1px solid #e2e8f0 !important;
+    letter-spacing:.08em !important;
+}
+.nd-preview {
+    background:#f8fafc !important;
+    border:1px solid #e2e8f0 !important;
+    color:#334155 !important;
+    border-radius:8px !important;
+}
+.nd-preview.filled { color:#334155 !important; }
+.nd-preview.code { color:#1d4ed8 !important; }
+.nd-b { border-radius:6px !important; letter-spacing:.04em !important; }
+.nd-b-ok {
+    background:#ecfdf5 !important;
+    color:#047857 !important;
+    border-color:#a7f3d0 !important;
+}
+.nd-b-ai {
+    background:#eff6ff !important;
+    color:#1d4ed8 !important;
+    border-color:#bfdbfe !important;
+}
+.nd-b-pnd {
+    background:#fffbeb !important;
+    color:#92400e !important;
+    border-color:#fde68a !important;
+}
+.nd-b-rev {
+    background:#fff7ed !important;
+    color:#c2410c !important;
+    border-color:#fed7aa !important;
+}
+.nd-b-dft,
+.nd-b-tag {
+    background:#f8fafc !important;
+    color:#64748b !important;
+    border-color:#cbd5e1 !important;
+}
+.nd-tbl th { border-bottom:1px solid #e2e8f0 !important; }
+.nd-tbl td { border-bottom:1px solid #f1f5f9 !important; }
+.nd-tbl tr:hover td { background:#f8fafc !important; }
+.nd-row-action {
+    background:#ffffff !important;
+    border:1px solid #cbd5e1 !important;
+    color:#334155 !important;
+    border-radius:6px !important;
+}
+.nd-row-action:hover {
+    border-color:#2563eb !important;
+    color:#1d4ed8 !important;
+}
+.nd-ex-tile:hover { background:#ffffff !important; }
+.nd-ex-badge {
+    background:#f8fafc !important;
+    border-color:#cbd5e1 !important;
+    color:#64748b !important;
+    border-radius:6px !important;
+}
+.nd-ex-badge.live {
+    background:#ecfdf5 !important;
+    border-color:#a7f3d0 !important;
+    color:#047857 !important;
+}
+.nd-sidebar-sec { color:#94a3b8 !important; letter-spacing:.08em !important; }
+.nd-sidebar-footer {
+    color:#cbd5e1 !important;
+    border-top:1px solid rgba(148,163,184,.22) !important;
+}
+.nd-use-bar {
+    background:#334155 !important;
+    border-radius:999px !important;
+}
+.nd-use-fill {
+    background:#3b82f6 !important;
+    box-shadow:none !important;
+    border-radius:999px !important;
+}
+.nd-divider { border-top:1px solid #e2e8f0 !important; }
+.nd-empty { color:#64748b !important; }
 </style>
 """
 
@@ -256,20 +410,20 @@ def page_new_dashboard(svc: dict) -> None:
         <div class="nd-header">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;">
             <div>
-              <div class="nd-header-eyebrow">TASK DESTROYER v2.0 ・ COMMERCE MODE ・ IMPERIAL DATA LINK</div>
-              <div class="nd-header-title">⚡ {'ダッシュボード' if _is_ja else 'Painel'}</div>
+              <div class="nd-header-eyebrow">TASK DESTROYER ・ COMMERCE WORKSPACE</div>
+              <div class="nd-header-title">{'ダッシュボード' if _is_ja else 'Painel'}</div>
               <div class="nd-header-sub" style="margin-top:6px;">
                 <span class="nd-status-dot"></span>
                 <span class="nd-badge-sys">SYSTEM ONLINE</span>
                 &nbsp;&nbsp;{'現在のプロジェクト' if _is_ja else 'Projeto atual'}:
-                <span style="color:#e8e8e8;font-weight:600;">{_product_name}</span>
+                <span style="color:#0f172a;font-weight:600;">{_product_name}</span>
               </div>
             </div>
             <div class="nd-credit-wrap">
-              <div class="nd-credit-val">730 <span style="font-size:.7rem;font-weight:400;color:#374151;">/ 1,000</span></div>
+              <div class="nd-credit-val">730 <span style="font-size:.7rem;font-weight:400;color:#64748b;">/ 1,000</span></div>
               <div class="nd-credit-label">{'API Calls 残量' if _is_ja else 'API Calls restantes'}</div>
               <div class="nd-credit-bar"><div class="nd-credit-fill" style="width:73%;"></div></div>
-              <div style="font-size:.6rem;color:#1e3a1e;margin-top:4px;letter-spacing:.1em;">▓▓▓▓▓▓▓░░░ 73% REMAINING</div>
+              <div style="font-size:.68rem;color:#64748b;margin-top:4px;">73% remaining</div>
             </div>
           </div>
         </div>
@@ -473,13 +627,13 @@ def page_new_dashboard(svc: dict) -> None:
                 tc1, tc2, tc3, tc4, tc5 = st.columns([3, 2, 1.5, 1, 1])
                 with tc1:
                     st.markdown(
-                        f'<div style="padding:8px 0;font-weight:600;color:#e8e8e8;'
+                        f'<div style="padding:8px 0;font-weight:600;color:#0f172a;'
                         f'font-size:.82rem;">{_html.escape(pname)}</div>',
                         unsafe_allow_html=True,
                     )
                 with tc2:
                     st.markdown(
-                        f'<div style="padding:8px 0;color:#374151;font-size:.73rem;">{pupdated}</div>',
+                        f'<div style="padding:8px 0;color:#64748b;font-size:.73rem;">{pupdated}</div>',
                         unsafe_allow_html=True,
                     )
                 with tc3:
@@ -611,8 +765,8 @@ def page_new_dashboard(svc: dict) -> None:
 
         st.markdown('<hr class="nd-divider">', unsafe_allow_html=True)
         st.markdown(
-            '<div style="font-size:.7rem;color:#1e3a1e;letter-spacing:.15em;text-align:center;">'
-            '// TASK DESTROYER EXPORT TERMINAL — ALL SYSTEMS NOMINAL //'
+            '<div style="font-size:.76rem;color:#64748b;text-align:center;">'
+            'Task Destroyer Export Center'
             '</div>',
             unsafe_allow_html=True,
         )

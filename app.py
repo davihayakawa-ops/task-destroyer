@@ -1,6 +1,7 @@
 import streamlit as st
 import json
 import os
+import re
 import uuid
 import zipfile
 import io
@@ -412,6 +413,255 @@ hr {
     background: transparent !important;
     margin-bottom: 2px;
 }
+
+/* ════════════════════════════════════════════════════════════════
+   ENTERPRISE SAAS OVERRIDES
+   Neutral, durable UI for daily team/company operation.
+   ════════════════════════════════════════════════════════════════ */
+:root {
+    --app-bg: #f6f8fb;
+    --app-panel: #ffffff;
+    --app-sidebar: #0f172a;
+    --app-sidebar-muted: #94a3b8;
+    --app-text: #0f172a;
+    --app-muted: #64748b;
+    --app-border: #e2e8f0;
+    --app-soft: #f8fafc;
+    --app-primary: #2563eb;
+    --app-primary-dark: #1d4ed8;
+    --app-success: #059669;
+    --app-warning: #b45309;
+    --app-danger: #dc2626;
+    --app-radius: 8px;
+}
+
+[data-testid="stAppViewContainer"] {
+    background: var(--app-bg) !important;
+    background-image: none !important;
+    color: var(--app-text) !important;
+}
+[data-testid="stMain"] .block-container {
+    padding-top: 1.5rem;
+    max-width: 1280px;
+}
+[data-testid="stMain"] .block-container::before {
+    display: none !important;
+}
+[data-testid="stHeader"] {
+    background: var(--app-bg) !important;
+    border-bottom: 1px solid var(--app-border) !important;
+}
+[data-testid="stToolbar"],
+[data-testid="stDecoration"],
+[data-testid="stStatusWidget"] {
+    background: transparent !important;
+}
+
+[data-testid="stSidebar"] {
+    background: var(--app-sidebar) !important;
+    background-image: none !important;
+    border-right: 1px solid #1e293b !important;
+}
+[data-testid="stSidebar"] * {
+    color: #e2e8f0 !important;
+}
+[data-testid="stSidebar"] .stButton > button {
+    background: transparent !important;
+    border: 1px solid transparent !important;
+    color: #cbd5e1 !important;
+    justify-content: flex-start;
+    min-height: 38px;
+    border-radius: var(--app-radius) !important;
+}
+[data-testid="stSidebar"] .stButton > button:hover {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    color: #ffffff !important;
+}
+[data-testid="stSidebar"] .stButton > button[kind="primary"],
+[data-testid="stSidebar"] .stButton > button[data-testid="baseButton-primary"] {
+    background: #1d4ed8 !important;
+    border-color: #3b82f6 !important;
+    color: #ffffff !important;
+}
+
+.cs-header {
+    border-bottom: 1px solid #1e293b !important;
+    border-image: none !important;
+    margin-bottom: 18px;
+    padding-bottom: 18px;
+}
+.cs-logo-img {
+    width: 148px;
+}
+
+.section-header {
+    color: var(--app-text) !important;
+    border-bottom: 1px solid var(--app-border) !important;
+    border-image: none !important;
+    font-size: 1.45rem;
+    letter-spacing: 0;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+}
+.section-sub {
+    color: var(--app-muted) !important;
+}
+
+.cs-card,
+.bilingual-col,
+.generated-box {
+    background: var(--app-panel) !important;
+    border: 1px solid var(--app-border) !important;
+    border-radius: var(--app-radius) !important;
+    color: var(--app-text) !important;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+.cs-card:hover {
+    border-color: #cbd5e1 !important;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06) !important;
+}
+.cs-card::after,
+.nd-card::after,
+.ins-card::after {
+    display: none !important;
+}
+.cs-card-title {
+    color: #334155 !important;
+    font-size: 0.8rem;
+    letter-spacing: 0.04em;
+}
+.generated-box {
+    background: #f8fafc !important;
+    color: #334155 !important;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+.bilingual-label {
+    color: var(--app-primary) !important;
+}
+
+.stButton > button {
+    background: #ffffff !important;
+    color: #1e293b !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: var(--app-radius) !important;
+    min-height: 38px;
+    font-weight: 650;
+    box-shadow: 0 1px 1px rgba(15, 23, 42, 0.03);
+}
+.stButton > button:hover {
+    background: #f8fafc !important;
+    border-color: #94a3b8 !important;
+    color: #0f172a !important;
+}
+.stButton > button[kind="primary"],
+.stButton > button[data-testid="baseButton-primary"] {
+    background: var(--app-primary) !important;
+    border-color: var(--app-primary) !important;
+    color: #ffffff !important;
+}
+.stButton > button[kind="primary"]:hover,
+.stButton > button[data-testid="baseButton-primary"]:hover {
+    background: var(--app-primary-dark) !important;
+    border-color: var(--app-primary-dark) !important;
+    color: #ffffff !important;
+}
+
+[data-testid="stTextArea"] textarea,
+[data-testid="stTextInput"] input,
+[data-testid="stNumberInput"] input,
+[data-testid="stSelectbox"] > div,
+[data-testid="stMultiSelect"] > div,
+[data-testid="stColorPicker"] input {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    color: var(--app-text) !important;
+    border-radius: var(--app-radius) !important;
+}
+[data-testid="stTextArea"] textarea:focus,
+[data-testid="stTextInput"] input:focus,
+[data-testid="stNumberInput"] input:focus {
+    border-color: var(--app-primary) !important;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12) !important;
+}
+
+[data-testid="stTabs"] [role="tab"] {
+    color: var(--app-muted) !important;
+    border-bottom: 2px solid transparent !important;
+    font-weight: 650;
+}
+[data-testid="stTabs"] [role="tab"][aria-selected="true"] {
+    color: var(--app-primary) !important;
+    border-bottom-color: var(--app-primary) !important;
+}
+
+hr {
+    background: var(--app-border) !important;
+}
+.sb-breadcrumb {
+    background: #ffffff !important;
+    border: 1px solid var(--app-border) !important;
+    color: var(--app-muted) !important;
+}
+.sb-bc-page {
+    color: var(--app-primary) !important;
+}
+.sb-mode-label {
+    color: #94a3b8 !important;
+}
+
+.badge-success,
+.badge-generated {
+    background: #ecfdf5 !important;
+    color: #047857 !important;
+    border: 1px solid #a7f3d0 !important;
+}
+.badge-ai {
+    background: #eff6ff !important;
+    color: #1d4ed8 !important;
+    border: 1px solid #bfdbfe !important;
+}
+.badge-draft {
+    background: #f8fafc !important;
+    color: #64748b !important;
+    border: 1px solid #cbd5e1 !important;
+}
+.cs-info {
+    background: #eff6ff !important;
+    border: 1px solid #bfdbfe !important;
+    color: #1e40af !important;
+}
+.cs-warning {
+    background: #fffbeb !important;
+    border: 1px solid #fde68a !important;
+    color: #92400e !important;
+}
+.cs-success {
+    background: #ecfdf5 !important;
+    border: 1px solid #a7f3d0 !important;
+    color: #065f46 !important;
+}
+
+[data-testid="stMetric"] {
+    background: #ffffff;
+    border: 1px solid var(--app-border);
+    border-radius: var(--app-radius);
+    padding: 12px 14px;
+}
+[data-testid="stMetric"] label,
+[data-testid="stMetric"] [data-testid="stMetricLabel"] {
+    color: var(--app-muted) !important;
+}
+
+[data-testid="stExpander"] {
+    background: #ffffff !important;
+    border: 1px solid var(--app-border) !important;
+    border-radius: var(--app-radius) !important;
+}
+[data-testid="stExpander"] summary {
+    color: var(--app-text) !important;
+    font-weight: 650;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -816,14 +1066,14 @@ def page_mode_selection():
             name = mode["name_ja"] if lang == "ja" else mode["name_pt"]
             desc = mode["desc_ja"] if lang == "ja" else mode["desc_pt"]
             is_selected = st.session_state["mode"] == mode["id"]
-            border_color = "#22c55e" if is_selected else "#1e1e1e"
+            border_color = "#2563eb" if is_selected else "#e2e8f0"
 
             st.markdown(
-                f'<div style="background:#141414;border:2px solid {border_color};'
-                f'border-radius:12px;padding:24px;text-align:center;min-height:160px;">'
+                f'<div style="background:#ffffff;border:2px solid {border_color};'
+                f'border-radius:8px;padding:24px;text-align:center;min-height:160px;box-shadow:0 1px 2px rgba(15,23,42,.04);">'
                 f'<div style="font-size:2.5rem;">{mode["icon"]}</div>'
-                f'<div style="font-size:1rem;font-weight:700;color:#f0f0f0;margin:12px 0 8px;">{name}</div>'
-                f'<div style="font-size:0.8rem;color:#6b7280;">{desc}</div>'
+                f'<div style="font-size:1rem;font-weight:700;color:#0f172a;margin:12px 0 8px;">{name}</div>'
+                f'<div style="font-size:0.8rem;color:#64748b;">{desc}</div>'
                 f'</div>',
                 unsafe_allow_html=True,
             )
@@ -871,7 +1121,7 @@ def page_product_input():
                         st.rerun()
             _or_new = "— または下記に新しい商品情報を入力して新規保存 —" if is_ja else "— ou insira novas informações abaixo para criar um novo projeto —"
             st.markdown(
-                f'<div style="font-size:.75rem;color:#4b5563;margin:4px 0 12px;">{_or_new}</div>',
+                f'<div style="font-size:.75rem;color:#64748b;margin:4px 0 12px;">{_or_new}</div>',
                 unsafe_allow_html=True,
             )
 
@@ -1240,6 +1490,166 @@ def page_product_input():
                         unsafe_allow_html=True)
 
 
+def _filled_text(data: dict, key: str) -> str:
+    return str(data.get(key) or "").strip()
+
+
+def _core_input_diagnostics(data: dict) -> dict:
+    checks = [
+        ("name", "商品名", 8, "商品名があると、後段の見出しやCTAが具体的になります。"),
+        ("description", "商品説明", 80, "商品説明が短いと、Coreが一般論になりやすいです。"),
+        ("target", "ターゲット", 20, "ターゲットが具体的だと、悩み・理想・FAQが刺さりやすくなります。"),
+        ("features", "差別化ポイント", 40, "特徴・強みが薄いと、USPと比較表が弱くなります。"),
+        ("use_scenes", "使用シーン", 30, "使用シーンがあると、Shopifyページの情景描写が良くなります。"),
+        ("weaknesses", "競合/弱点メモ", 30, "競合や弱点があると、差別化と購入障壁が具体化します。"),
+        ("brand_tone", "ブランドトーン", 10, "トーン指定があると、文章と見た目の方向性が揃います。"),
+        ("prohibited", "禁止表現", 10, "禁止表現があると、薬機法・景表法リスクを抑えやすくなります。"),
+    ]
+    ready = []
+    missing = []
+    score = 0
+    for key, label, min_len, hint in checks:
+        value = _filled_text(data, key)
+        ok = len(value) >= min_len
+        if ok:
+            score += 1
+            ready.append(label)
+        else:
+            missing.append({"label": label, "hint": hint, "current_len": len(value), "target_len": min_len})
+    percent = round((score / len(checks)) * 100)
+    return {"score": percent, "ready": ready, "missing": missing}
+
+
+def _core_quality_score(sections: dict) -> dict:
+    targets = {
+        "商品の一言コンセプト": 35,
+        "メインターゲット": 45,
+        "顧客の悩み": 60,
+        "商品の独自価値": 45,
+        "USP（独自の強み）": 45,
+        "メイン訴求": 40,
+        "ベネフィット": 60,
+        "競合との差別化": 50,
+        "ブランドトーン": 35,
+        "商品ページで強調すべきこと": 50,
+        "画像で見せるべきこと": 45,
+        "CTA方針": 35,
+        "人間が確認すべき項目": 25,
+    }
+    scores = {}
+    for section, target_len in targets.items():
+        text = str(sections.get(section, "")).strip()
+        scores[section] = min(100, round((len(text) / target_len) * 100)) if text else 0
+    total = round(sum(scores.values()) / max(len(scores), 1))
+    weak = [name for name, score in scores.items() if score < 60]
+    return {"total": total, "sections": scores, "weak": weak}
+
+
+def _core_section_preview_html(title: str, body: str, score: int) -> str:
+    tone = "#2563eb" if score >= 80 else "#b45309" if score >= 55 else "#dc2626"
+    safe_title = title.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    safe_body = body.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    return (
+        f'<div class="cs-card" style="padding:14px 16px;margin-bottom:10px;">'
+        f'<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;">'
+        f'<div style="font-weight:700;color:#0f172a;font-size:.9rem;">{safe_title}</div>'
+        f'<div style="font-size:.68rem;color:{tone};border:1px solid {tone}55;border-radius:999px;padding:2px 8px;">{score}</div>'
+        f'</div>'
+        f'<div style="white-space:pre-wrap;color:#334155;font-size:.82rem;line-height:1.7;">{safe_body or "未入力"}</div>'
+        f'</div>'
+    )
+
+
+def _liquid_quality_checks(code: str, design_options: dict, selected_sections: list) -> list:
+    checks = []
+
+    def add(label: str, ok: bool, detail: str):
+        checks.append({"label": label, "ok": ok, "detail": detail})
+
+    normalized = code or ""
+    lower = normalized.lower()
+    add(
+        "Shopify貼り付け形式",
+        "<html" not in lower and "<body" not in lower and "<head" not in lower,
+        "<html>/<head>/<body> を含まないCustom Liquid向けコード",
+    )
+    add(
+        "JavaScriptなし",
+        "<script" not in lower and "javascript:" not in lower,
+        "Custom Liquid内で不要なJavaScriptを使っていない",
+    )
+    add(
+        "td-クラス運用",
+        not any(not cls.startswith("td-") for cls in re.findall(r'class=\"([^\"]+)\"', normalized) for cls in cls.split()),
+        "Shopifyテーマに干渉しにくい td- プレフィックス",
+    )
+    add(
+        "スマホ対応",
+        "@media" in normalized and ("767px" in normalized or "768px" in normalized),
+        "モバイル向けCSSが含まれている",
+    )
+    risk_words = ["治る", "必ず", "確実", "医学的に証明", "100%"]
+    detected = [word for word in risk_words if word in normalized]
+    add(
+        "リスク表現",
+        not detected,
+        "検出: " + " / ".join(detected) if detected else "代表的な断定表現は見つかりません",
+    )
+    placeholders = ["〇〇", "ここに", "サンプル", "placeholder", "TODO"]
+    found_placeholders = [word for word in placeholders if word.lower() in lower]
+    add(
+        "プレースホルダー",
+        not found_placeholders,
+        "検出: " + " / ".join(found_placeholders) if found_placeholders else "仮文言は見つかりません",
+    )
+    colors = [
+        design_options.get("background_color"),
+        design_options.get("text_color"),
+        design_options.get("accent_color"),
+    ]
+    missing_colors = [color for color in colors if color and color.lower() not in lower]
+    add(
+        "指定カラー反映",
+        not missing_colors,
+        "未検出: " + " / ".join(missing_colors) if missing_colors else "主要カラーがコード内にあります",
+    )
+    add(
+        "選択セクション",
+        len(selected_sections) >= 4,
+        f"{len(selected_sections)} セクション構成",
+    )
+    return checks
+
+
+def _render_liquid_quality_panel(code: str, design_options: dict, selected_sections: list):
+    checks = _liquid_quality_checks(code, design_options, selected_sections)
+    passed = sum(1 for check in checks if check["ok"])
+    total = len(checks)
+    st.markdown(
+        f"""
+        <div class="cs-card" style="padding:14px 16px;margin:12px 0;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+            <div>
+              <div style="font-weight:800;color:#0f172a;">生成後チェック</div>
+              <div style="font-size:.78rem;color:#64748b;margin-top:4px;">Shopifyに貼る前の簡易チェックです。</div>
+            </div>
+            <div style="font-size:1.6rem;font-weight:900;color:#2563eb;">{passed}/{total}</div>
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    cols = st.columns(2)
+    for i, check in enumerate(checks):
+        with cols[i % 2]:
+            klass = "cs-success" if check["ok"] else "cs-warning"
+            mark = "OK" if check["ok"] else "確認"
+            st.markdown(
+                f'<div class="{klass}" style="margin-bottom:8px;"><strong>{mark} {check["label"]}</strong><br>{check["detail"]}</div>',
+                unsafe_allow_html=True,
+            )
+
+
 # ── Page: Core Generation ──────────────────────────────────────────────────────
 
 def page_core_generation():
@@ -1304,15 +1714,6 @@ def page_core_generation():
             svc["storage"].save_product(_cg_pid, _cg_upd)
             _cg_core_source = _cg_auto
 
-    # Debug display (temporary)
-    with st.expander("🔧 デバッグ情報（開発用）", expanded=False):
-        st.markdown(f"- **product_id (session)**: `{_cg_pid}`")
-        st.markdown(f"- **input_ja**: {'✅ あり (' + str(len(_cg_project.get('input_ja') or {})) + 'フィールド)' if _cg_project.get('input_ja') else '❌ なし'}")
-        st.markdown(f"- **core_source_data**: {'✅ あり (' + str(len(_cg_core_source)) + 'フィールド)' if _cg_core_source else '❌ なし'}")
-        st.markdown(f"- **input_original_language**: `{_cg_project.get('input_original_language', 'not set')}`")
-        st.markdown(f"- **translation_status**: `{_cg_project.get('translation_status', 'not set')}`")
-        st.markdown(f"- **Core生成に使用するデータ**: {'core_source_data ✅' if _cg_core_source else '現在の商品情報を自動使用'}")
-
     # Priority 5: すべて失敗 → 現在の商品情報をそのままCore生成に使う
     if not _cg_core_source:
         _fallback_source = {}
@@ -1329,26 +1730,105 @@ def page_core_generation():
             _cg_upd2["translation_status"] = _cg_upd2.get("translation_status", "not_needed")
             svc["storage"].save_product(_cg_pid, _cg_upd2)
 
+    if os.getenv("DEBUG", "").lower() in ("1", "true", "yes"):
+        with st.expander("🔧 デバッグ情報（開発用）", expanded=False):
+            st.markdown(f"- **product_id (session)**: `{_cg_pid}`")
+            st.markdown(f"- **input_ja**: {'✅ あり (' + str(len(_cg_project.get('input_ja') or {})) + 'フィールド)' if _cg_project.get('input_ja') else '❌ なし'}")
+            st.markdown(f"- **core_source_data**: {'✅ あり (' + str(len(_cg_core_source)) + 'フィールド)' if _cg_core_source else '❌ なし'}")
+            st.markdown(f"- **input_original_language**: `{_cg_project.get('input_original_language', 'not set')}`")
+            st.markdown(f"- **translation_status**: `{_cg_project.get('translation_status', 'not set')}`")
+            st.markdown(f"- **Core生成に使用するデータ**: {'core_source_data ✅' if _cg_core_source else '現在の商品情報を自動使用'}")
+
+    diag = _core_input_diagnostics(_cg_core_source)
+    product_name = _cg_core_source.get("name") or product_info.get("name", "")
+    st.markdown(
+        f"""
+        <div class="cs-card" style="padding:18px 20px;margin-bottom:14px;">
+          <div style="display:flex;justify-content:space-between;gap:18px;align-items:flex-start;flex-wrap:wrap;">
+            <div>
+              <div style="font-size:.72rem;color:#64748b;letter-spacing:.08em;text-transform:uppercase;font-weight:700;">CORE BRIEF</div>
+              <div style="font-size:1.25rem;font-weight:800;color:#0f172a;margin-top:4px;">{product_name}</div>
+              <div style="font-size:.82rem;color:#64748b;margin-top:6px;">{"Coreを強くすると、Custom Liquidの見出し・構成・FAQ・CTAが安定します。" if is_ja else "A strong Core improves headings, structure, FAQ, and CTA."}</div>
+            </div>
+            <div style="min-width:160px;text-align:right;">
+              <div style="font-size:2rem;font-weight:900;color:#2563eb;line-height:1;">{diag["score"]}</div>
+              <div style="font-size:.7rem;color:#64748b;margin-top:3px;">INPUT READINESS</div>
+            </div>
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    diag_col1, diag_col2 = st.columns([1, 1])
+    with diag_col1:
+        st.markdown("#### ✅ " + ("揃っている材料" if is_ja else "Dados prontos"))
+        ready_text = " / ".join(diag["ready"]) if diag["ready"] else ("まだ少ないです" if is_ja else "Ainda insuficiente")
+        st.markdown(f'<div class="cs-info">{ready_text}</div>', unsafe_allow_html=True)
+    with diag_col2:
+        st.markdown("#### ⚠️ " + ("強化すると良い材料" if is_ja else "Dados a reforçar"))
+        if diag["missing"]:
+            missing_html = "<br>".join(f"<strong>{item['label']}</strong>: {item['hint']}" for item in diag["missing"][:4])
+            st.markdown(f'<div class="cs-warning">{missing_html}</div>', unsafe_allow_html=True)
+        else:
+            st.markdown('<div class="cs-success">✅ Core生成に十分な材料があります。</div>', unsafe_allow_html=True)
+
+    st.markdown("#### ⚙️ " + ("Core生成設定" if is_ja else "Configuração do Core"))
+    strategy_options = [
+        "売れる訴求重視",
+        "薬機法・景表法安全重視",
+        "高級ブランド寄せ",
+        "悩み共感強め",
+        "競合差別化強め",
+        "SNS広告展開しやすいCore",
+        "Shopifyページ化しやすいCore",
+    ]
+    safety_options = ["かなり安全寄り", "標準", "攻めすぎない範囲で訴求強め"]
+    focus_options = ["悩み共感", "競合との差別化", "使用シーン", "高級感", "FAQ化しやすさ", "画像で見せやすさ", "CTA方針"]
+    cfg_col1, cfg_col2 = st.columns([1, 1])
+    with cfg_col1:
+        core_strategy = st.selectbox("生成方針" if is_ja else "Estratégia", strategy_options, key="core_strategy")
+        core_safety = st.selectbox("安全度" if is_ja else "Segurança", safety_options, key="core_safety")
+    with cfg_col2:
+        core_focus = st.multiselect(
+            "重視する要素" if is_ja else "Focos",
+            focus_options,
+            default=["悩み共感", "競合との差別化", "使用シーン", "CTA方針"],
+            key="core_focus",
+        )
+        core_tone = st.text_input(
+            "文章トーン" if is_ja else "Tom",
+            value=st.session_state.get("core_tone", _cg_core_source.get("brand_tone", "")),
+            placeholder="例: 上品、自然、信頼感、やわらかい",
+            key="core_tone",
+        )
+    core_options = {
+        "strategy": core_strategy,
+        "safety": core_safety,
+        "focus": core_focus,
+        "tone": core_tone,
+    }
+
     # Core method selection
     st.markdown("#### " + t("core_method.title"))
-    method_col1, method_col2, method_col3, method_col4 = st.columns(4)
-
     methods = [
         ("auto", t("core_method.auto"), t("core_method.auto_desc")),
         ("import", t("core_method.import"), t("core_method.import_desc")),
-        ("compare", t("core_method.compare"), t("core_method.compare_desc")),
         ("reuse", t("core_method.reuse"), t("core_method.reuse_desc")),
     ]
+    if st.session_state.get("core_method") not in {method_id for method_id, _, _ in methods}:
+        st.session_state["core_method"] = "auto"
 
+    method_cols = st.columns(len(methods))
     for i, (method_id, label, desc) in enumerate(methods):
-        with [method_col1, method_col2, method_col3, method_col4][i]:
+        with method_cols[i]:
             is_sel = st.session_state.get("core_method") == method_id
-            border = "#22c55e" if is_sel else "#1e1e1e"
+            border = "#2563eb" if is_sel else "#e2e8f0"
             st.markdown(
-                f'<div style="background:#141414;border:1px solid {border};border-radius:8px;'
-                f'padding:12px;text-align:center;cursor:pointer;min-height:90px;">'
-                f'<div style="font-weight:700;font-size:0.875rem;color:#f0f0f0;">{label}</div>'
-                f'<div style="font-size:0.75rem;color:#6b7280;margin-top:6px;">{desc}</div>'
+                f'<div style="background:#ffffff;border:1px solid {border};border-radius:8px;'
+                f'padding:14px;text-align:left;cursor:pointer;min-height:96px;box-shadow:0 1px 2px rgba(15,23,42,.04);">'
+                f'<div style="font-weight:800;font-size:0.9rem;color:#0f172a;">{label}</div>'
+                f'<div style="font-size:0.75rem;color:#64748b;margin-top:7px;line-height:1.55;">{desc}</div>'
                 f'</div>',
                 unsafe_allow_html=True,
             )
@@ -1370,17 +1850,37 @@ def page_core_generation():
         with st.expander("入力中の商品情報を確認" if is_ja else "Ver informações do produto", expanded=False):
             st.markdown(info_summary)
 
-        col_gen, col_regen = st.columns([2, 1])
+        col_gen, col_hint = st.columns([2, 1])
         with col_gen:
-            if st.button("✨ " + t("core.generate_btn"), type="primary", use_container_width=True):
+            btn_label = "✨ " + t("core.generate_btn") + " / " + core_strategy
+            if st.button(btn_label, type="primary", use_container_width=True):
                 with st.spinner(t("core.generating_msg")):
-                    result = svc["core_engine"].generate_from_product(_cg_core_source)
+                    result = svc["core_engine"].generate_from_product(_cg_core_source, core_options)
                     st.session_state["core_text"] = result
                     st.session_state["core_status"] = "ai_generated"
                     pid = ensure_product_id()
-                    svc["storage"].save_core(pid, {"text": result, "status": "ai_generated"}, "v1 AI初稿")
+                    svc["storage"].save_core(pid, {"text": result, "status": "ai_generated", "core_options": core_options}, "v1 AI初稿")
                     svc["storage"].log_activity(pid, "Core生成", "auto", st.session_state.get("assignee", ""))
                     st.rerun()
+        with col_hint:
+            st.markdown(
+                '<div class="cs-info">💡 ' + (
+                    '入力診断の不足項目を埋めるほど、Liquidの文章と構成が具体的になります。'
+                    if is_ja else
+                    'Quanto mais dados, mais específico fica o Liquid.'
+                ) + '</div>',
+                unsafe_allow_html=True,
+            )
+
+    elif method == "import":
+        st.markdown('<div class="cs-info">📥 ' + (
+            "外部Coreやメモを使う場合は、取り込み専用画面で標準Coreに変換できます。"
+            if is_ja else
+            "Use a tela de importação para normalizar um Core externo."
+        ) + '</div>', unsafe_allow_html=True)
+        if st.button("📥 " + ("外部Core取り込みへ移動" if is_ja else "Ir para Importar Core"), type="primary"):
+            st.session_state["page"] = "external_core"
+            st.rerun()
 
     # ── Reuse saved core ──
     elif method == "reuse":
@@ -1402,52 +1902,151 @@ def page_core_generation():
     # ── Core editor ──
     if st.session_state.get("core_text"):
         st.markdown("---")
-        st.markdown("#### ✏️ " + ("Core編集" if is_ja else "Editar Core"))
+        st.markdown("#### ✏️ " + ("Core編集・強化" if is_ja else "Editar e reforçar Core"))
 
         core_status = st.session_state.get("core_status", "ai_generated")
+        sections = svc["core_engine"].parse_core_sections(st.session_state["core_text"])
+        quality = _core_quality_score(sections)
         st.markdown(
-            f'<div style="margin-bottom:12px;">{status_badge(core_status)}</div>',
+            f"""
+            <div class="cs-card" style="padding:14px 16px;margin-bottom:12px;">
+              <div style="display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap;">
+                <div>
+                  <div style="margin-bottom:8px;">{status_badge(core_status)}</div>
+                  <div style="font-size:.82rem;color:#64748b;">{"弱い項目を補強すると、商品ページの説得力が上がります。" if is_ja else "Reforce weak sections to improve the page."}</div>
+                </div>
+                <div style="text-align:right;">
+                  <div style="font-size:2rem;font-weight:900;color:#2563eb;line-height:1;">{quality["total"]}</div>
+                  <div style="font-size:.68rem;color:#64748b;">CORE SCORE</div>
+                </div>
+              </div>
+            </div>
+            """,
             unsafe_allow_html=True,
         )
 
-        edited_core = st.text_area(
-            "Core" + ("（編集可能）" if is_ja else " (editável)"),
-            value=st.session_state["core_text"],
-            height=500,
-            key="core_editor",
-        )
+        score_cols = st.columns(4)
+        score_items = [
+            ("ターゲット", quality["sections"].get("メインターゲット", 0)),
+            ("悩み", quality["sections"].get("顧客の悩み", 0)),
+            ("USP", quality["sections"].get("USP（独自の強み）", 0)),
+            ("差別化", quality["sections"].get("競合との差別化", 0)),
+        ]
+        for col, (label, score) in zip(score_cols, score_items):
+            with col:
+                st.metric(label, score)
 
-        # Action buttons
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            if st.button("💾 " + t("core.save_btn"), type="primary", use_container_width=True):
-                st.session_state["core_text"] = edited_core
-                st.session_state["core_status"] = "edited"
-                pid = ensure_product_id()
-                svc["storage"].save_core(pid, {"text": edited_core, "status": "edited"}, "編集済み")
-                svc["storage"].log_activity(pid, "Core編集・保存", "", st.session_state.get("assignee", ""))
-                st.success(t("core.saved_msg"))
-
-        with col2:
-            if st.button("📋 " + ("コピー" if is_ja else "Copiar"), use_container_width=True):
-                st.code(edited_core, language="")
-
-        with col3:
-            md_content = svc["exporter"].core_to_markdown(edited_core, product_info.get("name", ""))
-            st.download_button(
-                "⬇️ MD",
-                data=md_content.encode("utf-8"),
-                file_name=f"core_{product_info.get('name', 'product')}.md",
-                mime="text/markdown",
-                use_container_width=True,
+        if quality["weak"]:
+            st.markdown(
+                '<div class="cs-warning">⚠️ <strong>補強候補:</strong> ' +
+                " / ".join(quality["weak"][:6]) +
+                '</div>',
+                unsafe_allow_html=True,
             )
 
-        with col4:
-            if st.button("🔄 " + ("再生成" if is_ja else "Regerar"), use_container_width=True):
-                with st.spinner(t("core.generating_msg")):
-                    result = svc["core_engine"].generate_from_product(_cg_core_source)
+        tab_preview, tab_edit, tab_improve = st.tabs([
+            "🧩 " + ("項目別プレビュー" if is_ja else "Prévia por seção"),
+            "✏️ " + ("全文編集" if is_ja else "Editar texto"),
+            "⚡ " + ("Core改善" if is_ja else "Melhorar Core"),
+        ])
+
+        with tab_preview:
+            if sections:
+                priority_sections = [
+                    "商品の一言コンセプト",
+                    "メインターゲット",
+                    "顧客の悩み",
+                    "商品の独自価値",
+                    "USP（独自の強み）",
+                    "メイン訴求",
+                    "ベネフィット",
+                    "競合との差別化",
+                    "商品ページで強調すべきこと",
+                    "画像で見せるべきこと",
+                    "CTA方針",
+                    "人間が確認すべき項目",
+                ]
+                for section_name in priority_sections:
+                    if section_name in sections:
+                        st.markdown(
+                            _core_section_preview_html(
+                                section_name,
+                                sections.get(section_name, ""),
+                                quality["sections"].get(section_name, 0),
+                            ),
+                            unsafe_allow_html=True,
+                        )
+            else:
+                st.markdown('<div class="cs-info">Coreを「## 項目名」形式にすると、項目別に確認できます。</div>', unsafe_allow_html=True)
+
+        with tab_edit:
+            edited_core = st.text_area(
+                "Core" + ("（編集可能）" if is_ja else " (editável)"),
+                value=st.session_state["core_text"],
+                height=560,
+                key="core_editor",
+            )
+
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                if st.button("💾 " + t("core.save_btn"), type="primary", use_container_width=True):
+                    st.session_state["core_text"] = edited_core
+                    st.session_state["core_status"] = "edited"
+                    pid = ensure_product_id()
+                    svc["storage"].save_core(pid, {"text": edited_core, "status": "edited"}, "編集済み")
+                    svc["storage"].log_activity(pid, "Core編集・保存", "", st.session_state.get("assignee", ""))
+                    st.success(t("core.saved_msg"))
+
+            with col2:
+                if st.button("📋 " + ("コピー表示" if is_ja else "Mostrar para copiar"), use_container_width=True):
+                    st.code(edited_core, language="")
+
+            with col3:
+                md_content = svc["exporter"].core_to_markdown(edited_core, product_info.get("name", ""))
+                st.download_button(
+                    "⬇️ MD",
+                    data=md_content.encode("utf-8"),
+                    file_name=f"core_{product_info.get('name', 'product')}.md",
+                    mime="text/markdown",
+                    use_container_width=True,
+                )
+
+            with col4:
+                if st.button("🔄 " + ("同じ方針で再生成" if is_ja else "Regerar"), use_container_width=True):
+                    with st.spinner(t("core.generating_msg")):
+                        result = svc["core_engine"].generate_from_product(_cg_core_source, core_options)
+                        st.session_state["core_text"] = result
+                        st.session_state["core_status"] = "ai_generated"
+                        st.rerun()
+
+        with tab_improve:
+            st.markdown('<div class="cs-info">💡 既存Coreを残しつつ、選んだ方針に合わせて強化します。</div>', unsafe_allow_html=True)
+            improve_options = [
+                "もっと売れる訴求にする",
+                "悩み共感を深くする",
+                "競合との差別化を強める",
+                "薬機法・景表法リスクを弱める",
+                "Shopifyページ向けに整理する",
+                "高級感・信頼感を強める",
+            ]
+            selected_improvements = st.multiselect(
+                "改善タイプ" if is_ja else "Tipo de melhoria",
+                improve_options,
+                default=["競合との差別化を強める", "Shopifyページ向けに整理する"],
+                key="core_improve_types",
+            )
+            improve_core_options = {
+                **core_options,
+                "strategy": " / ".join(selected_improvements) or core_strategy,
+            }
+            if st.button("⚡ " + ("このCoreを強化する" if is_ja else "Melhorar este Core"), type="primary", use_container_width=True):
+                with st.spinner("Coreを強化中..." if is_ja else "Melhorando Core..."):
+                    result = svc["core_engine"].improve_core(st.session_state["core_text"], _cg_core_source, improve_core_options)
                     st.session_state["core_text"] = result
-                    st.session_state["core_status"] = "ai_generated"
+                    st.session_state["core_status"] = "edited"
+                    pid = ensure_product_id()
+                    svc["storage"].save_core(pid, {"text": result, "status": "edited", "core_options": improve_core_options}, "AI改善版")
+                    svc["storage"].log_activity(pid, "Core改善", " / ".join(selected_improvements), st.session_state.get("assignee", ""))
                     st.rerun()
     else:
         if method == "auto":
@@ -1735,20 +2334,274 @@ def page_product_page():
                 f"{code}\n</body>\n</html>"
             )
 
-        def _combined_html(sections_data: dict) -> str:
+        def _combined_html(sections_data: dict, selected_keys=None) -> str:
+            selected = set(selected_keys or [s["key"] for s in SECTIONS])
             parts = []
             for s in SECTIONS:
+                if s["key"] not in selected:
+                    continue
                 code = sections_data.get(s["key"], "")
                 if code:
                     parts.append(f"<!-- {s['label']} -->\n{code}")
             return "\n\n".join(parts)
 
+        SECTION_PRESETS = {
+            "標準構成": {
+                "description": "基本のLP構成。Coreの内容をバランスよくページ化します。",
+                "keys": [s["key"] for s in SECTIONS],
+            },
+            "悩み訴求強め": {
+                "description": "悩み・共感、特徴、FAQを厚めに使う構成。広告LPに向いています。",
+                "keys": [
+                    "shopify_common_css",
+                    "shopify_hero_section_code",
+                    "shopify_problem_section_code",
+                    "shopify_features_section_code",
+                    "shopify_usage_scene_section_code",
+                    "shopify_faq_section_code",
+                    "shopify_cta_section_code",
+                ],
+            },
+            "高級ブランド風": {
+                "description": "悩み訴求を抑え、商品説明・特徴・使用シーン・CTAを静かに見せます。",
+                "keys": [
+                    "shopify_common_css",
+                    "shopify_hero_section_code",
+                    "shopify_about_section_code",
+                    "shopify_features_section_code",
+                    "shopify_usage_scene_section_code",
+                    "shopify_faq_section_code",
+                    "shopify_cta_section_code",
+                ],
+            },
+            "シンプル短め": {
+                "description": "必要最低限の短い構成。Shopifyの商品説明が長くなりすぎる時に使います。",
+                "keys": [
+                    "shopify_common_css",
+                    "shopify_hero_section_code",
+                    "shopify_features_section_code",
+                    "shopify_faq_section_code",
+                    "shopify_cta_section_code",
+                ],
+            },
+            "広告LP強め": {
+                "description": "悩み、比較、FAQ、CTAを入れて購入前の不安を潰す構成です。",
+                "keys": [
+                    "shopify_common_css",
+                    "shopify_hero_section_code",
+                    "shopify_problem_section_code",
+                    "shopify_features_section_code",
+                    "shopify_comparison_section_code",
+                    "shopify_faq_section_code",
+                    "shopify_cta_section_code",
+                ],
+            },
+        }
+
+        DESIGN_MOOD_PRESETS = {
+            "上品・信頼感": "余白を広めに取り、落ち着いた見出しと細い線で信頼感を出す。購入を強く煽らない。",
+            "ナチュラル・やさしい": "柔らかい色、丸み、日常感のある文章で親しみやすく見せる。",
+            "ミニマル・クリーン": "装飾を抑え、白地・細線・読みやすい余白で商品情報を整理する。",
+            "ガジェット・先進感": "直線的なカード、強めのコントラスト、機能価値が伝わる見出しにする。",
+            "ラグジュアリー": "黒や深い色を活かし、余白・細いボーダー・短いコピーで高級感を出す。",
+            "SNS広告・強め": "視線を止める見出し、コントラストの強いCTA、悩み訴求を前に出す。ただし誇大表現は禁止。",
+        }
+        PALETTE_PRESETS = {
+            "ナチュラルグリーン": {
+                "background_color": "#faf8f4",
+                "text_color": "#2b2b2b",
+                "accent_color": "#3d6b4f",
+                "card_color": "#ffffff",
+                "border_color": "#e8e4de",
+            },
+            "クリーンブルー": {
+                "background_color": "#f6f9fc",
+                "text_color": "#172033",
+                "accent_color": "#2563eb",
+                "card_color": "#ffffff",
+                "border_color": "#dbe7f3",
+            },
+            "ローズ・ビューティ": {
+                "background_color": "#fff7f8",
+                "text_color": "#35252a",
+                "accent_color": "#c45b73",
+                "card_color": "#ffffff",
+                "border_color": "#f0d9de",
+            },
+            "ブラックゴールド": {
+                "background_color": "#11100e",
+                "text_color": "#f5efe3",
+                "accent_color": "#c9a45c",
+                "card_color": "#1b1916",
+                "border_color": "#3a3124",
+            },
+            "ヘルスケア信頼": {
+                "background_color": "#f7fbf9",
+                "text_color": "#1f2d28",
+                "accent_color": "#2f7d68",
+                "card_color": "#ffffff",
+                "border_color": "#d7e8e1",
+            },
+            "カスタム": {
+                "background_color": "#faf8f4",
+                "text_color": "#2b2b2b",
+                "accent_color": "#3d6b4f",
+                "card_color": "#ffffff",
+                "border_color": "#e8e4de",
+            },
+        }
+
+        if "liquid_design_palette" not in st.session_state:
+            st.session_state["liquid_design_palette"] = "ナチュラルグリーン"
+        if "liquid_design_palette_applied" not in st.session_state:
+            st.session_state["liquid_design_palette_applied"] = ""
+        if "liquid_section_preset" not in st.session_state:
+            st.session_state["liquid_section_preset"] = "標準構成"
+
+        def _apply_core_recommendation():
+            strategy = st.session_state.get("core_strategy", "")
+            focus = st.session_state.get("core_focus", [])
+            if "高級" in strategy:
+                st.session_state["liquid_design_mood"] = "ラグジュアリー"
+                st.session_state["liquid_design_palette"] = "ブラックゴールド"
+                st.session_state["liquid_design_cta_strength"] = "控えめ"
+                st.session_state["liquid_section_preset"] = "高級ブランド風"
+            elif "悩み" in strategy or "悩み共感" in focus:
+                st.session_state["liquid_design_mood"] = "SNS広告・強め"
+                st.session_state["liquid_design_palette"] = "ナチュラルグリーン"
+                st.session_state["liquid_design_cta_strength"] = "強め"
+                st.session_state["liquid_section_preset"] = "悩み訴求強め"
+            elif "SNS" in strategy:
+                st.session_state["liquid_design_mood"] = "SNS広告・強め"
+                st.session_state["liquid_design_palette"] = "ローズ・ビューティ"
+                st.session_state["liquid_design_cta_strength"] = "強め"
+                st.session_state["liquid_section_preset"] = "広告LP強め"
+            elif "薬機法" in strategy:
+                st.session_state["liquid_design_mood"] = "上品・信頼感"
+                st.session_state["liquid_design_palette"] = "ヘルスケア信頼"
+                st.session_state["liquid_design_cta_strength"] = "控えめ"
+                st.session_state["liquid_section_preset"] = "標準構成"
+            elif "差別化" in strategy or "競合との差別化" in focus:
+                st.session_state["liquid_design_mood"] = "ミニマル・クリーン"
+                st.session_state["liquid_design_palette"] = "クリーンブルー"
+                st.session_state["liquid_design_cta_strength"] = "標準"
+                st.session_state["liquid_section_preset"] = "広告LP強め"
+            else:
+                st.session_state["liquid_design_mood"] = "上品・信頼感"
+                st.session_state["liquid_design_palette"] = "ナチュラルグリーン"
+                st.session_state["liquid_design_cta_strength"] = "標準"
+                st.session_state["liquid_section_preset"] = "標準構成"
+            st.session_state["liquid_design_palette_applied"] = ""
+
+        st.markdown("#### 🎨 " + ("デザイン設定" if is_ja else "Configurações de design"))
+        rec_col1, rec_col2 = st.columns([2, 1])
+        with rec_col1:
+            st.markdown(
+                '<div class="cs-info">Core生成画面の方針から、Liquidの雰囲気・配色・構成をおすすめ反映できます。</div>',
+                unsafe_allow_html=True,
+            )
+        with rec_col2:
+            if st.button("Core設定からおすすめ反映", use_container_width=True):
+                _apply_core_recommendation()
+                st.rerun()
+
+        with st.container():
+            style_col1, style_col2, style_col3 = st.columns(3)
+            with style_col1:
+                mood = st.selectbox(
+                    "雰囲気" if is_ja else "Estilo",
+                    list(DESIGN_MOOD_PRESETS.keys()),
+                    key="liquid_design_mood",
+                )
+            with style_col2:
+                palette = st.selectbox(
+                    "カラーパレット" if is_ja else "Paleta de cores",
+                    list(PALETTE_PRESETS.keys()),
+                    key="liquid_design_palette",
+                )
+            with style_col3:
+                cta_strength = st.selectbox(
+                    "CTAの強さ" if is_ja else "Força do CTA",
+                    ["控えめ", "標準", "強め"],
+                    key="liquid_design_cta_strength",
+                )
+
+            palette_values = PALETTE_PRESETS[palette]
+            if palette != st.session_state.get("liquid_design_palette_applied"):
+                for color_key, color_value in palette_values.items():
+                    st.session_state[f"liquid_design_{color_key}"] = color_value
+                st.session_state["liquid_design_palette_applied"] = palette
+
+            color_col1, color_col2, color_col3, color_col4, color_col5 = st.columns(5)
+            with color_col1:
+                background_color = st.color_picker("背景" if is_ja else "Fundo", key="liquid_design_background_color")
+            with color_col2:
+                text_color = st.color_picker("文字" if is_ja else "Texto", key="liquid_design_text_color")
+            with color_col3:
+                accent_color = st.color_picker("アクセント" if is_ja else "Acento", key="liquid_design_accent_color")
+            with color_col4:
+                card_color = st.color_picker("カード" if is_ja else "Card", key="liquid_design_card_color")
+            with color_col5:
+                border_color = st.color_picker("線" if is_ja else "Borda", key="liquid_design_border_color")
+
+            layout_col1, layout_col2 = st.columns(2)
+            with layout_col1:
+                spacing = st.selectbox("余白" if is_ja else "Espaçamento", ["コンパクト", "標準", "ゆったり"], index=2, key="liquid_design_spacing")
+            with layout_col2:
+                radius = st.selectbox("角丸" if is_ja else "Raio", ["8px", "12px", "16px", "22px"], index=2, key="liquid_design_radius")
+
+            design_options = {
+                "mood": f"{mood}: {DESIGN_MOOD_PRESETS[mood]}",
+                "palette": palette,
+                "section_preset": st.session_state.get("liquid_section_preset", "標準構成"),
+                "background_color": background_color,
+                "text_color": text_color,
+                "accent_color": accent_color,
+                "card_color": card_color,
+                "border_color": border_color,
+                "spacing": spacing,
+                "radius": radius,
+                "cta_strength": cta_strength,
+            }
+
+            st.caption(
+                ("この設定は次に生成するセクション別コード・ページ全体コードに反映されます。"
+                 if is_ja else
+                 "Estas opções serão aplicadas na próxima geração do código.")
+            )
+
+        st.markdown("#### 🧱 " + ("セクション構成" if is_ja else "Estrutura de seções"))
+        section_col1, section_col2 = st.columns([1, 1.4])
+        with section_col1:
+            section_preset = st.selectbox(
+                "構成プリセット" if is_ja else "Preset de estrutura",
+                list(SECTION_PRESETS.keys()),
+                key="liquid_section_preset",
+            )
+            selected_section_keys = SECTION_PRESETS[section_preset]["keys"]
+            st.caption(SECTION_PRESETS[section_preset]["description"])
+        with section_col2:
+            section_labels = [
+                f'{s["num"]} {s["label"].split(" ", 1)[-1]}'
+                for s in SECTIONS
+                if s["key"] in selected_section_keys
+            ]
+            st.markdown(
+                '<div class="cs-info"><strong>この構成で使うセクション</strong><br>' +
+                " / ".join(section_labels) +
+                '</div>',
+                unsafe_allow_html=True,
+            )
+        design_options["section_preset"] = section_preset
+        design_options["selected_sections"] = section_labels
+
         # ── Check what's already generated ───────────────────────────────
         gen = st.session_state["generated"]
-        sections_ready = any(gen.get(s["key"]) for s in SECTIONS)
+        sections_ready = all(gen.get(key) for key in selected_section_keys)
 
         # ── Output type selector ──────────────────────────────────────────
         output_options = [
+            "選択構成コード",
             "セクション別コード（全セクション）",
             "00 共通CSS",
             "01 ファーストビュー",
@@ -1777,12 +2630,12 @@ def page_product_page():
                         if not hasattr(generator, "generate_shopify_sections"):
                             from modules.generator_engine import GeneratorEngine
                             generator = GeneratorEngine(svc["llm"])
-                        result = generator.generate_shopify_sections(core, product_info)
+                        result = generator.generate_shopify_sections(core, product_info, design_options)
                         for s in SECTIONS:
                             code = result.get(s["key"], "")
                             gen[s["key"]] = code  # 空でも必ずセット（フォールバック済み）
                             if code:
-                                svc["storage"].save_generated(pid, s["key"], {"text": code})
+                                svc["storage"].save_generated(pid, s["key"], {"text": code, "design_options": design_options})
                         st.session_state["generated"] = gen
                         svc["storage"].log_activity(pid, "Shopifyセクション生成", "",
                                                     st.session_state.get("assignee", ""))
@@ -1794,10 +2647,10 @@ def page_product_page():
             if st.button("🛒 " + ("ページ全体コードを生成（旧形式）" if is_ja else "Gerar Código da Página Completa (legado)"),
                          use_container_width=True, key="gen_custom_liquid"):
                 with st.spinner("Custom Liquidコードを生成中..." if is_ja else "Gerando código Custom Liquid..."):
-                    result = svc["generator"].generate_custom_liquid(core, product_info)
+                    result = svc["generator"].generate_custom_liquid(core, product_info, design_options)
                     gen["shopify_custom_liquid"] = result
                     st.session_state["generated"] = gen
-                    svc["storage"].save_generated(pid, "shopify_custom_liquid", {"text": result})
+                    svc["storage"].save_generated(pid, "shopify_custom_liquid", {"text": result, "design_options": design_options})
                     svc["storage"].log_activity(pid, "Custom Liquid生成（全体）", "",
                                                 st.session_state.get("assignee", ""))
                     st.rerun()
@@ -1811,6 +2664,10 @@ def page_product_page():
                 ) + '</div>',
                 unsafe_allow_html=True,
             )
+
+        selected_combined = _combined_html(gen, selected_section_keys)
+        if selected_combined:
+            _render_liquid_quality_panel(selected_combined, design_options, selected_section_keys)
 
         # ── Section: ページ全体コード（旧形式）──────────────────────────
         if output_type == "ページ全体コード（旧形式）" and gen.get("shopify_custom_liquid"):
@@ -1833,6 +2690,44 @@ def page_product_page():
                     data=_html_preview("Full Page", liquid_code).encode("utf-8"),
                     file_name=f"shopify_full_{product_name}.html",
                     mime="text/html", key="dl_full_html", use_container_width=True)
+
+        # ── Section: 選択構成コード ─────────────────────────────────────
+        elif output_type == "選択構成コード":
+            if not selected_combined:
+                st.markdown(
+                    '<div class="cs-warning">⚠️ ' + (
+                        '「セクション別コードを生成」ボタンを押してください。'
+                        if is_ja else
+                        'Clique em "Gerar Código por Seção".'
+                    ) + '</div>',
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.markdown("---")
+                st.markdown(
+                    f'<div class="cs-info">📌 <strong>{section_preset}</strong> 構成です。下の一括コードを、選択した順番でShopifyのCustom Liquidへ貼り付けできます。</div>',
+                    unsafe_allow_html=True,
+                )
+                st.code(selected_combined, language="html")
+                selected_col1, selected_col2 = st.columns(2)
+                with selected_col1:
+                    st.download_button(
+                        "⬇️ 選択構成 .txt",
+                        data=selected_combined.encode("utf-8"),
+                        file_name=f"shopify_{section_preset}_{product_name}.txt",
+                        mime="text/plain",
+                        key="dl_selected_txt",
+                        use_container_width=True,
+                    )
+                with selected_col2:
+                    st.download_button(
+                        "⬇️ 選択構成 .html（プレビュー確認用）",
+                        data=_html_preview(section_preset, selected_combined).encode("utf-8"),
+                        file_name=f"shopify_{section_preset}_{product_name}.html",
+                        mime="text/html",
+                        key="dl_selected_html",
+                        use_container_width=True,
+                    )
 
         # ── Section: セクション別（全表示）───────────────────────────────
         elif output_type == "セクション別コード（全セクション）":
@@ -2276,39 +3171,40 @@ _INS_CSS = """
    INSTRUCTION SHEET  — ins- prefix
    ════════════════════════════════════════════════════════════════ */
 .ins-card {
-    background:#111827; border:1px solid #1f2937;
-    border-radius:12px; padding:20px 24px; margin-bottom:16px;
+    background:#ffffff; border:1px solid #e2e8f0;
+    border-radius:8px; padding:20px 24px; margin-bottom:16px;
+    box-shadow:0 1px 2px rgba(15,23,42,.04);
 }
 .ins-card-title {
-    font-size:0.72rem; font-weight:700; color:#4b5563;
-    text-transform:uppercase; letter-spacing:.1em; margin-bottom:14px;
+    font-size:0.72rem; font-weight:700; color:#64748b;
+    text-transform:uppercase; letter-spacing:.08em; margin-bottom:14px;
 }
 .ins-row { display:flex; gap:8px; margin-bottom:8px; align-items:baseline; }
 .ins-key {
-    font-size:0.78rem; color:#6b7280; min-width:100px; flex-shrink:0;
+    font-size:0.78rem; color:#64748b; min-width:100px; flex-shrink:0;
 }
-.ins-val { font-size:0.85rem; color:#e8e8e8; line-height:1.5; }
+.ins-val { font-size:0.85rem; color:#0f172a; line-height:1.5; }
 .ins-core-block {
-    background:#0d1117; border-radius:8px; padding:14px;
-    font-size:0.8rem; color:#9ca3af; white-space:pre-wrap;
+    background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:14px;
+    font-size:0.8rem; color:#334155; white-space:pre-wrap;
     line-height:1.7; max-height:220px; overflow:hidden;
 }
 .ins-tbl { width:100%; border-collapse:collapse; }
 .ins-tbl th {
-    background:#0a0a0a; color:#4b5563; font-size:0.7rem;
-    font-weight:700; text-transform:uppercase; letter-spacing:.07em;
-    padding:8px 12px; text-align:left; border-bottom:1px solid #1f2937;
+    background:#f8fafc; color:#64748b; font-size:0.7rem;
+    font-weight:700; text-transform:uppercase; letter-spacing:.06em;
+    padding:8px 12px; text-align:left; border-bottom:1px solid #e2e8f0;
 }
 .ins-tbl td {
-    padding:9px 12px; border-bottom:1px solid #161616;
-    font-size:0.82rem; color:#d1d5db; vertical-align:middle;
+    padding:9px 12px; border-bottom:1px solid #f1f5f9;
+    font-size:0.82rem; color:#334155; vertical-align:middle;
 }
-.ins-tbl td:first-child { font-weight:600; color:#e8e8e8; }
-.ins-check { color:#22c55e; }
-.ins-dash  { color:#374151; }
+.ins-tbl td:first-child { font-weight:600; color:#0f172a; }
+.ins-check { color:#047857; }
+.ins-dash  { color:#94a3b8; }
 .ins-notes {
-    font-size:0.85rem; color:#9ca3af; line-height:1.7;
-    background:#0d1117; border-radius:8px; padding:12px 14px;
+    font-size:0.85rem; color:#334155; line-height:1.7;
+    background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px 14px;
 }
 </style>
 """
@@ -2481,7 +3377,7 @@ def page_instruction_sheet():
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
     footer_msg = f"生成日時: {now_str}" if is_ja else f"Gerado em: {now_str}"
     st.markdown(
-        f'<div style="font-size:0.72rem;color:#374151;text-align:right;margin-top:8px">{footer_msg}</div>',
+        f'<div style="font-size:0.72rem;color:#64748b;text-align:right;margin-top:8px">{footer_msg}</div>',
         unsafe_allow_html=True,
     )
 
@@ -2490,29 +3386,30 @@ def page_instruction_sheet():
 
 def page_export_center():
     st.markdown("""<style>
-.ec-preview-box{background:#0a0a0a;border:1px solid #1e1e1e;border-radius:8px;padding:14px;
-  font-size:0.8125rem;line-height:1.75;color:#9ca3af;white-space:pre-wrap;
+.ec-preview-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px;
+  font-size:0.8125rem;line-height:1.75;color:#334155;white-space:pre-wrap;
   max-height:200px;overflow:hidden;font-family:inherit}
-.ec-empty-card{background:#0d0d0d;border:1px dashed #374151;border-radius:8px;padding:36px;
-  text-align:center;color:#4b5563;font-size:0.875rem}
-.ec-section-title{font-size:0.78rem;font-weight:700;color:#6b7280;text-transform:uppercase;
+.ec-empty-card{background:#ffffff;border:1px dashed #cbd5e1;border-radius:8px;padding:36px;
+  text-align:center;color:#64748b;font-size:0.875rem}
+.ec-section-title{font-size:0.78rem;font-weight:700;color:#64748b;text-transform:uppercase;
   letter-spacing:0.08em;margin-bottom:14px}
 .ec-proj-table{width:100%;border-collapse:collapse}
-.ec-proj-table th{background:#0a0a0a;color:#6b7280;font-size:0.72rem;font-weight:700;
+.ec-proj-table th{background:#f8fafc;color:#64748b;font-size:0.72rem;font-weight:700;
   text-transform:uppercase;letter-spacing:.06em;padding:10px 12px;text-align:left;
-  border-bottom:1px solid #1e1e1e}
-.ec-proj-table td{padding:10px 12px;border-bottom:1px solid #161616;font-size:0.8125rem;
-  color:#d1d5db;vertical-align:middle}
-.ec-proj-name{font-weight:600;color:#e8e8e8}
-.ec-proj-sub{font-size:0.72rem;color:#6b7280;margin-top:2px}
-.ec-export-tile{display:flex;align-items:center;gap:12px;background:#141414;
-  border:1px solid #1e1e1e;border-radius:10px;padding:13px 16px;margin-bottom:8px}
-.ec-export-icon{width:34px;height:34px;border-radius:8px;background:#1a1a1a;
+  border-bottom:1px solid #e2e8f0}
+.ec-proj-table td{padding:10px 12px;border-bottom:1px solid #f1f5f9;font-size:0.8125rem;
+  color:#334155;vertical-align:middle}
+.ec-proj-name{font-weight:600;color:#0f172a}
+.ec-proj-sub{font-size:0.72rem;color:#64748b;margin-top:2px}
+.ec-export-tile{display:flex;align-items:center;gap:12px;background:#ffffff;
+  border:1px solid #e2e8f0;border-radius:8px;padding:13px 16px;margin-bottom:8px;
+  box-shadow:0 1px 2px rgba(15,23,42,.04)}
+.ec-export-icon{width:34px;height:34px;border-radius:8px;background:#eff6ff;color:#1d4ed8;
   display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0}
-.ec-export-name{font-size:0.85rem;font-weight:600;color:#e8e8e8}
-.ec-export-desc{font-size:0.72rem;color:#6b7280;margin-top:2px}
-.ec-soon{font-size:0.68rem;color:#374151;background:#111;border:1px solid #1e1e1e;
-  padding:2px 8px;border-radius:20px;margin-left:auto;flex-shrink:0;white-space:nowrap}
+.ec-export-name{font-size:0.85rem;font-weight:600;color:#0f172a}
+.ec-export-desc{font-size:0.72rem;color:#64748b;margin-top:2px}
+.ec-soon{font-size:0.68rem;color:#64748b;background:#f8fafc;border:1px solid #cbd5e1;
+  padding:2px 8px;border-radius:999px;margin-left:auto;flex-shrink:0;white-space:nowrap}
 </style>""", unsafe_allow_html=True)
 
     pid = ensure_product_id()
