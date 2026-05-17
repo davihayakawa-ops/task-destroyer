@@ -415,29 +415,33 @@ hr {
 }
 
 /* ════════════════════════════════════════════════════════════════
-   ENTERPRISE SAAS OVERRIDES
-   Neutral, durable UI for daily team/company operation.
+   ENTERPRISE DARK SAAS OVERRIDES
+   Unified dark UI for daily team/company operation.
    ════════════════════════════════════════════════════════════════ */
 :root {
-    --app-bg: #f6f8fb;
-    --app-panel: #ffffff;
-    --app-sidebar: #0f172a;
+    --app-bg: #090d12;
+    --app-panel: #111827;
+    --app-panel-2: #0f172a;
+    --app-sidebar: #0b1220;
     --app-sidebar-muted: #94a3b8;
-    --app-text: #0f172a;
-    --app-muted: #64748b;
-    --app-border: #e2e8f0;
-    --app-soft: #f8fafc;
-    --app-primary: #2563eb;
-    --app-primary-dark: #1d4ed8;
-    --app-success: #059669;
-    --app-warning: #b45309;
-    --app-danger: #dc2626;
+    --app-text: #f8fafc;
+    --app-muted: #94a3b8;
+    --app-border: #263244;
+    --app-soft: #151f2e;
+    --app-primary: #3b82f6;
+    --app-primary-dark: #2563eb;
+    --app-success: #22c55e;
+    --app-warning: #f59e0b;
+    --app-danger: #ef4444;
     --app-radius: 8px;
 }
 
 [data-testid="stAppViewContainer"] {
     background: var(--app-bg) !important;
-    background-image: none !important;
+    background-image:
+        linear-gradient(rgba(148,163,184,0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(148,163,184,0.035) 1px, transparent 1px) !important;
+    background-size: 32px 32px !important;
     color: var(--app-text) !important;
 }
 [data-testid="stMain"] .block-container {
@@ -459,8 +463,8 @@ hr {
 
 [data-testid="stSidebar"] {
     background: var(--app-sidebar) !important;
-    background-image: none !important;
-    border-right: 1px solid #1e293b !important;
+    background-image: linear-gradient(180deg, rgba(59,130,246,.08), transparent 28%) !important;
+    border-right: 1px solid var(--app-border) !important;
 }
 [data-testid="stSidebar"] * {
     color: #e2e8f0 !important;
@@ -474,7 +478,7 @@ hr {
     border-radius: var(--app-radius) !important;
 }
 [data-testid="stSidebar"] .stButton > button:hover {
-    background: #1e293b !important;
+    background: #172033 !important;
     border-color: #334155 !important;
     color: #ffffff !important;
 }
@@ -486,7 +490,7 @@ hr {
 }
 
 .cs-header {
-    border-bottom: 1px solid #1e293b !important;
+    border-bottom: 1px solid var(--app-border) !important;
     border-image: none !important;
     margin-bottom: 18px;
     padding-bottom: 18px;
@@ -515,11 +519,11 @@ hr {
     border: 1px solid var(--app-border) !important;
     border-radius: var(--app-radius) !important;
     color: var(--app-text) !important;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
 }
 .cs-card:hover {
-    border-color: #cbd5e1 !important;
-    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06) !important;
+    border-color: #3b82f6 !important;
+    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.24) !important;
 }
 .cs-card::after,
 .nd-card::after,
@@ -527,13 +531,13 @@ hr {
     display: none !important;
 }
 .cs-card-title {
-    color: #334155 !important;
+    color: #cbd5e1 !important;
     font-size: 0.8rem;
     letter-spacing: 0.04em;
 }
 .generated-box {
-    background: #f8fafc !important;
-    color: #334155 !important;
+    background: #0b1220 !important;
+    color: #dbeafe !important;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 }
 .bilingual-label {
@@ -541,18 +545,18 @@ hr {
 }
 
 .stButton > button {
-    background: #ffffff !important;
-    color: #1e293b !important;
-    border: 1px solid #cbd5e1 !important;
+    background: #151f2e !important;
+    color: #f8fafc !important;
+    border: 1px solid #334155 !important;
     border-radius: var(--app-radius) !important;
     min-height: 38px;
     font-weight: 650;
-    box-shadow: 0 1px 1px rgba(15, 23, 42, 0.03);
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
 }
 .stButton > button:hover {
-    background: #f8fafc !important;
-    border-color: #94a3b8 !important;
-    color: #0f172a !important;
+    background: #1e293b !important;
+    border-color: #3b82f6 !important;
+    color: #ffffff !important;
 }
 .stButton > button[kind="primary"],
 .stButton > button[data-testid="baseButton-primary"] {
@@ -573,8 +577,8 @@ hr {
 [data-testid="stSelectbox"] > div,
 [data-testid="stMultiSelect"] > div,
 [data-testid="stColorPicker"] input {
-    background: #ffffff !important;
-    border: 1px solid #cbd5e1 !important;
+    background: #151a24 !important;
+    border: 1px solid #334155 !important;
     color: var(--app-text) !important;
     border-radius: var(--app-radius) !important;
 }
@@ -582,7 +586,7 @@ hr {
 [data-testid="stTextInput"] input:focus,
 [data-testid="stNumberInput"] input:focus {
     border-color: var(--app-primary) !important;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12) !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.16) !important;
 }
 
 [data-testid="stTabs"] [role="tab"] {
@@ -599,7 +603,7 @@ hr {
     background: var(--app-border) !important;
 }
 .sb-breadcrumb {
-    background: #ffffff !important;
+    background: #0f172a !important;
     border: 1px solid var(--app-border) !important;
     color: var(--app-muted) !important;
 }
@@ -612,38 +616,38 @@ hr {
 
 .badge-success,
 .badge-generated {
-    background: #ecfdf5 !important;
-    color: #047857 !important;
-    border: 1px solid #a7f3d0 !important;
+    background: rgba(34,197,94,.12) !important;
+    color: #86efac !important;
+    border: 1px solid rgba(34,197,94,.35) !important;
 }
 .badge-ai {
-    background: #eff6ff !important;
-    color: #1d4ed8 !important;
-    border: 1px solid #bfdbfe !important;
+    background: rgba(59,130,246,.14) !important;
+    color: #93c5fd !important;
+    border: 1px solid rgba(59,130,246,.4) !important;
 }
 .badge-draft {
-    background: #f8fafc !important;
-    color: #64748b !important;
-    border: 1px solid #cbd5e1 !important;
+    background: #151f2e !important;
+    color: #94a3b8 !important;
+    border: 1px solid #334155 !important;
 }
 .cs-info {
-    background: #eff6ff !important;
-    border: 1px solid #bfdbfe !important;
-    color: #1e40af !important;
+    background: rgba(59,130,246,.14) !important;
+    border: 1px solid rgba(59,130,246,.42) !important;
+    color: #bfdbfe !important;
 }
 .cs-warning {
-    background: #fffbeb !important;
-    border: 1px solid #fde68a !important;
-    color: #92400e !important;
+    background: rgba(245,158,11,.12) !important;
+    border: 1px solid rgba(245,158,11,.38) !important;
+    color: #fde68a !important;
 }
 .cs-success {
-    background: #ecfdf5 !important;
-    border: 1px solid #a7f3d0 !important;
-    color: #065f46 !important;
+    background: rgba(34,197,94,.12) !important;
+    border: 1px solid rgba(34,197,94,.35) !important;
+    color: #bbf7d0 !important;
 }
 
 [data-testid="stMetric"] {
-    background: #ffffff;
+    background: var(--app-panel);
     border: 1px solid var(--app-border);
     border-radius: var(--app-radius);
     padding: 12px 14px;
@@ -654,7 +658,7 @@ hr {
 }
 
 [data-testid="stExpander"] {
-    background: #ffffff !important;
+    background: var(--app-panel) !important;
     border: 1px solid var(--app-border) !important;
     border-radius: var(--app-radius) !important;
 }
@@ -1066,14 +1070,14 @@ def page_mode_selection():
             name = mode["name_ja"] if lang == "ja" else mode["name_pt"]
             desc = mode["desc_ja"] if lang == "ja" else mode["desc_pt"]
             is_selected = st.session_state["mode"] == mode["id"]
-            border_color = "#2563eb" if is_selected else "#e2e8f0"
+            border_color = "#3b82f6" if is_selected else "#334155"
 
             st.markdown(
-                f'<div style="background:#ffffff;border:2px solid {border_color};'
-                f'border-radius:8px;padding:24px;text-align:center;min-height:160px;box-shadow:0 1px 2px rgba(15,23,42,.04);">'
+                f'<div style="background:#111827;border:2px solid {border_color};'
+                f'border-radius:8px;padding:24px;text-align:center;min-height:160px;box-shadow:0 12px 32px rgba(0,0,0,.22);">'
                 f'<div style="font-size:2.5rem;">{mode["icon"]}</div>'
-                f'<div style="font-size:1rem;font-weight:700;color:#0f172a;margin:12px 0 8px;">{name}</div>'
-                f'<div style="font-size:0.8rem;color:#64748b;">{desc}</div>'
+                f'<div style="font-size:1rem;font-weight:700;color:#f8fafc;margin:12px 0 8px;">{name}</div>'
+                f'<div style="font-size:0.8rem;color:#94a3b8;">{desc}</div>'
                 f'</div>',
                 unsafe_allow_html=True,
             )
@@ -1546,16 +1550,16 @@ def _core_quality_score(sections: dict) -> dict:
 
 
 def _core_section_preview_html(title: str, body: str, score: int) -> str:
-    tone = "#2563eb" if score >= 80 else "#b45309" if score >= 55 else "#dc2626"
+    tone = "#60a5fa" if score >= 80 else "#fbbf24" if score >= 55 else "#f87171"
     safe_title = title.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
     safe_body = body.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
     return (
         f'<div class="cs-card" style="padding:14px 16px;margin-bottom:10px;">'
         f'<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;">'
-        f'<div style="font-weight:700;color:#0f172a;font-size:.9rem;">{safe_title}</div>'
+        f'<div style="font-weight:700;color:#f8fafc;font-size:.9rem;">{safe_title}</div>'
         f'<div style="font-size:.68rem;color:{tone};border:1px solid {tone}55;border-radius:999px;padding:2px 8px;">{score}</div>'
         f'</div>'
-        f'<div style="white-space:pre-wrap;color:#334155;font-size:.82rem;line-height:1.7;">{safe_body or "未入力"}</div>'
+        f'<div style="white-space:pre-wrap;color:#cbd5e1;font-size:.82rem;line-height:1.7;">{safe_body or "未入力"}</div>'
         f'</div>'
     )
 
@@ -1630,10 +1634,10 @@ def _render_liquid_quality_panel(code: str, design_options: dict, selected_secti
         <div class="cs-card" style="padding:14px 16px;margin:12px 0;">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
             <div>
-              <div style="font-weight:800;color:#0f172a;">生成後チェック</div>
-              <div style="font-size:.78rem;color:#64748b;margin-top:4px;">Shopifyに貼る前の簡易チェックです。</div>
+              <div style="font-weight:800;color:#f8fafc;">生成後チェック</div>
+              <div style="font-size:.78rem;color:#94a3b8;margin-top:4px;">Shopifyに貼る前の簡易チェックです。</div>
             </div>
-            <div style="font-size:1.6rem;font-weight:900;color:#2563eb;">{passed}/{total}</div>
+            <div style="font-size:1.6rem;font-weight:900;color:#60a5fa;">{passed}/{total}</div>
           </div>
         </div>
         """,
@@ -1746,13 +1750,13 @@ def page_core_generation():
         <div class="cs-card" style="padding:18px 20px;margin-bottom:14px;">
           <div style="display:flex;justify-content:space-between;gap:18px;align-items:flex-start;flex-wrap:wrap;">
             <div>
-              <div style="font-size:.72rem;color:#64748b;letter-spacing:.08em;text-transform:uppercase;font-weight:700;">CORE BRIEF</div>
-              <div style="font-size:1.25rem;font-weight:800;color:#0f172a;margin-top:4px;">{product_name}</div>
-              <div style="font-size:.82rem;color:#64748b;margin-top:6px;">{"Coreを強くすると、Custom Liquidの見出し・構成・FAQ・CTAが安定します。" if is_ja else "A strong Core improves headings, structure, FAQ, and CTA."}</div>
+              <div style="font-size:.72rem;color:#94a3b8;letter-spacing:.08em;text-transform:uppercase;font-weight:700;">CORE BRIEF</div>
+              <div style="font-size:1.25rem;font-weight:800;color:#f8fafc;margin-top:4px;">{product_name}</div>
+              <div style="font-size:.82rem;color:#94a3b8;margin-top:6px;">{"Coreを強くすると、Custom Liquidの見出し・構成・FAQ・CTAが安定します。" if is_ja else "A strong Core improves headings, structure, FAQ, and CTA."}</div>
             </div>
             <div style="min-width:160px;text-align:right;">
-              <div style="font-size:2rem;font-weight:900;color:#2563eb;line-height:1;">{diag["score"]}</div>
-              <div style="font-size:.7rem;color:#64748b;margin-top:3px;">INPUT READINESS</div>
+              <div style="font-size:2rem;font-weight:900;color:#60a5fa;line-height:1;">{diag["score"]}</div>
+              <div style="font-size:.7rem;color:#94a3b8;margin-top:3px;">INPUT READINESS</div>
             </div>
           </div>
         </div>
@@ -1823,12 +1827,12 @@ def page_core_generation():
     for i, (method_id, label, desc) in enumerate(methods):
         with method_cols[i]:
             is_sel = st.session_state.get("core_method") == method_id
-            border = "#2563eb" if is_sel else "#e2e8f0"
+            border = "#3b82f6" if is_sel else "#334155"
             st.markdown(
-                f'<div style="background:#ffffff;border:1px solid {border};border-radius:8px;'
-                f'padding:14px;text-align:left;cursor:pointer;min-height:96px;box-shadow:0 1px 2px rgba(15,23,42,.04);">'
-                f'<div style="font-weight:800;font-size:0.9rem;color:#0f172a;">{label}</div>'
-                f'<div style="font-size:0.75rem;color:#64748b;margin-top:7px;line-height:1.55;">{desc}</div>'
+                f'<div style="background:#111827;border:1px solid {border};border-radius:8px;'
+                f'padding:14px;text-align:left;cursor:pointer;min-height:96px;box-shadow:0 10px 28px rgba(0,0,0,.18);">'
+                f'<div style="font-weight:800;font-size:0.9rem;color:#f8fafc;">{label}</div>'
+                f'<div style="font-size:0.75rem;color:#94a3b8;margin-top:7px;line-height:1.55;">{desc}</div>'
                 f'</div>',
                 unsafe_allow_html=True,
             )
@@ -1913,11 +1917,11 @@ def page_core_generation():
               <div style="display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap;">
                 <div>
                   <div style="margin-bottom:8px;">{status_badge(core_status)}</div>
-                  <div style="font-size:.82rem;color:#64748b;">{"弱い項目を補強すると、商品ページの説得力が上がります。" if is_ja else "Reforce weak sections to improve the page."}</div>
+                  <div style="font-size:.82rem;color:#94a3b8;">{"弱い項目を補強すると、商品ページの説得力が上がります。" if is_ja else "Reforce weak sections to improve the page."}</div>
                 </div>
                 <div style="text-align:right;">
-                  <div style="font-size:2rem;font-weight:900;color:#2563eb;line-height:1;">{quality["total"]}</div>
-                  <div style="font-size:.68rem;color:#64748b;">CORE SCORE</div>
+                  <div style="font-size:2rem;font-weight:900;color:#60a5fa;line-height:1;">{quality["total"]}</div>
+                  <div style="font-size:.68rem;color:#94a3b8;">CORE SCORE</div>
                 </div>
               </div>
             </div>
@@ -3171,40 +3175,40 @@ _INS_CSS = """
    INSTRUCTION SHEET  — ins- prefix
    ════════════════════════════════════════════════════════════════ */
 .ins-card {
-    background:#ffffff; border:1px solid #e2e8f0;
+    background:#111827; border:1px solid #263244;
     border-radius:8px; padding:20px 24px; margin-bottom:16px;
-    box-shadow:0 1px 2px rgba(15,23,42,.04);
+    box-shadow:0 12px 32px rgba(0,0,0,.2);
 }
 .ins-card-title {
-    font-size:0.72rem; font-weight:700; color:#64748b;
+    font-size:0.72rem; font-weight:700; color:#94a3b8;
     text-transform:uppercase; letter-spacing:.08em; margin-bottom:14px;
 }
 .ins-row { display:flex; gap:8px; margin-bottom:8px; align-items:baseline; }
 .ins-key {
-    font-size:0.78rem; color:#64748b; min-width:100px; flex-shrink:0;
+    font-size:0.78rem; color:#94a3b8; min-width:100px; flex-shrink:0;
 }
-.ins-val { font-size:0.85rem; color:#0f172a; line-height:1.5; }
+.ins-val { font-size:0.85rem; color:#f8fafc; line-height:1.5; }
 .ins-core-block {
-    background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:14px;
-    font-size:0.8rem; color:#334155; white-space:pre-wrap;
+    background:#0b1220; border:1px solid #263244; border-radius:8px; padding:14px;
+    font-size:0.8rem; color:#cbd5e1; white-space:pre-wrap;
     line-height:1.7; max-height:220px; overflow:hidden;
 }
 .ins-tbl { width:100%; border-collapse:collapse; }
 .ins-tbl th {
-    background:#f8fafc; color:#64748b; font-size:0.7rem;
+    background:#0b1220; color:#94a3b8; font-size:0.7rem;
     font-weight:700; text-transform:uppercase; letter-spacing:.06em;
-    padding:8px 12px; text-align:left; border-bottom:1px solid #e2e8f0;
+    padding:8px 12px; text-align:left; border-bottom:1px solid #263244;
 }
 .ins-tbl td {
-    padding:9px 12px; border-bottom:1px solid #f1f5f9;
-    font-size:0.82rem; color:#334155; vertical-align:middle;
+    padding:9px 12px; border-bottom:1px solid #172033;
+    font-size:0.82rem; color:#cbd5e1; vertical-align:middle;
 }
-.ins-tbl td:first-child { font-weight:600; color:#0f172a; }
-.ins-check { color:#047857; }
+.ins-tbl td:first-child { font-weight:600; color:#f8fafc; }
+.ins-check { color:#86efac; }
 .ins-dash  { color:#94a3b8; }
 .ins-notes {
-    font-size:0.85rem; color:#334155; line-height:1.7;
-    background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px 14px;
+    font-size:0.85rem; color:#cbd5e1; line-height:1.7;
+    background:#0b1220; border:1px solid #263244; border-radius:8px; padding:12px 14px;
 }
 </style>
 """
@@ -3377,7 +3381,7 @@ def page_instruction_sheet():
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
     footer_msg = f"生成日時: {now_str}" if is_ja else f"Gerado em: {now_str}"
     st.markdown(
-        f'<div style="font-size:0.72rem;color:#64748b;text-align:right;margin-top:8px">{footer_msg}</div>',
+        f'<div style="font-size:0.72rem;color:#94a3b8;text-align:right;margin-top:8px">{footer_msg}</div>',
         unsafe_allow_html=True,
     )
 
@@ -3386,29 +3390,29 @@ def page_instruction_sheet():
 
 def page_export_center():
     st.markdown("""<style>
-.ec-preview-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px;
-  font-size:0.8125rem;line-height:1.75;color:#334155;white-space:pre-wrap;
+.ec-preview-box{background:#0b1220;border:1px solid #263244;border-radius:8px;padding:14px;
+  font-size:0.8125rem;line-height:1.75;color:#cbd5e1;white-space:pre-wrap;
   max-height:200px;overflow:hidden;font-family:inherit}
-.ec-empty-card{background:#ffffff;border:1px dashed #cbd5e1;border-radius:8px;padding:36px;
-  text-align:center;color:#64748b;font-size:0.875rem}
-.ec-section-title{font-size:0.78rem;font-weight:700;color:#64748b;text-transform:uppercase;
+.ec-empty-card{background:#111827;border:1px dashed #334155;border-radius:8px;padding:36px;
+  text-align:center;color:#94a3b8;font-size:0.875rem}
+.ec-section-title{font-size:0.78rem;font-weight:700;color:#94a3b8;text-transform:uppercase;
   letter-spacing:0.08em;margin-bottom:14px}
 .ec-proj-table{width:100%;border-collapse:collapse}
-.ec-proj-table th{background:#f8fafc;color:#64748b;font-size:0.72rem;font-weight:700;
+.ec-proj-table th{background:#0b1220;color:#94a3b8;font-size:0.72rem;font-weight:700;
   text-transform:uppercase;letter-spacing:.06em;padding:10px 12px;text-align:left;
-  border-bottom:1px solid #e2e8f0}
-.ec-proj-table td{padding:10px 12px;border-bottom:1px solid #f1f5f9;font-size:0.8125rem;
-  color:#334155;vertical-align:middle}
-.ec-proj-name{font-weight:600;color:#0f172a}
-.ec-proj-sub{font-size:0.72rem;color:#64748b;margin-top:2px}
-.ec-export-tile{display:flex;align-items:center;gap:12px;background:#ffffff;
-  border:1px solid #e2e8f0;border-radius:8px;padding:13px 16px;margin-bottom:8px;
-  box-shadow:0 1px 2px rgba(15,23,42,.04)}
-.ec-export-icon{width:34px;height:34px;border-radius:8px;background:#eff6ff;color:#1d4ed8;
+  border-bottom:1px solid #263244}
+.ec-proj-table td{padding:10px 12px;border-bottom:1px solid #172033;font-size:0.8125rem;
+  color:#cbd5e1;vertical-align:middle}
+.ec-proj-name{font-weight:600;color:#f8fafc}
+.ec-proj-sub{font-size:0.72rem;color:#94a3b8;margin-top:2px}
+.ec-export-tile{display:flex;align-items:center;gap:12px;background:#111827;
+  border:1px solid #263244;border-radius:8px;padding:13px 16px;margin-bottom:8px;
+  box-shadow:0 12px 32px rgba(0,0,0,.2)}
+.ec-export-icon{width:34px;height:34px;border-radius:8px;background:rgba(59,130,246,.14);color:#bfdbfe;
   display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0}
-.ec-export-name{font-size:0.85rem;font-weight:600;color:#0f172a}
-.ec-export-desc{font-size:0.72rem;color:#64748b;margin-top:2px}
-.ec-soon{font-size:0.68rem;color:#64748b;background:#f8fafc;border:1px solid #cbd5e1;
+.ec-export-name{font-size:0.85rem;font-weight:600;color:#f8fafc}
+.ec-export-desc{font-size:0.72rem;color:#94a3b8;margin-top:2px}
+.ec-soon{font-size:0.68rem;color:#94a3b8;background:#151f2e;border:1px solid #334155;
   padding:2px 8px;border-radius:999px;margin-left:auto;flex-shrink:0;white-space:nowrap}
 </style>""", unsafe_allow_html=True)
 

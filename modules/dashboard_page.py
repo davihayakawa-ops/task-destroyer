@@ -197,10 +197,10 @@ _ND_CSS = """
 
 /* ── Enterprise visual overrides ─────────────────────────────── */
 .nd-header {
-    background:#ffffff !important;
-    border:1px solid #e2e8f0 !important;
+    background:#111827 !important;
+    border:1px solid #263244 !important;
     border-radius:8px !important;
-    box-shadow:0 1px 2px rgba(15,23,42,.04) !important;
+    box-shadow:0 14px 36px rgba(0,0,0,.24) !important;
 }
 .nd-header::before,
 .nd-header::after,
@@ -208,56 +208,56 @@ _ND_CSS = """
     display:none !important;
 }
 .nd-header-eyebrow {
-    color:#64748b !important;
+    color:#94a3b8 !important;
     letter-spacing:.08em !important;
 }
 .nd-header-title {
-    color:#0f172a !important;
+    color:#f8fafc !important;
     letter-spacing:0 !important;
 }
 .nd-header-sub {
-    color:#64748b !important;
+    color:#94a3b8 !important;
     letter-spacing:0 !important;
 }
 .nd-status-dot {
-    background:#2563eb !important;
+    background:#3b82f6 !important;
     box-shadow:none !important;
     animation:none !important;
 }
 .nd-badge-sys {
-    background:#eff6ff !important;
-    color:#1d4ed8 !important;
-    border:1px solid #bfdbfe !important;
+    background:rgba(59,130,246,.14) !important;
+    color:#bfdbfe !important;
+    border:1px solid rgba(59,130,246,.4) !important;
     border-radius:6px !important;
     letter-spacing:.04em !important;
 }
-.nd-credit-val { color:#1d4ed8 !important; }
-.nd-credit-label { color:#64748b !important; }
-.nd-credit-bar { background:#e2e8f0 !important; border-radius:999px !important; }
+.nd-credit-val { color:#93c5fd !important; }
+.nd-credit-label { color:#94a3b8 !important; }
+.nd-credit-bar { background:#263244 !important; border-radius:999px !important; }
 .nd-credit-fill {
-    background:#2563eb !important;
+    background:#3b82f6 !important;
     box-shadow:none !important;
     border-radius:999px !important;
 }
 .nd-kpi,
 .nd-card,
 .nd-ex-tile {
-    background:#ffffff !important;
-    border:1px solid #e2e8f0 !important;
+    background:#111827 !important;
+    border:1px solid #263244 !important;
     border-radius:8px !important;
-    box-shadow:0 1px 2px rgba(15,23,42,.04) !important;
+    box-shadow:0 12px 32px rgba(0,0,0,.2) !important;
 }
 .nd-kpi:hover,
 .nd-card:hover,
 .nd-ex-tile:hover {
-    border-color:#cbd5e1 !important;
-    box-shadow:0 4px 12px rgba(15,23,42,.06) !important;
+    border-color:#3b82f6 !important;
+    box-shadow:0 14px 36px rgba(0,0,0,.26) !important;
 }
 .nd-kpi-val,
 .nd-card-ttl,
 .nd-ex-ttl,
 .nd-tbl td.name {
-    color:#0f172a !important;
+    color:#f8fafc !important;
 }
 .nd-kpi-lbl,
 .nd-sec-lbl,
@@ -266,71 +266,71 @@ _ND_CSS = """
 .nd-tbl td,
 .nd-tbl td.date,
 .nd-card-meta span {
-    color:#64748b !important;
+    color:#94a3b8 !important;
 }
 .nd-sec-lbl {
-    border-bottom:1px solid #e2e8f0 !important;
+    border-bottom:1px solid #263244 !important;
     letter-spacing:.08em !important;
 }
 .nd-preview {
-    background:#f8fafc !important;
-    border:1px solid #e2e8f0 !important;
-    color:#334155 !important;
+    background:#0b1220 !important;
+    border:1px solid #263244 !important;
+    color:#cbd5e1 !important;
     border-radius:8px !important;
 }
-.nd-preview.filled { color:#334155 !important; }
-.nd-preview.code { color:#1d4ed8 !important; }
+.nd-preview.filled { color:#cbd5e1 !important; }
+.nd-preview.code { color:#93c5fd !important; }
 .nd-b { border-radius:6px !important; letter-spacing:.04em !important; }
 .nd-b-ok {
-    background:#ecfdf5 !important;
-    color:#047857 !important;
-    border-color:#a7f3d0 !important;
+    background:rgba(34,197,94,.12) !important;
+    color:#86efac !important;
+    border-color:rgba(34,197,94,.36) !important;
 }
 .nd-b-ai {
-    background:#eff6ff !important;
-    color:#1d4ed8 !important;
-    border-color:#bfdbfe !important;
+    background:rgba(59,130,246,.14) !important;
+    color:#bfdbfe !important;
+    border-color:rgba(59,130,246,.4) !important;
 }
 .nd-b-pnd {
-    background:#fffbeb !important;
-    color:#92400e !important;
-    border-color:#fde68a !important;
+    background:rgba(245,158,11,.12) !important;
+    color:#fde68a !important;
+    border-color:rgba(245,158,11,.38) !important;
 }
 .nd-b-rev {
-    background:#fff7ed !important;
-    color:#c2410c !important;
-    border-color:#fed7aa !important;
+    background:rgba(249,115,22,.12) !important;
+    color:#fdba74 !important;
+    border-color:rgba(249,115,22,.36) !important;
 }
 .nd-b-dft,
 .nd-b-tag {
-    background:#f8fafc !important;
-    color:#64748b !important;
-    border-color:#cbd5e1 !important;
+    background:#151f2e !important;
+    color:#94a3b8 !important;
+    border-color:#334155 !important;
 }
-.nd-tbl th { border-bottom:1px solid #e2e8f0 !important; }
-.nd-tbl td { border-bottom:1px solid #f1f5f9 !important; }
-.nd-tbl tr:hover td { background:#f8fafc !important; }
+.nd-tbl th { border-bottom:1px solid #263244 !important; }
+.nd-tbl td { border-bottom:1px solid #172033 !important; }
+.nd-tbl tr:hover td { background:#151f2e !important; }
 .nd-row-action {
-    background:#ffffff !important;
-    border:1px solid #cbd5e1 !important;
-    color:#334155 !important;
+    background:#151f2e !important;
+    border:1px solid #334155 !important;
+    color:#cbd5e1 !important;
     border-radius:6px !important;
 }
 .nd-row-action:hover {
-    border-color:#2563eb !important;
-    color:#1d4ed8 !important;
+    border-color:#3b82f6 !important;
+    color:#bfdbfe !important;
 }
-.nd-ex-tile:hover { background:#ffffff !important; }
+.nd-ex-tile:hover { background:#151f2e !important; }
 .nd-ex-badge {
-    background:#f8fafc !important;
-    border-color:#cbd5e1 !important;
-    color:#64748b !important;
+    background:#151f2e !important;
+    border-color:#334155 !important;
+    color:#94a3b8 !important;
     border-radius:6px !important;
 }
 .nd-ex-badge.live {
-    background:#ecfdf5 !important;
-    border-color:#a7f3d0 !important;
-    color:#047857 !important;
+    background:rgba(34,197,94,.12) !important;
+    border-color:rgba(34,197,94,.36) !important;
+    color:#86efac !important;
 }
 .nd-sidebar-sec { color:#94a3b8 !important; letter-spacing:.08em !important; }
 .nd-sidebar-footer {
@@ -346,8 +346,8 @@ _ND_CSS = """
     box-shadow:none !important;
     border-radius:999px !important;
 }
-.nd-divider { border-top:1px solid #e2e8f0 !important; }
-.nd-empty { color:#64748b !important; }
+.nd-divider { border-top:1px solid #263244 !important; }
+.nd-empty { color:#94a3b8 !important; }
 </style>
 """
 
@@ -416,14 +416,14 @@ def page_new_dashboard(svc: dict) -> None:
                 <span class="nd-status-dot"></span>
                 <span class="nd-badge-sys">SYSTEM ONLINE</span>
                 &nbsp;&nbsp;{'現在のプロジェクト' if _is_ja else 'Projeto atual'}:
-                <span style="color:#0f172a;font-weight:600;">{_product_name}</span>
+                <span style="color:#f8fafc;font-weight:600;">{_product_name}</span>
               </div>
             </div>
             <div class="nd-credit-wrap">
-              <div class="nd-credit-val">730 <span style="font-size:.7rem;font-weight:400;color:#64748b;">/ 1,000</span></div>
+              <div class="nd-credit-val">730 <span style="font-size:.7rem;font-weight:400;color:#94a3b8;">/ 1,000</span></div>
               <div class="nd-credit-label">{'API Calls 残量' if _is_ja else 'API Calls restantes'}</div>
               <div class="nd-credit-bar"><div class="nd-credit-fill" style="width:73%;"></div></div>
-              <div style="font-size:.68rem;color:#64748b;margin-top:4px;">73% remaining</div>
+              <div style="font-size:.68rem;color:#94a3b8;margin-top:4px;">73% remaining</div>
             </div>
           </div>
         </div>
@@ -627,13 +627,13 @@ def page_new_dashboard(svc: dict) -> None:
                 tc1, tc2, tc3, tc4, tc5 = st.columns([3, 2, 1.5, 1, 1])
                 with tc1:
                     st.markdown(
-                        f'<div style="padding:8px 0;font-weight:600;color:#0f172a;'
+                        f'<div style="padding:8px 0;font-weight:600;color:#f8fafc;'
                         f'font-size:.82rem;">{_html.escape(pname)}</div>',
                         unsafe_allow_html=True,
                     )
                 with tc2:
                     st.markdown(
-                        f'<div style="padding:8px 0;color:#64748b;font-size:.73rem;">{pupdated}</div>',
+                        f'<div style="padding:8px 0;color:#94a3b8;font-size:.73rem;">{pupdated}</div>',
                         unsafe_allow_html=True,
                     )
                 with tc3:
@@ -765,7 +765,7 @@ def page_new_dashboard(svc: dict) -> None:
 
         st.markdown('<hr class="nd-divider">', unsafe_allow_html=True)
         st.markdown(
-            '<div style="font-size:.76rem;color:#64748b;text-align:center;">'
+            '<div style="font-size:.76rem;color:#94a3b8;text-align:center;">'
             'Task Destroyer Export Center'
             '</div>',
             unsafe_allow_html=True,
