@@ -187,6 +187,28 @@ class SupabaseRepository:
         )
         return result.data[0]
 
+    def load_api_usage(self, workspace_id: str, period: str) -> Optional[dict[str, Any]]:
+        result = (
+            self.client.table("api_usage")
+            .select("*")
+            .eq("workspace_id", workspace_id)
+            .eq("period", period)
+            .limit(1)
+            .execute()
+        )
+        return result.data[0] if result.data else None
+
+    def upsert_api_usage(self, workspace_id: str, period: str, used_calls: int) -> dict[str, Any]:
+        result = self.client.table("api_usage").upsert(
+            {
+                "workspace_id": workspace_id,
+                "period": period,
+                "used_calls": max(int(used_calls or 0), 0),
+            },
+            on_conflict="workspace_id,period",
+        ).execute()
+        return result.data[0]
+
     def save_core(self, workspace_id: str, product_row_id: str, local_product_id: str,
                   core_data: dict[str, Any], version_label: str = "") -> dict[str, Any]:
         result = self.client.table("cores").insert({

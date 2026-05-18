@@ -176,6 +176,7 @@ core_studio/
 - パスワード再設定を使う場合は `APP_BASE_URL` を公開URLに設定し、Supabase AuthのRedirect URLにも追加する
 - DB保存へ移行する場合は `supabase_schema.sql` をSupabase SQL Editorで実行し、`SUPABASE_SERVICE_ROLE_KEY` をSecretsに設定する
 - Supabase DBが設定済みの場合、商品プロジェクト、Core、関連生成物はJSON保存と並行してDBへミラー保存・復元されます
+- Supabase DBが設定済みの場合、月間API使用量も`api_usage`へ保存されます
 - Supabaseログイン後、`profiles`・`workspaces`・`workspace_members` は自動作成されます
 - JSONログインを使う場合は `TASK_DESTROYER_USERS` を設定し、`password` ではなく `password_hash` を使う
 - `TASK_DESTROYER_MONTHLY_CALL_LIMIT` を 1 以上にする

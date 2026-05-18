@@ -92,6 +92,7 @@ def page_billing(svc: dict) -> None:
     col1.metric("現在のプラン", PLAN_LABELS.get(current_plan, current_plan.title()))
     col2.metric("今月の利用", f'{usage["used"]:,} calls')
     col3.metric("月間上限", f'{usage["limit"]:,} calls' if usage["is_limited"] else "無制限")
+    st.caption(f'利用回数の保存先: {"Supabase DB" if usage.get("source") == "supabase" else "ローカルJSON"}')
 
     if usage["is_limited"]:
         if usage["is_exhausted"]:

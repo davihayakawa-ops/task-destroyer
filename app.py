@@ -1291,7 +1291,7 @@ def render_sidebar():
             f'<div class="nd-use-bar"><div class="nd-use-fill" style="width:{fill_width}%;"></div></div>'
             f'<div>{usage_text}</div>'
             f'<div style="font-size:.72rem;color:{usage_color};">{remaining_text}</div>'
-            f'<div style="font-size:.72rem;color:#94a3b8;">{usage["period"]} · {usage.get("plan", "default")}</div>'
+            f'<div style="font-size:.72rem;color:#94a3b8;">{usage["period"]} · {usage.get("plan", "default")} · {usage.get("source", "local")}</div>'
             '<div style="margin-top:4px;color:#94a3b8;">v2.0 · Commerce</div>'
             '</div>',
             unsafe_allow_html=True,

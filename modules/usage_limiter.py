@@ -41,6 +41,23 @@ def _current_user_limits() -> tuple[str, Optional[int]]:
     return plan, None
 
 
+def _current_workspace_db_id() -> str:
+    try:
+        from streamlit.runtime.scriptrunner import get_script_run_ctx
+
+        if get_script_run_ctx(suppress_warning=True) is None:
+            return ""
+        from modules.auth import current_user
+    except Exception:
+        return ""
+
+    try:
+        user = current_user()
+    except Exception:
+        return ""
+    return str(user.get("workspace_db_id") or "").strip()
+
+
 def _plan_limits() -> dict[str, int]:
     defaults = {"free": 100, "starter": 500, "pro": 2000, "team": 5000}
     raw = _secret_or_env("TASK_DESTROYER_PLAN_LIMITS", "")
@@ -118,9 +135,40 @@ class UsageLimiter:
     def _write(self, data: dict[str, Any]) -> None:
         self.usage_path.write_text(json.dumps(data, ensure_ascii=False, indent=2))
 
+    def _read_db_used_calls(self) -> Optional[int]:
+        workspace_db_id = _current_workspace_db_id()
+        if not workspace_db_id:
+            return None
+        try:
+            from modules.supabase_db import SupabaseRepository, supabase_db_configured
+
+            if not supabase_db_configured():
+                return None
+            row = SupabaseRepository().load_api_usage(workspace_db_id, self.period)
+            if not row:
+                return 0
+            return max(int(row.get("used_calls") or 0), 0)
+        except Exception:
+            return None
+
+    def _write_db_used_calls(self, used_calls: int) -> bool:
+        workspace_db_id = _current_workspace_db_id()
+        if not workspace_db_id:
+            return False
+        try:
+            from modules.supabase_db import SupabaseRepository, supabase_db_configured
+
+            if not supabase_db_configured():
+                return False
+            SupabaseRepository().upsert_api_usage(workspace_db_id, self.period, used_calls)
+            return True
+        except Exception:
+            return False
+
     def summary(self) -> dict[str, Any]:
         data = self._read()
-        used = int(data.get("used_calls") or 0)
+        db_used = self._read_db_used_calls()
+        used = db_used if db_used is not None else int(data.get("used_calls") or 0)
         limit = self.monthly_limit
         remaining = max(limit - used, 0) if limit else 0
         percent = 0 if limit == 0 else min(int((used / limit) * 100), 100)
@@ -134,6 +182,7 @@ class UsageLimiter:
             "is_limited": limit > 0,
             "is_exhausted": limit > 0 and used >= limit,
             "plan": _current_user_limits()[0] or "default",
+            "source": "supabase" if db_used is not None else "local",
         }
 
     def try_consume(self, action: str = "llm_generate") -> tuple[bool, str]:
@@ -142,6 +191,9 @@ class UsageLimiter:
             return True, ""
 
         data = self._read()
+        db_used = self._read_db_used_calls()
+        if db_used is not None:
+            data["used_calls"] = db_used
         used = int(data.get("used_calls") or 0)
         if used >= limit:
             return (
@@ -151,6 +203,7 @@ class UsageLimiter:
             )
 
         data["used_calls"] = used + 1
+        self._write_db_used_calls(data["used_calls"])
         events = data.setdefault("events", [])
         events.append({
             "timestamp": _now(),
