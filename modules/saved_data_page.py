@@ -173,26 +173,29 @@ def page_saved_data(svc: dict) -> None:
     db_ready = False
     try:
         from modules.supabase_db import supabase_db_configured
+        from modules.storage import Storage as _Storage
         db_ready = supabase_db_configured()
         local_count = svc["storage"].local_file_product_count()
+        all_local_count = _Storage.all_local_file_product_count()
     except Exception:
         local_count = 0
-    if local_count and db_ready and st.session_state.get("auth_user", {}).get("workspace_db_id"):
-        with st.expander(_lt("ローカル保存をこのアカウントへ移す", "Migrar dados locais para esta conta", "Move local saves to this account", lang)):
+        all_local_count = 0
+    if all_local_count and db_ready and st.session_state.get("auth_user", {}).get("workspace_db_id"):
+        with st.expander(_lt("過去のローカル保存をこのアカウントへ移す", "Migrar dados locais antigos para esta conta", "Move previous local saves to this account", lang)):
             st.caption(
                 _lt(
-                    f"このショップ内のローカル保存 {local_count} 件を、今ログイン中の共有アカウントへコピーします。",
-                    f"Copia {local_count} arquivo(s) local(is) desta loja para a conta conectada.",
-                    f"Copy {local_count} local save(s) in this shop to the signed-in account.",
+                    f"このショップは {local_count} 件、全ショップ合計は {all_local_count} 件あります。今ログイン中のアカウントへコピーします。",
+                    f"Esta loja tem {local_count}; todas as lojas têm {all_local_count}. Copie para a conta conectada.",
+                    f"This shop has {local_count}; all shops have {all_local_count}. Copy them to the signed-in account.",
                     lang,
                 )
             )
             if st.button(
-                _lt("このアカウントへ移行する", "Migrar para esta conta", "Move to this account", lang),
+                _lt("全ショップからこのアカウントへ移行する", "Migrar todas as lojas para esta conta", "Move all shops to this account", lang),
                 type="primary",
                 use_container_width=True,
             ):
-                result = svc["storage"].migrate_local_files_to_supabase()
+                result = svc["storage"].migrate_all_local_files_to_supabase()
                 if result.get("ok"):
                     st.success(result.get("message"))
                     st.rerun()

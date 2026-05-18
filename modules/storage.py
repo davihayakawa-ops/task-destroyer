@@ -361,6 +361,38 @@ class Storage:
     def local_file_product_count(self) -> int:
         return len(self._list_local_product_files())
 
+    @classmethod
+    def all_local_file_product_count(cls) -> int:
+        return len(cls._collect_local_product_files_all_shops())
+
+    @classmethod
+    def _collect_local_product_files_all_shops(cls) -> list[tuple[str, Path]]:
+        seen = set()
+        found: list[tuple[str, Path]] = []
+        shop_ids = [DEFAULT_SHOP_ID]
+        for shop in _read_shop_registry():
+            shop_id = _sanitize_shop_id(shop.get("id") or "")
+            if shop_id and shop_id not in shop_ids:
+                shop_ids.append(shop_id)
+
+        shops_root = DATA_DIR / "shops"
+        if shops_root.exists():
+            for child in sorted(shops_root.iterdir()):
+                if child.is_dir():
+                    shop_id = _sanitize_shop_id(child.name)
+                    if shop_id and shop_id not in shop_ids:
+                        shop_ids.append(shop_id)
+
+        for shop_id in shop_ids:
+            storage = cls(shop_id)
+            for path in storage._list_local_product_files():
+                resolved = str(path.resolve())
+                if resolved in seen:
+                    continue
+                seen.add(resolved)
+                found.append((shop_id, path))
+        return found
+
     def _list_local_product_files(self) -> list[Path]:
         proj_dir = self.data_dir / "projects"
         files = []
@@ -374,6 +406,94 @@ class Storage:
             if isinstance(data, dict) and "content_type" not in data and "content" not in data:
                 files.append(p)
         return files
+
+    def migrate_all_local_files_to_supabase(self) -> dict:
+        """Copy local JSON saves from every shop folder into the current Supabase workspace."""
+        workspace_db_id = _workspace_db_id_from_session()
+        if not workspace_db_id:
+            return {"ok": False, "message": "Supabaseログイン後に実行してください。"}
+        try:
+            from modules.supabase_db import SupabaseRepository, supabase_db_configured
+
+            if not supabase_db_configured():
+                return {"ok": False, "message": "Supabase DB設定が未完了です。"}
+            repo = SupabaseRepository()
+        except Exception as exc:
+            return {"ok": False, "message": f"Supabase接続に失敗しました: {str(exc)[:200]}"}
+
+        counts = {"products": 0, "cores": 0, "generated": 0, "shops": 0, "skipped_cores": 0, "skipped_generated": 0}
+        touched_shops = set()
+        for shop_id, product_file in self._collect_local_product_files_all_shops():
+            source_storage = Storage(shop_id)
+            product_id = _safe_file_stem(product_file.stem)
+            try:
+                product_data = json.loads(product_file.read_text())
+            except Exception:
+                continue
+            if not isinstance(product_data, dict):
+                continue
+            source_tag = _sanitize_shop_id(shop_id or DEFAULT_SHOP_ID)
+            target_product_id = product_id if source_tag == self.shop_id else _safe_file_stem(f"{source_tag}-{product_id}")
+            if source_tag != self.shop_id:
+                product_data = dict(product_data)
+                product_data.setdefault("source_shop", source_storage.shop_name)
+                product_data.setdefault("source_local_id", product_id)
+
+            product_row = repo.upsert_product(workspace_db_id, target_product_id, _fill_translation_defaults(product_data))
+            counts["products"] += 1
+            touched_shops.add(source_tag)
+
+            existing_cores = repo.list_cores(workspace_db_id, target_product_id)
+            if existing_cores:
+                counts["skipped_cores"] += len(existing_cores)
+            else:
+                for core_file in sorted((source_storage.data_dir / "core_library").glob(f"{product_id}_*.json")):
+                    try:
+                        core_entry = json.loads(core_file.read_text())
+                    except Exception:
+                        continue
+                    core_data = core_entry.get("core") if isinstance(core_entry, dict) else None
+                    if isinstance(core_data, dict):
+                        repo.save_core(
+                            workspace_db_id,
+                            product_row["id"],
+                            target_product_id,
+                            core_data,
+                            str(core_entry.get("version_label") or core_entry.get("created_at") or ""),
+                        )
+                        counts["cores"] += 1
+
+            existing_generated_types = {
+                _safe_file_stem(row.get("content_type") or "", "generated")
+                for row in repo.list_generated(workspace_db_id, target_product_id)
+            }
+            for generated_file in sorted((source_storage.data_dir / "projects").glob(f"{product_id}_*.json")):
+                parts = generated_file.stem.split("_")
+                if len(parts) < 3:
+                    continue
+                content_type = _safe_file_stem("_".join(parts[1:-1]), "generated")
+                if content_type in existing_generated_types:
+                    counts["skipped_generated"] += 1
+                    continue
+                try:
+                    generated_entry = json.loads(generated_file.read_text())
+                except Exception:
+                    continue
+                content = generated_entry.get("content") if isinstance(generated_entry, dict) else None
+                if isinstance(content, dict):
+                    repo.save_generated(workspace_db_id, product_row["id"], target_product_id, content_type, content)
+                    existing_generated_types.add(content_type)
+                    counts["generated"] += 1
+
+        counts["shops"] = len(touched_shops)
+        return {
+            "ok": True,
+            "message": (
+                f"{counts['shops']}ショップから、{counts['products']}件の商品、"
+                f"{counts['cores']}件のCore、{counts['generated']}件の生成物を移行しました。"
+            ),
+            **counts,
+        }
 
     def migrate_local_files_to_supabase(self) -> dict:
         """Copy current shop's local JSON files into the logged-in Supabase workspace."""
