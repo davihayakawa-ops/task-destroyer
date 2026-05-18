@@ -358,6 +358,101 @@ class Storage:
                 pass
         return result
 
+    def local_file_product_count(self) -> int:
+        return len(self._list_local_product_files())
+
+    def _list_local_product_files(self) -> list[Path]:
+        proj_dir = self.data_dir / "projects"
+        files = []
+        for p in sorted(proj_dir.glob("*.json")):
+            if "_" in p.stem:
+                continue
+            try:
+                data = json.loads(p.read_text())
+            except Exception:
+                continue
+            if isinstance(data, dict) and "content_type" not in data and "content" not in data:
+                files.append(p)
+        return files
+
+    def migrate_local_files_to_supabase(self) -> dict:
+        """Copy current shop's local JSON files into the logged-in Supabase workspace."""
+        workspace_db_id = _workspace_db_id_from_session()
+        if not workspace_db_id:
+            return {"ok": False, "message": "Supabaseログイン後に実行してください。"}
+        try:
+            from modules.supabase_db import SupabaseRepository, supabase_db_configured
+
+            if not supabase_db_configured():
+                return {"ok": False, "message": "Supabase DB設定が未完了です。"}
+            repo = SupabaseRepository()
+        except Exception as exc:
+            return {"ok": False, "message": f"Supabase接続に失敗しました: {str(exc)[:200]}"}
+
+        counts = {"products": 0, "cores": 0, "generated": 0, "skipped_cores": 0, "skipped_generated": 0}
+        for product_file in self._list_local_product_files():
+            product_id = _safe_file_stem(product_file.stem)
+            try:
+                product_data = json.loads(product_file.read_text())
+            except Exception:
+                continue
+            if not isinstance(product_data, dict):
+                continue
+
+            product_row = repo.upsert_product(workspace_db_id, product_id, _fill_translation_defaults(product_data))
+            counts["products"] += 1
+
+            existing_cores = repo.list_cores(workspace_db_id, product_id)
+            if existing_cores:
+                counts["skipped_cores"] += len(existing_cores)
+            else:
+                for core_file in sorted((self.data_dir / "core_library").glob(f"{product_id}_*.json")):
+                    try:
+                        core_entry = json.loads(core_file.read_text())
+                    except Exception:
+                        continue
+                    core_data = core_entry.get("core") if isinstance(core_entry, dict) else None
+                    if isinstance(core_data, dict):
+                        repo.save_core(
+                            workspace_db_id,
+                            product_row["id"],
+                            product_id,
+                            core_data,
+                            str(core_entry.get("version_label") or core_entry.get("created_at") or ""),
+                        )
+                        counts["cores"] += 1
+
+            existing_generated_types = {
+                _safe_file_stem(row.get("content_type") or "", "generated")
+                for row in repo.list_generated(workspace_db_id, product_id)
+            }
+            for generated_file in sorted((self.data_dir / "projects").glob(f"{product_id}_*.json")):
+                parts = generated_file.stem.split("_")
+                if len(parts) < 3:
+                    continue
+                content_type = _safe_file_stem("_".join(parts[1:-1]), "generated")
+                if content_type in existing_generated_types:
+                    counts["skipped_generated"] += 1
+                    continue
+                try:
+                    generated_entry = json.loads(generated_file.read_text())
+                except Exception:
+                    continue
+                content = generated_entry.get("content") if isinstance(generated_entry, dict) else None
+                if isinstance(content, dict):
+                    repo.save_generated(workspace_db_id, product_row["id"], product_id, content_type, content)
+                    existing_generated_types.add(content_type)
+                    counts["generated"] += 1
+
+        return {
+            "ok": True,
+            "message": (
+                f"{counts['products']}件の商品、{counts['cores']}件のCore、"
+                f"{counts['generated']}件の生成物を移行しました。"
+            ),
+            **counts,
+        }
+
     def _list_products_from_supabase(self) -> List[dict]:
         workspace_db_id = _workspace_db_id_from_session()
         if not workspace_db_id:

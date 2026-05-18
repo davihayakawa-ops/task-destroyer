@@ -170,6 +170,35 @@ def page_saved_data(svc: dict) -> None:
         unsafe_allow_html=True,
     )
 
+    db_ready = False
+    try:
+        from modules.supabase_db import supabase_db_configured
+        db_ready = supabase_db_configured()
+        local_count = svc["storage"].local_file_product_count()
+    except Exception:
+        local_count = 0
+    if local_count and db_ready and st.session_state.get("auth_user", {}).get("workspace_db_id"):
+        with st.expander(_lt("ローカル保存をこのアカウントへ移す", "Migrar dados locais para esta conta", "Move local saves to this account", lang)):
+            st.caption(
+                _lt(
+                    f"このショップ内のローカル保存 {local_count} 件を、今ログイン中の共有アカウントへコピーします。",
+                    f"Copia {local_count} arquivo(s) local(is) desta loja para a conta conectada.",
+                    f"Copy {local_count} local save(s) in this shop to the signed-in account.",
+                    lang,
+                )
+            )
+            if st.button(
+                _lt("このアカウントへ移行する", "Migrar para esta conta", "Move to this account", lang),
+                type="primary",
+                use_container_width=True,
+            ):
+                result = svc["storage"].migrate_local_files_to_supabase()
+                if result.get("ok"):
+                    st.success(result.get("message"))
+                    st.rerun()
+                else:
+                    st.error(result.get("message"))
+
     c1, c2, c3 = st.columns([1, 1, 2])
     with c1:
         st.markdown(
