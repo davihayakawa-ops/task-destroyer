@@ -29,6 +29,15 @@ def _secret_or_env(key: str, default: str = "") -> str:
     return secret_or_env(key, default)
 
 
+def _ui(ja: str, pt: str, en: str) -> str:
+    lang = st.session_state.get("lang", "ja")
+    if lang == "ja":
+        return ja
+    if lang == "en":
+        return en
+    return pt
+
+
 def _hash_password(password: str) -> str:
     return hashlib.sha256(password.encode("utf-8")).hexdigest()
 
@@ -100,8 +109,12 @@ def _render_password_recovery_form() -> bool:
     recovery_type = _query_value("type")
 
     if error:
-        st.error(error_description or "再設定リンクが無効、または期限切れです。もう一度パスワード再設定メールを送信してください。")
-        if st.button("ログイン画面に戻る", use_container_width=True):
+        st.error(error_description or _ui(
+            "再設定リンクが無効、または期限切れです。もう一度パスワード再設定メールを送信してください。",
+            "O link de redefinição é inválido ou expirou. Envie outro email de redefinição.",
+            "The reset link is invalid or expired. Send another password reset email.",
+        ))
+        if st.button(_ui("ログイン画面に戻る", "Voltar ao login", "Back to sign in"), use_container_width=True):
             _clear_auth_query_params()
             st.rerun()
         return True
@@ -109,15 +122,19 @@ def _render_password_recovery_form() -> bool:
     if not access_token or recovery_type != "recovery":
         return False
 
-    st.markdown("### パスワードを再設定")
-    st.caption("新しいパスワードを入力してください。変更後はログイン画面に戻ります。")
+    st.markdown("### " + _ui("パスワードを再設定", "Redefinir senha", "Reset Password"))
+    st.caption(_ui(
+        "新しいパスワードを入力してください。変更後はログイン画面に戻ります。",
+        "Digite a nova senha. Depois da alteração, volte à tela de login.",
+        "Enter a new password. After changing it, return to the sign-in screen.",
+    ))
     with st.form("td_supabase_recovery_update_form"):
         new_password = st.text_input("New password", type="password", key="td_recovery_new_password")
         new_password_confirm = st.text_input("New password confirmation", type="password", key="td_recovery_new_password_confirm")
-        submitted = st.form_submit_button("パスワードを変更 / Update password", type="primary")
+        submitted = st.form_submit_button(_ui("パスワードを変更", "Alterar senha", "Update password"), type="primary")
     if submitted:
         if new_password != new_password_confirm:
-            st.error("確認用パスワードが一致しません。")
+            st.error(_ui("確認用パスワードが一致しません。", "A confirmação da senha não confere.", "Password confirmation does not match."))
         else:
             ok, message = update_password_with_recovery(access_token, refresh_token, new_password)
             if ok:
@@ -178,7 +195,11 @@ def ensure_authentication() -> bool:
 
     users = load_users()
     if auth_is_configured() and not users:
-        st.error("ログイン設定 TASK_DESTROYER_USERS を読み込めません。JSON形式を確認してください。")
+        st.error(_ui(
+            "ログイン設定 TASK_DESTROYER_USERS を読み込めません。JSON形式を確認してください。",
+            "Não foi possível carregar TASK_DESTROYER_USERS. Verifique o formato JSON.",
+            "Could not load TASK_DESTROYER_USERS. Check the JSON format.",
+        ))
         return False
 
     if not users:
@@ -194,11 +215,11 @@ def ensure_authentication() -> bool:
         return True
 
     st.markdown("## Task Destroyer")
-    st.caption("ログインしてください / Please sign in")
+    st.caption(_ui("ログインしてください", "Faça login", "Please sign in"))
     with st.form("td_login_form"):
         email = st.text_input("Email").strip().lower()
         password = st.text_input("Password", type="password")
-        submitted = st.form_submit_button("ログイン / Sign in", type="primary")
+        submitted = st.form_submit_button(_ui("ログイン", "Entrar", "Sign in"), type="primary")
 
     if submitted:
         user = next((u for u in users if u["email"] == email), None)
@@ -213,7 +234,7 @@ def ensure_authentication() -> bool:
             st.session_state["shop_name"] = user["workspace"]
             st.session_state.pop("_market_loaded_for_product", None)
             st.rerun()
-        st.error("メールアドレスまたはパスワードが違います。")
+        st.error(_ui("メールアドレスまたはパスワードが違います。", "Email ou senha incorretos.", "Email or password is incorrect."))
 
     return False
 
@@ -247,13 +268,13 @@ def ensure_supabase_authentication() -> bool:
         unsafe_allow_html=True,
     )
     st.markdown("## Task Destroyer")
-    st.caption("ログインしてください / Please sign in")
+    st.caption(_ui("ログインしてください", "Faça login", "Please sign in"))
     st.markdown(
-        """
+        f"""
         <div class="td-auth-wrap">
             <div class="td-auth-note">
-                <strong>ログインすると、商品・Core・Shopifyコードが自分のアカウントに保存されます。</strong><br>
-                初めて使う場合は新規登録してください。メール確認が必要な場合は、受信箱の確認リンクを押してからログインします。
+                <strong>{_ui("ログインすると、商品・Core・Shopifyコードが自分のアカウントに保存されます。", "Ao entrar, produtos, Core e código Shopify ficam salvos na sua conta.", "When you sign in, products, Cores, and Shopify code are saved to your account.")}</strong><br>
+                {_ui("初めて使う場合は新規登録してください。メール確認が必要な場合は、受信箱の確認リンクを押してからログインします。", "Se for a primeira vez, crie uma conta. Se a confirmação por email estiver ativa, abra o link recebido antes de entrar.", "Create an account if this is your first time. If email confirmation is enabled, open the inbox link before signing in.")}
             </div>
         </div>
         """,
@@ -263,14 +284,22 @@ def ensure_supabase_authentication() -> bool:
     if _render_password_recovery_form():
         return False
 
-    tab_login, tab_signup, tab_reset = st.tabs(["ログイン", "新規登録", "パスワード再設定"])
+    tab_login, tab_signup, tab_reset = st.tabs([
+        _ui("ログイン", "Login", "Sign in"),
+        _ui("新規登録", "Cadastro", "Sign up"),
+        _ui("パスワード再設定", "Redefinir senha", "Reset password"),
+    ])
 
     with tab_login:
-        st.caption("登録済みのメールアドレスとパスワードでログインします。")
+        st.caption(_ui(
+            "登録済みのメールアドレスとパスワードでログインします。",
+            "Entre com o email e a senha cadastrados.",
+            "Sign in with your registered email and password.",
+        ))
         with st.form("td_supabase_login_form"):
             email = st.text_input("Email", key="td_supabase_login_email").strip().lower()
             password = st.text_input("Password", type="password", key="td_supabase_login_password")
-            submitted = st.form_submit_button("ログイン / Sign in", type="primary")
+            submitted = st.form_submit_button(_ui("ログイン", "Entrar", "Sign in"), type="primary")
         if submitted:
             ok, message = supabase_sign_in(email, password)
             if ok:
@@ -279,22 +308,30 @@ def ensure_supabase_authentication() -> bool:
                 st.session_state["shop_name"] = user["workspace"]
                 st.session_state.pop("_market_loaded_for_product", None)
                 st.rerun()
-            st.error(message or "ログインに失敗しました。")
+            st.error(message or _ui("ログインに失敗しました。", "Falha ao entrar.", "Sign in failed."))
             if "not confirmed" in str(message).lower():
-                st.info("メール確認が未完了です。受信箱の確認リンクを押すか、管理者に確認済みにしてもらってください。")
+                st.info(_ui(
+                    "メール確認が未完了です。受信箱の確認リンクを押すか、管理者に確認済みにしてもらってください。",
+                    "A confirmação do email ainda não foi concluída. Abra o link recebido ou peça ao administrador para confirmar.",
+                    "Email confirmation is not complete. Open the inbox link or ask an admin to confirm the user.",
+                ))
 
     with tab_signup:
-        st.caption("登録後、確認メールが届いた場合はリンクを押してからログインしてください。")
+        st.caption(_ui(
+            "登録後、確認メールが届いた場合はリンクを押してからログインしてください。",
+            "Depois do cadastro, se receber email de confirmação, abra o link antes de entrar.",
+            "After signing up, open the confirmation link if one arrives before signing in.",
+        ))
         with st.form("td_supabase_signup_form"):
             email = st.text_input("Email", key="td_supabase_signup_email").strip().lower()
             password = st.text_input("Password", type="password", key="td_supabase_signup_password")
             password_confirm = st.text_input("Password confirmation", type="password", key="td_supabase_signup_password_confirm")
-            submitted = st.form_submit_button("アカウント作成 / Sign up", type="primary")
+            submitted = st.form_submit_button(_ui("アカウント作成", "Criar conta", "Sign up"), type="primary")
         if submitted:
             if len(password) < 8:
-                st.error("パスワードは8文字以上にしてください。")
+                st.error(_ui("パスワードは8文字以上にしてください。", "A senha deve ter pelo menos 8 caracteres.", "Password must be at least 8 characters."))
             elif password != password_confirm:
-                st.error("確認用パスワードが一致しません。")
+                st.error(_ui("確認用パスワードが一致しません。", "A confirmação da senha não confere.", "Password confirmation does not match."))
             else:
                 ok, message = supabase_sign_up(email, password)
                 if ok and st.session_state.get("auth_user"):
@@ -304,15 +341,19 @@ def ensure_supabase_authentication() -> bool:
                     st.session_state.pop("_market_loaded_for_product", None)
                     st.rerun()
                 if ok:
-                    st.success(message or "アカウントを作成しました。ログインしてください。")
+                    st.success(message or _ui("アカウントを作成しました。ログインしてください。", "Conta criada. Faça login.", "Account created. Please sign in."))
                 else:
-                    st.error(message or "登録に失敗しました。")
+                    st.error(message or _ui("登録に失敗しました。", "Falha no cadastro.", "Sign up failed."))
 
     with tab_reset:
-        st.caption("登録済みメールアドレスへ再設定メールを送ります。")
+        st.caption(_ui(
+            "登録済みメールアドレスへ再設定メールを送ります。",
+            "Enviaremos um email de redefinição para o endereço cadastrado.",
+            "Send a reset email to your registered email address.",
+        ))
         with st.form("td_supabase_password_reset_form"):
             email = st.text_input("Email", key="td_supabase_reset_email").strip().lower()
-            submitted = st.form_submit_button("再設定メールを送信 / Send reset email", type="primary")
+            submitted = st.form_submit_button(_ui("再設定メールを送信", "Enviar email de redefinição", "Send reset email"), type="primary")
         if submitted:
             ok, message = supabase_password_reset(email)
             if ok:

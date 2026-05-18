@@ -1541,7 +1541,7 @@ def page_product_input():
                     if st.button(f"📂 {_rp_label}", key=f"pi_resume_{_rp['id']}",
                                  use_container_width=True):
                         load_project_session(_rp["id"], _rp, svc)
-                        st.success(f"'{_rp.get('name')}' " + ("を読み込みました" if is_ja else "carregado"))
+                        st.success(f"'{_rp.get('name')}' " + _lt("を読み込みました", "carregado", "loaded", lang))
                         st.rerun()
             st.markdown("")
 
@@ -1823,8 +1823,12 @@ def page_product_input():
         _is_ja = st.session_state.get("lang", "ja") == "ja"
         if not name.strip() and not product_url.strip() and not description.strip():
             st.error(
-                "商品名・URL・説明のいずれかを入力してください" if _is_ja
-                else "Por favor, insira ao menos o nome, URL ou descrição do produto"
+                _lt(
+                    "商品名・URL・説明のいずれかを入力してください",
+                    "Por favor, insira ao menos o nome, URL ou descrição do produto",
+                    "Please enter at least a product name, URL, or description",
+                    st.session_state.get("lang", "ja"),
+                )
             )
         else:
             product_id = ensure_product_id()
@@ -1839,20 +1843,23 @@ def page_product_input():
                 except Exception:
                     _dup = []
                 if _dup:
-                    _dup_msg = (f"「{name}」という商品名のプロジェクトが既に {len(_dup)} 件あります。このまま保存すると新しいプロジェクトとして登録されます。"
-                                if is_ja else
-                                f"Já existe(m) {len(_dup)} projeto(s) com o nome «{name}». Salvar criará um novo projeto.")
+                    _dup_msg = _lt(
+                        f"「{name}」という商品名のプロジェクトが既に {len(_dup)} 件あります。このまま保存すると新しいプロジェクトとして登録されます。",
+                        f"Já existe(m) {len(_dup)} projeto(s) com o nome «{name}». Salvar criará um novo projeto.",
+                        f"{len(_dup)} project(s) already use the product name \"{name}\". Saving will create a new project.",
+                        lang,
+                    )
                     st.warning(_dup_msg)
                     for _dp in _dup[:2]:
                         _dp_col1, _dp_col2 = st.columns([3, 1])
                         with _dp_col1:
-                            _upd_lbl = "更新日" if is_ja else "Atualizado"
+                            _upd_lbl = _lt("更新日", "Atualizado", "Updated", lang)
                             st.caption(f"📦 {_dp.get('name')} — {_upd_lbl}: {_dp.get('updated_at','-')}")
                         with _dp_col2:
-                            if st.button("このプロジェクトを使う" if is_ja else "Usar este projeto", key=f"use_existing_{_dp['id']}",
+                            if st.button(_lt("このプロジェクトを使う", "Usar este projeto", "Use this project", lang), key=f"use_existing_{_dp['id']}",
                                          use_container_width=True):
                                 load_project_session(_dp["id"], _dp, svc)
-                                st.success(f"'{_dp.get('name')}' " + ("を読み込みました" if is_ja else "carregado"))
+                                st.success(f"'{_dp.get('name')}' " + _lt("を読み込みました", "carregado", "loaded", lang))
                                 st.rerun()
 
             tones = [tone for tone in brand_tone_selected if tone not in (free_input, free_input_o)]
@@ -1888,7 +1895,7 @@ def page_product_input():
             svc["storage"].log_activity(product_id, "商品情報保存", name, "")
             st.markdown('<div class="cs-success">✅ ' + t("product_input.saved_msg") + '</div>',
                         unsafe_allow_html=True)
-            if st.button("次へ: Coreを作る" if is_ja else "Próximo: criar Core", type="primary", use_container_width=True, key="pi_next_core"):
+            if st.button(_lt("次へ: Coreを作る", "Próximo: criar Core", "Next: Build Core", lang), type="primary", use_container_width=True, key="pi_next_core"):
                 st.session_state["page"] = "core_generation"
                 st.rerun()
 
@@ -2245,7 +2252,7 @@ def page_core_generation():
             <div>
               <div style="font-size:.72rem;color:#94a3b8;letter-spacing:.08em;text-transform:uppercase;font-weight:700;">CORE BRIEF</div>
               <div style="font-size:1.25rem;font-weight:800;color:#f8fafc;margin-top:4px;">{product_name}</div>
-              <div style="font-size:.82rem;color:#94a3b8;margin-top:6px;">{"Coreを強くすると、Custom Liquidの見出し・構成・FAQ・CTAが安定します。" if is_ja else "A strong Core improves headings, structure, FAQ, and CTA."}</div>
+              <div style="font-size:.82rem;color:#94a3b8;margin-top:6px;">{_lt("Coreを強くすると、Custom Liquidの見出し・構成・FAQ・CTAが安定します。", "Um Core forte melhora títulos, estrutura, FAQ e CTA do Custom Liquid.", "A strong Core improves Custom Liquid headings, structure, FAQ, and CTA.", lang)}</div>
             </div>
             <div style="min-width:160px;text-align:right;">
               <div style="font-size:2rem;font-weight:900;color:#60a5fa;line-height:1;">{diag["score"]}</div>
@@ -2409,10 +2416,11 @@ def page_core_generation():
                 st.rerun()
     with col_hint:
         st.markdown(
-            '<div class="cs-info">💡 ' + (
-                '入力診断の不足項目を埋めるほど、Liquidの文章と構成が具体的になります。'
-                if is_ja else
-                _lt("", "Quanto mais dados, mais específico fica o Liquid.", "The more product detail you add, the more specific the Liquid copy and structure become.", lang)
+            '<div class="cs-info">💡 ' + _lt(
+                '入力診断の不足項目を埋めるほど、Liquidの文章と構成が具体的になります。',
+                "Quanto mais dados, mais específico fica o Liquid.",
+                "The more product detail you add, the more specific the Liquid copy and structure become.",
+                lang,
             ) + '</div>',
             unsafe_allow_html=True,
         )
@@ -3167,7 +3175,7 @@ def page_product_page():
                 with color_col3:
                     accent_color = st.color_picker(_lt("アクセント", "Acento", "Accent", lang), key="liquid_design_accent_color")
                 with color_col4:
-                    card_color = st.color_picker("カード" if is_ja else "Card", key="liquid_design_card_color")
+                    card_color = st.color_picker(_lt("カード", "Card", "Card", lang), key="liquid_design_card_color")
                 with color_col5:
                     border_color = st.color_picker(_lt("線", "Borda", "Border", lang), key="liquid_design_border_color")
 
@@ -3326,15 +3334,11 @@ def page_product_page():
 
         if not sections_ready and not gen.get("shopify_custom_liquid"):
             st.markdown(
-                '<div class="cs-info">💡 ' + (
-                    '上のボタンを押してコードを生成してください。<br>「セクション別コードを生成」を選ぶと、各セクションを個別にShopifyへ貼り付けできます。'
-                    if is_ja else
-                    _lt(
-                        '',
-                        'Clique no botão acima para gerar o código.<br>"Gerar Código por Seção" permite colar cada seção individualmente no Shopify.',
-                        'Click the button above to generate code.<br>"Generate section code" lets you paste each section into Shopify individually.',
-                        lang,
-                    )
+                '<div class="cs-info">💡 ' + _lt(
+                    '上のボタンを押してコードを生成してください。<br>「セクション別コードを生成」を選ぶと、各セクションを個別にShopifyへ貼り付けできます。',
+                    'Clique no botão acima para gerar o código.<br>"Gerar Código por Seção" permite colar cada seção individualmente no Shopify.',
+                    'Click the button above to generate code.<br>"Generate section code" lets you paste each section into Shopify individually.',
+                    lang,
                 ) + '</div>',
                 unsafe_allow_html=True,
             )
@@ -3346,8 +3350,12 @@ def page_product_page():
             liquid_code = gen["shopify_custom_liquid"]
             st.markdown("---")
             st.markdown(
-                '<div class="cs-info">📌 Shopify管理画面 → オンラインストア → テーマ → '
-                'カスタマイズ → 商品ページ → セクション追加 → <strong>Custom Liquid</strong> に貼り付け</div>',
+                '<div class="cs-info">📌 ' + _lt(
+                    'Shopify管理画面 → オンラインストア → テーマ → カスタマイズ → 商品ページ → セクション追加 → Custom Liquid に貼り付け',
+                    'Shopify Admin → Loja virtual → Temas → Personalizar → Página do produto → Adicionar seção → cole em Custom Liquid',
+                    'Shopify Admin → Online Store → Themes → Customize → Product page → Add section → paste into Custom Liquid',
+                    lang,
+                ) + '</div>',
                 unsafe_allow_html=True,
             )
             st.code(liquid_code, language="html")
@@ -3367,24 +3375,30 @@ def page_product_page():
         elif output_type == "選択構成コード":
             if not selected_combined:
                 st.markdown(
-                    '<div class="cs-warning">⚠️ ' + (
-                        '「セクション別コードを生成」ボタンを押してください。'
-                        if is_ja else
-                        _lt('', 'Clique em "Gerar Código por Seção".', 'Click "Generate section code".', lang)
+                    '<div class="cs-warning">⚠️ ' + _lt(
+                        '「セクション別コードを生成」ボタンを押してください。',
+                        'Clique em "Gerar Código por Seção".',
+                        'Click "Generate section code".',
+                        lang,
                     ) + '</div>',
                     unsafe_allow_html=True,
                 )
             else:
                 st.markdown("---")
                 st.markdown(
-                    f'<div class="cs-info">📌 <strong>{section_preset}</strong> 構成です。下の一括コードを、選択した順番でShopifyのCustom Liquidへ貼り付けできます。</div>',
+                    f'<div class="cs-info">📌 <strong>{section_preset}</strong> ' + _lt(
+                        '構成です。下の一括コードを、選択した順番でShopifyのCustom Liquidへ貼り付けできます。',
+                        'é a estrutura selecionada. Cole o código abaixo no Shopify Custom Liquid na ordem escolhida.',
+                        'is the selected structure. Paste the code below into Shopify Custom Liquid in the selected order.',
+                        lang,
+                    ) + '</div>',
                     unsafe_allow_html=True,
                 )
                 st.code(selected_combined, language="html")
                 selected_col1, selected_col2 = st.columns(2)
                 with selected_col1:
                     st.download_button(
-                        "⬇️ 選択構成 .txt",
+                        _lt("⬇️ 選択構成 .txt", "⬇️ Estrutura selecionada .txt", "⬇️ Selected structure .txt", lang),
                         data=selected_combined.encode("utf-8"),
                         file_name=f"shopify_{section_preset}_{product_name}.txt",
                         mime="text/plain",
@@ -3393,7 +3407,7 @@ def page_product_page():
                     )
                 with selected_col2:
                     st.download_button(
-                        "⬇️ 選択構成 .html（プレビュー確認用）",
+                        _lt("⬇️ 選択構成 .html（プレビュー確認用）", "⬇️ Estrutura selecionada .html (prévia)", "⬇️ Selected structure .html (preview)", lang),
                         data=_html_preview(section_preset, selected_combined).encode("utf-8"),
                         file_name=f"shopify_{section_preset}_{product_name}.html",
                         mime="text/html",
@@ -3405,10 +3419,11 @@ def page_product_page():
         elif output_type == "セクション別コード（全セクション）":
             if not sections_ready:
                 st.markdown(
-                    '<div class="cs-warning">⚠️ ' + (
-                        '「セクション別コードを生成」ボタンを押してください。'
-                        if is_ja else
-                        _lt('', 'Clique em "Gerar Código por Seção".', 'Click "Generate section code".', lang)
+                    '<div class="cs-warning">⚠️ ' + _lt(
+                        '「セクション別コードを生成」ボタンを押してください。',
+                        'Clique em "Gerar Código por Seção".',
+                        'Click "Generate section code".',
+                        lang,
                     ) + '</div>',
                     unsafe_allow_html=True,
                 )
@@ -3417,12 +3432,12 @@ def page_product_page():
                 combined = _combined_html(gen)
                 combined_col1, combined_col2 = st.columns(2)
                 with combined_col1:
-                    st.download_button("⬇️ 全セクション .txt（一括）",
+                    st.download_button(_lt("⬇️ 全セクション .txt（一括）", "⬇️ Todas as seções .txt", "⬇️ All sections .txt", lang),
                         data=combined.encode("utf-8"),
                         file_name=f"shopify_all_sections_{product_name}.txt",
                         mime="text/plain", key="dl_all_txt", use_container_width=True)
                 with combined_col2:
-                    st.download_button("⬇️ 全セクション .html（プレビュー確認用）",
+                    st.download_button(_lt("⬇️ 全セクション .html（プレビュー確認用）", "⬇️ Todas as seções .html (prévia)", "⬇️ All sections .html (preview)", lang),
                         data=_html_preview("All Sections", combined).encode("utf-8"),
                         file_name=f"shopify_all_sections_{product_name}.html",
                         mime="text/html", key="dl_all_html", use_container_width=True)
@@ -3449,7 +3464,7 @@ def page_product_page():
                                 )
                             with dl2:
                                 st.download_button(
-                                    "⬇️ .html 確認用",
+                                    _lt("⬇️ .html 確認用", "⬇️ .html para prévia", "⬇️ .html preview", lang),
                                     data=_html_preview(s["label"], code).encode("utf-8"),
                                     file_name=f"shopify_{s['num']}_{product_name}.html",
                                     mime="text/html",
@@ -3457,18 +3472,19 @@ def page_product_page():
                                     use_container_width=True,
                                 )
                         else:
-                            st.markdown('<div class="cs-warning">⚠️ ' + (
-                                'このセクションは未生成です。「セクション別コードを生成」を押してください。'
-                                if is_ja else
-                                _lt('', 'Esta seção ainda não foi gerada. Clique em "Gerar Código por Seção".', 'This section has not been generated yet. Click "Generate section code".', lang)
+                            st.markdown('<div class="cs-warning">⚠️ ' + _lt(
+                                'このセクションは未生成です。「セクション別コードを生成」を押してください。',
+                                'Esta seção ainda não foi gerada. Clique em "Gerar Código por Seção".',
+                                'This section has not been generated yet. Click "Generate section code".',
+                                lang,
                             ) + '</div>', unsafe_allow_html=True)
-                            with st.expander("🔍 " + ("デバッグ情報" if is_ja else "Informações de debug"), expanded=False):
+                            with st.expander("🔍 " + _lt("デバッグ情報", "Informações de debug", "Debug info", lang), expanded=False):
                                 present = [k for k in ALL_SECTION_KEYS if gen.get(k)]
                                 missing = [k for k in ALL_SECTION_KEYS if not gen.get(k)]
-                                st.write(f"探したキー: `{s['key']}`")
-                                st.write(f"キーが存在するか: `{s['key'] in gen}`")
-                                st.write("生成済みキー:", present)
-                                st.write("未生成キー:", missing)
+                                st.write(_lt("探したキー", "Chave procurada", "Searched key", lang) + f": `{s['key']}`")
+                                st.write(_lt("キーが存在するか", "A chave existe", "Key exists", lang) + f": `{s['key'] in gen}`")
+                                st.write(_lt("生成済みキー", "Chaves geradas", "Generated keys", lang) + ":", present)
+                                st.write(_lt("未生成キー", "Chaves não geradas", "Missing keys", lang) + ":", missing)
 
         # ── Section: 個別セクション表示 ──────────────────────────────────
         else:
@@ -3508,7 +3524,7 @@ def page_product_page():
                         )
                     with dl2:
                         st.download_button(
-                            "⬇️ .html 確認用",
+                            _lt("⬇️ .html 確認用", "⬇️ .html para prévia", "⬇️ .html preview", lang),
                             data=_html_preview(sec["label"], code).encode("utf-8"),
                             file_name=f"shopify_{sec['num']}_{product_name}.html",
                             mime="text/html",
@@ -3517,20 +3533,21 @@ def page_product_page():
                         )
                 else:
                     st.markdown(
-                        '<div class="cs-warning">⚠️ ' + (
-                            'このセクションはまだ生成されていません。「セクション別コードを生成」ボタンを押してください。'
-                            if is_ja else
-                            _lt('', 'Esta seção ainda não foi gerada. Clique em "Gerar Código por Seção".', 'This section has not been generated yet. Click "Generate section code".', lang)
+                        '<div class="cs-warning">⚠️ ' + _lt(
+                            'このセクションはまだ生成されていません。「セクション別コードを生成」ボタンを押してください。',
+                            'Esta seção ainda não foi gerada. Clique em "Gerar Código por Seção".',
+                            'This section has not been generated yet. Click "Generate section code".',
+                            lang,
                         ) + '</div>',
                         unsafe_allow_html=True,
                     )
-                    with st.expander("🔍 " + ("デバッグ情報" if is_ja else "Informações de debug"), expanded=False):
+                    with st.expander("🔍 " + _lt("デバッグ情報", "Informações de debug", "Debug info", lang), expanded=False):
                         present = [k for k in ALL_SECTION_KEYS if gen.get(k)]
                         missing = [k for k in ALL_SECTION_KEYS if not gen.get(k)]
-                        st.write(f"探したキー: `{sec['key']}`")
-                        st.write(f"キーが存在するか: `{sec['key'] in gen}`")
-                        st.write("生成済みキー:", present)
-                        st.write("未生成キー:", missing)
+                        st.write(_lt("探したキー", "Chave procurada", "Searched key", lang) + f": `{sec['key']}`")
+                        st.write(_lt("キーが存在するか", "A chave existe", "Key exists", lang) + f": `{sec['key'] in gen}`")
+                        st.write(_lt("生成済みキー", "Chaves geradas", "Generated keys", lang) + ":", present)
+                        st.write(_lt("未生成キー", "Chaves não geradas", "Missing keys", lang) + ":", missing)
 
 
 def page_image_prompt():
@@ -3911,18 +3928,18 @@ def page_check():
 def page_output():
     st.markdown('<div class="section-header">📤 ' + t("output.title") + '</div>',
                 unsafe_allow_html=True)
-    is_ja = st.session_state.get("lang", "ja") == "ja"
+    lang = st.session_state.get("lang", "ja")
 
     pid = ensure_product_id()
     product_info = st.session_state.get("product_info", {})
     product_name = product_info.get("name", "output")
 
     content_map = {
-        "Core / 核": ("core_text", None),
-        "商品ページ": ("generated.product_page", "product_page"),
-        "画像プロンプト": ("generated.image_prompt", "image_prompt"),
-        "動画台本": ("generated.video_script", "video_script"),
-        "広告・SNS": ("generated.ads_sns", "ads_sns"),
+        _lt("Core / 核", "Core", "Core", lang): ("core_text", None),
+        _lt("商品ページ", "Página do Produto", "Product page", lang): ("generated.product_page", "product_page"),
+        _lt("画像プロンプト", "Prompts de Imagem", "Image prompts", lang): ("generated.image_prompt", "image_prompt"),
+        _lt("動画台本", "Roteiro de Vídeo", "Video scripts", lang): ("generated.video_script", "video_script"),
+        _lt("広告・SNS", "Anúncios/SNS", "Ads / Social", lang): ("generated.ads_sns", "ads_sns"),
     }
 
     export_data = {}
@@ -3968,9 +3985,10 @@ def page_output():
                 use_container_width=True,
             )
         with col3:
-            if "商品ページ" in export_data:
+            product_page_label = _lt("商品ページ", "Página do Produto", "Product page", lang)
+            if product_page_label in export_data:
                 html_content = svc["exporter"].product_page_to_html(
-                    export_data["商品ページ"], product_name
+                    export_data[product_page_label], product_name
                 )
                 st.download_button(
                     "⬇️ " + t("output.download_html"),
@@ -3980,7 +3998,12 @@ def page_output():
                     use_container_width=True,
                 )
     else:
-        st.markdown('<div class="cs-info">💡 ' + ("生成されたコンテンツがありません。各ページでコンテンツを生成してください。" if is_ja else "Nenhum conteúdo gerado. Gere conteúdo nas páginas correspondentes.") + '</div>',
+        st.markdown('<div class="cs-info">💡 ' + _lt(
+            "生成されたコンテンツがありません。各ページでコンテンツを生成してください。",
+            "Nenhum conteúdo gerado. Gere conteúdo nas páginas correspondentes.",
+            "No generated content yet. Generate content on each page first.",
+            lang,
+        ) + '</div>',
                     unsafe_allow_html=True)
 
 
@@ -4053,7 +4076,7 @@ def page_instruction_sheet():
     ]
 
     content_specs = [
-        ("core",             "Core / 核"    if is_ja else "Core"),
+        ("core",             _lt("Core / 核", "Core", "Core", lang)),
         ("product_page",     _lt("商品ページ", "Página do Produto", "Product page", lang)),
         ("shopify_sections", "Shopify HTML"),
         ("image_prompt",     _lt("画像プロンプト", "Prompts de Imagem", "Image prompts", lang)),
@@ -4063,21 +4086,21 @@ def page_instruction_sheet():
 
     # ── Download button (top) ─────────────────────────────────────────────────
     def _build_md() -> str:
-        lines = [f"# 制作指示書 — {product_name}", ""]
-        lines += ["## プロジェクト情報", ""]
+        lines = [f"# {_lt('制作指示書', 'Ficha de Produção', 'Production brief', lang)} — {product_name}", ""]
+        lines += [f"## {_lt('プロジェクト情報', 'Informações do Projeto', 'Project info', lang)}", ""]
         for key, label in [
-            ("name",         "商品名"),
-            ("category",     "カテゴリ"),
-            ("price",        "価格"),
-            ("target",       "ターゲット"),
+            ("name",         _lt("商品名", "Produto", "Product name", lang)),
+            ("category",     _lt("カテゴリ", "Categoria", "Category", lang)),
+            ("price",        _lt("価格", "Preço", "Price", lang)),
+            ("target",       _lt("ターゲット", "Público-alvo", "Target audience", lang)),
         ]:
             val = product_info.get(key, "")
             if val:
                 lines.append(f"- **{label}**: {val}")
-        lines += ["", "## Core サマリー", ""]
-        lines.append(core_text[:1000] if core_text else "（未生成）")
-        lines += ["", "## コンテンツ状況", ""]
-        lines.append("| コンテンツ | 生成 |")
+        lines += ["", f"## {_lt('Core サマリー', 'Resumo do Core', 'Core summary', lang)}", ""]
+        lines.append(core_text[:1000] if core_text else _lt("（未生成）", "（não gerado）", "(not generated)", lang))
+        lines += ["", f"## {_lt('コンテンツ状況', 'Status dos Conteúdos', 'Content status', lang)}", ""]
+        lines.append(f"| {_lt('コンテンツ', 'Conteúdo', 'Content', lang)} | {_lt('生成', 'Gerado', 'Generated', lang)} |")
         lines.append("|-----------|------|")
         for ct, label in content_specs:
             if ct == "core":
@@ -4089,15 +4112,15 @@ def page_instruction_sheet():
             lines.append(f"| {label} | {'✓' if has_content else '—'} |")
         notes = product_info.get("notes", "")
         if notes:
-            lines += ["", "## 備考", "", notes]
-        lines += ["", f"---", f"*生成日時: {datetime.now().strftime('%Y-%m-%d %H:%M')}*"]
+            lines += ["", f"## {_lt('備考', 'Observações', 'Notes', lang)}", "", notes]
+        lines += ["", f"---", f"*{_lt('生成日時', 'Gerado em', 'Generated at', lang)}: {datetime.now().strftime('%Y-%m-%d %H:%M')}*"]
         return "\n".join(lines)
 
     dl_col, _ = st.columns([2, 6])
     with dl_col:
         md_bytes = _build_md().encode("utf-8")
         st.download_button(
-            "⬇️ Markdownでダウンロード" if is_ja else "⬇️ Baixar como Markdown",
+            _lt("⬇️ Markdownでダウンロード", "⬇️ Baixar como Markdown", "⬇️ Download as Markdown", lang),
             data=md_bytes,
             file_name=f"instruction_{product_name}.md",
             mime="text/markdown",
@@ -4134,9 +4157,9 @@ def page_instruction_sheet():
     )
 
     # ── Core snapshot card ────────────────────────────────────────────────────
-    core_title = "Core スナップショット" if is_ja else "Snapshot do Core"
+    core_title = _lt("Core スナップショット", "Snapshot do Core", "Core snapshot", lang)
     core_preview = (core_text[:600] + ("…" if len(core_text) > 600 else "")) if core_text else (
-        "（Coreはまだ生成されていません）" if is_ja else "（Core ainda não gerado）"
+        _lt("（Coreはまだ生成されていません）", "（Core ainda não gerado）", "(Core has not been generated yet)", lang)
     )
     st.markdown(
         f'<div class="ins-card">'
@@ -4147,9 +4170,9 @@ def page_instruction_sheet():
     )
 
     # ── Content status table ──────────────────────────────────────────────────
-    tbl_title = "コンテンツ状況" if is_ja else "Status dos Conteúdos"
-    th_name   = "コンテンツ"    if is_ja else "Conteúdo"
-    th_gen    = "生成"          if is_ja else "Gerado"
+    tbl_title = _lt("コンテンツ状況", "Status dos Conteúdos", "Content status", lang)
+    th_name   = _lt("コンテンツ", "Conteúdo", "Content", lang)
+    th_gen    = _lt("生成", "Gerado", "Generated", lang)
 
     rows = ""
     for ct, label in content_specs:
@@ -4182,7 +4205,7 @@ def page_instruction_sheet():
     # ── Notes card ────────────────────────────────────────────────────────────
     notes = product_info.get("notes", "").strip()
     if notes:
-        notes_title = "備考メモ" if is_ja else "Observações"
+        notes_title = _lt("備考メモ", "Observações", "Notes", lang)
         st.markdown(
             f'<div class="ins-card">'
             f'<div class="ins-card-title">📝 {notes_title}</div>'
@@ -4193,7 +4216,7 @@ def page_instruction_sheet():
 
     # ── Footer ────────────────────────────────────────────────────────────────
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
-    footer_msg = f"生成日時: {now_str}" if is_ja else f"Gerado em: {now_str}"
+    footer_msg = f"{_lt('生成日時', 'Gerado em', 'Generated at', lang)}: {now_str}"
     st.markdown(
         f'<div style="font-size:0.72rem;color:#94a3b8;text-align:right;margin-top:8px">{footer_msg}</div>',
         unsafe_allow_html=True,

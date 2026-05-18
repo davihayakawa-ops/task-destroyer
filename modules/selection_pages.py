@@ -506,17 +506,17 @@ def _copy_sections(category_key: str, item_key: str, content: str, is_ja: bool):
 def _render_copy_parts(category_key: str, item_key: str, content: str, is_ja: bool):
     sections = [(label, text) for label, text in _copy_sections(category_key, item_key, content, is_ja) if text]
     if not sections:
-        st.markdown('<div class="cs-info">💡 ' + (
-            "分割できる項目が見つかりませんでした。全文タブから確認してください。"
-            if is_ja else
-            "Nenhuma seção separável encontrada. Confira na aba de texto completo."
+        st.markdown('<div class="cs-info">💡 ' + _ui(
+            "分割できる項目が見つかりませんでした。全文タブから確認してください。",
+            "Nenhuma seção separável encontrada. Confira na aba de texto completo.",
+            "No separable sections were found. Check the full text tab.",
         ) + '</div>', unsafe_allow_html=True)
         return
     st.markdown(
         '<div class="gen-copy-grid">'
         + "".join(
             f'<div class="gen-copy-card"><strong>{_esc(label)}</strong>'
-            f'<span>{_esc(str(len(text)))} {"文字" if is_ja else "caracteres"}</span></div>'
+            f'<span>{_esc(str(len(text)))} {_ui("文字", "caracteres", "characters")}</span></div>'
             for label, text in sections
         )
         + "</div>",
@@ -524,13 +524,13 @@ def _render_copy_parts(category_key: str, item_key: str, content: str, is_ja: bo
     )
     labels = [label for label, _ in sections]
     selected_label = st.selectbox(
-        "コピーする部分" if is_ja else "Parte para copiar",
+        _ui("コピーする部分", "Parte para copiar", "Part to copy"),
         labels,
         key=f"copy_part_{category_key}_{item_key}",
     )
     selected_text = next(text for label, text in sections if label == selected_label)
     st.text_area(
-        "コピー用テキスト" if is_ja else "Texto para copiar",
+        _ui("コピー用テキスト", "Texto para copiar", "Text to copy"),
         value=selected_text,
         height=180,
         key=f"copy_text_{category_key}_{item_key}_{selected_label}",
@@ -579,17 +579,35 @@ def _save_category_state(svc: dict, ensure_product_id, category_key: str,
 
 
 def _content_type_label(compat_key: str, is_ja: bool) -> str:
-    if is_ja:
-        return {
-            "image_prompt": "画像プロンプト",
-            "video_script": "動画台本",
-            "ads_sns": "広告・SNS",
-        }.get(compat_key, compat_key)
-    return {
-        "image_prompt": "prompt de imagem",
-        "video_script": "roteiro de vídeo",
-        "ads_sns": "anúncio/SNS",
-    }.get(compat_key, compat_key)
+    labels = {
+        "image_prompt": _ui("画像プロンプト", "prompt de imagem", "image prompt"),
+        "video_script": _ui("動画台本", "roteiro de vídeo", "video script"),
+        "ads_sns": _ui("広告・SNS", "anúncio/SNS", "ads / social"),
+    }
+    return labels.get(compat_key, compat_key)
+
+
+def _duration_label(duration_key: str) -> str:
+    lang = st.session_state.get("lang", "ja")
+    for key, ja, pt in VS_DURATIONS:
+        if key == duration_key:
+            if lang == "ja":
+                return ja
+            if lang == "en":
+                return {"15s": "15 sec", "30s": "30 sec", "45s": "45 sec", "60s": "60 sec"}.get(key, pt)
+            return pt
+    return duration_key
+
+
+def _media_label(media_key: str) -> str:
+    lang = st.session_state.get("lang", "ja")
+    labels = {
+        "shopify_ad": _ui("Shopify広告文", "Texto de anúncio Shopify", "Shopify ad copy"),
+        "google_ad": _ui("Google広告", "Google Ads", "Google Ads"),
+    }
+    if media_key in labels:
+        return labels[media_key]
+    return dict(AS_MEDIA).get(media_key, media_key)
 
 
 def _render_inline_checks(svc: dict, ensure_product_id, category_key: str,
@@ -601,16 +619,18 @@ def _render_inline_checks(svc: dict, ensure_product_id, category_key: str,
     core = st.session_state.get("core_text", "")
 
     st.markdown('<div class="cs-info">💡 ' + (
-        "生成結果がCoreと合っているか、誇大表現がないかを確認します。"
-        if is_ja else
-        "Verifica se o conteúdo está alinhado ao Core e se há expressões de risco."
+        _ui(
+            "生成結果がCoreと合っているか、誇大表現がないかを確認します。",
+            "Verifica se o conteúdo está alinhado ao Core e se há expressões de risco.",
+            "Checks whether the result matches the Core and avoids risky claims.",
+        )
     ) + '</div>', unsafe_allow_html=True)
 
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("🔍 " + ("品質チェック" if is_ja else "Verificar qualidade"),
+        if st.button("🔍 " + _ui("品質チェック", "Verificar qualidade", "Quality check"),
                      key=f"quality_{category_key}_{item_key}", use_container_width=True):
-            with st.spinner("チェック中..." if is_ja else "Verificando..."):
+            with st.spinner(_ui("チェック中...", "Verificando...", "Checking...")):
                 result = svc["checker"].check_consistency(
                     core, current_content, _content_type_label(compat_key, is_ja)
                 )
@@ -619,9 +639,9 @@ def _render_inline_checks(svc: dict, ensure_product_id, category_key: str,
                 _save_category_state(svc, ensure_product_id, category_key, compat_key)
             st.rerun()
     with col2:
-        if st.button("⚠️ " + ("リスク表現チェック" if is_ja else "Verificar riscos"),
+        if st.button("⚠️ " + _ui("リスク表現チェック", "Verificar riscos", "Risky claim check"),
                      key=f"risk_{category_key}_{item_key}", use_container_width=True):
-            with st.spinner("チェック中..." if is_ja else "Verificando..."):
+            with st.spinner(_ui("チェック中...", "Verificando...", "Checking...")):
                 result = svc["checker"].check_risk_expressions(current_content)
                 item_checks["risk"] = result
                 st.session_state[checks_key][item_key] = item_checks
@@ -629,13 +649,13 @@ def _render_inline_checks(svc: dict, ensure_product_id, category_key: str,
             st.rerun()
 
     if item_checks.get("quality"):
-        st.markdown("**" + ("品質チェック結果" if is_ja else "Resultado de qualidade") + "**")
+        st.markdown("**" + _ui("品質チェック結果", "Resultado de qualidade", "Quality check result") + "**")
         st.markdown(
             f'<div class="gen-check-box">{_esc(item_checks["quality"])}</div>',
             unsafe_allow_html=True,
         )
     if item_checks.get("risk"):
-        st.markdown("**" + ("リスク表現チェック結果" if is_ja else "Resultado de riscos") + "**")
+        st.markdown("**" + _ui("リスク表現チェック結果", "Resultado de riscos", "Risk check result") + "**")
         st.markdown(
             f'<div class="gen-check-box">{_esc(item_checks["risk"])}</div>',
             unsafe_allow_html=True,
@@ -649,10 +669,10 @@ def _render_improve_tools(svc: dict, ensure_product_id, category_key: str,
     core = st.session_state.get("core_text", "")
     content_type = _content_type_label(compat_key, is_ja)
 
-    st.markdown('<div class="cs-info">💡 ' + (
-        "目的に合わせて生成結果をワンクリックで改善します。改善後はこの結果に置き換わります。"
-        if is_ja else
-        _ui("", "Melhore o resultado com um clique. O conteúdo será substituído pela versão melhorada.", "Improve the result with one click. The improved version will replace this result.")
+    st.markdown('<div class="cs-info">💡 ' + _ui(
+        "目的に合わせて生成結果をワンクリックで改善します。改善後はこの結果に置き換わります。",
+        "Melhore o resultado com um clique. O conteúdo será substituído pela versão melhorada.",
+        "Improve the result with one click. The improved version will replace this result.",
     ) + '</div>', unsafe_allow_html=True)
 
     improve_options = [
@@ -668,7 +688,7 @@ def _render_improve_tools(svc: dict, ensure_product_id, category_key: str,
             if st.button("✨ " + label, key=f"improve_{category_key}_{item_key}_{mode}",
                          use_container_width=True):
                 notes = ""
-                with st.spinner("改善中..." if is_ja else "Melhorando..."):
+                with st.spinner(_ui("改善中...", "Melhorando...", "Improving...")):
                     improved = svc["generator"].improve_generated_content(
                         current_content, core, content_type, mode, notes, _generation_market_options()
                     )
@@ -688,20 +708,20 @@ def _render_item_card(svc: dict, ensure_product_id, status_badge,
         st.markdown(
             '<div class="gen-result-head">'
             f'<div><div class="gen-result-title">{_esc(label)}</div>'
-            f'<div class="gen-result-meta">{_esc("内容を確認して、必要なら編集してから保存してください。" if is_ja else "Revise, edite se necessário e salve.")}</div></div>'
+            f'<div class="gen-result-meta">{_esc(_ui("内容を確認して、必要なら編集してから保存してください。", "Revise, edite se necessário e salve.", "Review, edit if needed, then save."))}</div></div>'
             '</div>',
             unsafe_allow_html=True,
         )
         tab_copy, tab_full, tab_improve = st.tabs([
-            "コピー用に分ける" if is_ja else "Partes para copiar",
-            "全文編集" if is_ja else "Editar texto completo",
-            "改善" if is_ja else "Melhorar",
+            _ui("コピー用に分ける", "Partes para copiar", "Copy parts"),
+            _ui("全文編集", "Editar texto completo", "Edit full text"),
+            _ui("改善", "Melhorar", "Improve"),
         ])
         with tab_copy:
             _render_copy_parts(category_key, item_key, content, is_ja)
         with tab_full:
             new_content = st.text_area(
-                "全文" if is_ja else "Texto completo",
+                _ui("全文", "Texto completo", "Full text"),
                 value=content,
                 height=300,
                 key=f"ta_{category_key}_{item_key}",
@@ -910,7 +930,7 @@ def page_video_script(svc: dict, t, ensure_product_id, status_badge, embedded: b
     for i, (k, ja_lbl, pt_lbl) in enumerate(VS_DURATIONS):
         with duration_cols[i]:
             default = st.session_state.get(f"chk_vs_duration_{k}", k in ("15s", "30s"))
-            duration_label = ja_lbl if is_ja else pt_lbl
+            duration_label = _duration_label(k)
             if st.checkbox(duration_label, value=default, key=f"chk_vs_duration_{k}"):
                 selected_durations.append(k)
 
@@ -990,7 +1010,7 @@ def page_video_script(svc: dict, t, ensure_product_id, status_badge, embedded: b
 
 
 def _video_combo_label(duration_key: str, type_key: str, is_ja: bool) -> str:
-    duration = next((ja if is_ja else pt for k, ja, pt in VS_DURATIONS if k == duration_key), duration_key)
+    duration = _duration_label(duration_key)
     type_label = next((_label_by_lang(k, ja, pt, VS_TYPE_EN) for k, ja, pt in VS_TYPES if k == type_key), type_key)
     return f"{duration} × {type_label}"
 
@@ -1064,7 +1084,7 @@ def page_ads_sns(svc: dict, t, ensure_product_id, status_badge, embedded: bool =
     col_media, col_type = st.columns(2)
 
     media_options = [m for m, _ in AS_MEDIA]
-    media_labels = [lbl for _, lbl in AS_MEDIA]
+    media_labels = [_media_label(key) for key, _ in AS_MEDIA]
 
     with col_media:
         st.markdown("**" + _ui("媒体", "Mídia", "Channel") + "**")
@@ -1094,7 +1114,7 @@ def page_ads_sns(svc: dict, t, ensure_product_id, status_badge, embedded: bool =
     n = len(combos)
     selected_labels = []
     if n > 0:
-        media_labels_map = {mk: ml for mk, ml in AS_MEDIA}
+        media_labels_map = {mk: _media_label(mk) for mk, _ in AS_MEDIA}
         type_labels_map = {k: _label_by_lang(k, ja, pt, AS_TYPE_EN) for k, ja, pt in AS_TYPES}
         selected_labels = [f"{media_labels_map[m]} / {type_labels_map[ct]}" for m, ct in combos]
     _render_plan(selected_labels, quality, is_ja)
@@ -1102,7 +1122,7 @@ def page_ads_sns(svc: dict, t, ensure_product_id, status_badge, embedded: bool =
     if st.button(btn_label, type="primary", disabled=(n == 0), key="as_gen_btn"):
         prog = st.progress(0)
         status = st.empty()
-        media_labels_map2 = {mk: ml for mk, ml in AS_MEDIA}
+        media_labels_map2 = {mk: _media_label(mk) for mk, _ in AS_MEDIA}
         type_labels_map2 = {k: _label_by_lang(k, ja, pt, AS_TYPE_EN) for k, ja, pt in AS_TYPES}
         for i, (m, ct) in enumerate(combos):
             combo_label = f"{media_labels_map2[m]} / {type_labels_map2[ct]}"
@@ -1120,10 +1140,11 @@ def page_ads_sns(svc: dict, t, ensure_product_id, status_badge, embedded: bool =
     items_data = st.session_state.get("ads_sns_items", {})
     if items_data:
         st.markdown("### " + _ui("生成結果", "Resultados", "Results"))
-        media_labels_map3 = {mk: ml for mk, ml in AS_MEDIA}
+        media_labels_map3 = {mk: _media_label(mk) for mk, _ in AS_MEDIA}
         type_labels_map3 = {k: _label_by_lang(k, ja, pt, AS_TYPE_EN) for k, ja, pt in AS_TYPES}
 
-        for mk, ml in AS_MEDIA:
+        for mk, _ in AS_MEDIA:
+            ml = _media_label(mk)
             media_items = {k: v for k, v in items_data.items()
                            if k.startswith(f"{mk}::") and v}
             if not media_items:
