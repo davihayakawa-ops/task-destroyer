@@ -180,22 +180,49 @@ def page_saved_data(svc: dict) -> None:
     except Exception:
         local_count = 0
         all_local_count = 0
-    if all_local_count and db_ready and st.session_state.get("auth_user", {}).get("workspace_db_id"):
-        with st.expander(_lt("過去のローカル保存をこのアカウントへ移す", "Migrar dados locais antigos para esta conta", "Move previous local saves to this account", lang)):
+    if db_ready and st.session_state.get("auth_user", {}).get("workspace_db_id"):
+        with st.expander(
+            _lt("過去データを探す・復元する", "Encontrar ou restaurar dados antigos", "Find or Restore Previous Data", lang),
+            expanded=not bool(all_products),
+        ):
             st.caption(
                 _lt(
-                    f"このショップは {local_count} 件、全ショップ合計は {all_local_count} 件あります。今ログイン中のアカウントへコピーします。",
-                    f"Esta loja tem {local_count}; todas as lojas têm {all_local_count}. Copie para a conta conectada.",
-                    f"This shop has {local_count}; all shops have {all_local_count}. Copy them to the signed-in account.",
+                    f"Cloud内のローカル保存: このショップ {local_count} 件 / 全ショップ {all_local_count} 件",
+                    f"Dados locais na Cloud: esta loja {local_count} / todas as lojas {all_local_count}",
+                    f"Local saves in Cloud: this shop {local_count} / all shops {all_local_count}",
                     lang,
                 )
             )
-            if st.button(
-                _lt("全ショップからこのアカウントへ移行する", "Migrar todas as lojas para esta conta", "Move all shops to this account", lang),
-                type="primary",
+            if all_local_count:
+                if st.button(
+                    _lt("全ショップからこのアカウントへ移行する", "Migrar todas as lojas para esta conta", "Move all shops to this account", lang),
+                    type="primary",
+                    use_container_width=True,
+                ):
+                    result = svc["storage"].migrate_all_local_files_to_supabase()
+                    if result.get("ok"):
+                        st.success(result.get("message"))
+                        st.rerun()
+                    else:
+                        st.error(result.get("message"))
+            else:
+                st.info(
+                    _lt(
+                        "Cloud内に古いローカル保存は見つかりません。バックアップZIPがある場合はここから復元できます。",
+                        "Nenhum dado local antigo foi encontrado na Cloud. Se você tiver um ZIP de backup, restaure aqui.",
+                        "No old local saves were found in Cloud. If you have a backup ZIP, restore it here.",
+                        lang,
+                    )
+                )
+            backup_file = st.file_uploader(
+                _lt("バックアップZIPから復元", "Restaurar de ZIP de backup", "Restore from backup ZIP", lang),
+                type=["zip"],
+            )
+            if backup_file is not None and st.button(
+                _lt("このバックアップを復元する", "Restaurar este backup", "Restore this backup", lang),
                 use_container_width=True,
             ):
-                result = svc["storage"].migrate_all_local_files_to_supabase()
+                result = svc["storage"].import_backup_zip_to_supabase(backup_file.getvalue())
                 if result.get("ok"):
                     st.success(result.get("message"))
                     st.rerun()

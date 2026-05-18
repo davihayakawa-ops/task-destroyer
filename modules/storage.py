@@ -573,6 +573,103 @@ class Storage:
             **counts,
         }
 
+    def import_backup_zip_to_supabase(self, upload_bytes: bytes) -> dict:
+        """Import a Task Destroyer backup ZIP into the logged-in Supabase workspace."""
+        workspace_db_id = _workspace_db_id_from_session()
+        if not workspace_db_id:
+            return {"ok": False, "message": "Supabaseログイン後に実行してください。"}
+        try:
+            from modules.supabase_db import SupabaseRepository, supabase_db_configured
+
+            if not supabase_db_configured():
+                return {"ok": False, "message": "Supabase DB設定が未完了です。"}
+            repo = SupabaseRepository()
+        except Exception as exc:
+            return {"ok": False, "message": f"Supabase接続に失敗しました: {str(exc)[:200]}"}
+
+        try:
+            zf = zipfile.ZipFile(io.BytesIO(upload_bytes))
+        except Exception:
+            return {"ok": False, "message": "ZIPファイルを読み込めませんでした。"}
+
+        counts = {"products": 0, "cores": 0, "generated": 0}
+        product_rows: dict[str, dict] = {}
+        product_files = []
+        core_files = []
+        generated_files = []
+
+        for name in zf.namelist():
+            clean = name.replace("\\", "/").strip("/")
+            if not clean.endswith(".json") or "/trash/" in f"/{clean}/":
+                continue
+            stem = Path(clean).stem
+            if "/projects/" in f"/{clean}" and "_" not in stem:
+                product_files.append(clean)
+            elif "/core_library/" in f"/{clean}":
+                core_files.append(clean)
+            elif "/projects/" in f"/{clean}" and "_" in stem:
+                generated_files.append(clean)
+
+        for name in sorted(product_files):
+            product_id = _safe_file_stem(Path(name).stem)
+            try:
+                data = json.loads(zf.read(name).decode("utf-8"))
+            except Exception:
+                continue
+            if not isinstance(data, dict):
+                continue
+            row = repo.upsert_product(workspace_db_id, product_id, _fill_translation_defaults(data))
+            product_rows[product_id] = row
+            counts["products"] += 1
+
+        for name in sorted(core_files):
+            stem = Path(name).stem
+            product_id = _safe_file_stem(stem.rsplit("_", 1)[0] if "_" in stem else stem)
+            row = product_rows.get(product_id) or repo.load_product(workspace_db_id, product_id)
+            if not row:
+                continue
+            try:
+                entry = json.loads(zf.read(name).decode("utf-8"))
+            except Exception:
+                continue
+            core_data = entry.get("core") if isinstance(entry, dict) else None
+            if isinstance(core_data, dict):
+                repo.save_core(
+                    workspace_db_id,
+                    row["id"],
+                    product_id,
+                    core_data,
+                    str(entry.get("version_label") or entry.get("created_at") or ""),
+                )
+                counts["cores"] += 1
+
+        for name in sorted(generated_files):
+            parts = Path(name).stem.split("_")
+            if len(parts) < 3:
+                continue
+            product_id = _safe_file_stem(parts[0])
+            content_type = _safe_file_stem("_".join(parts[1:-1]), "generated")
+            row = product_rows.get(product_id) or repo.load_product(workspace_db_id, product_id)
+            if not row:
+                continue
+            try:
+                entry = json.loads(zf.read(name).decode("utf-8"))
+            except Exception:
+                continue
+            content = entry.get("content") if isinstance(entry, dict) else None
+            if isinstance(content, dict):
+                repo.save_generated(workspace_db_id, row["id"], product_id, content_type, content)
+                counts["generated"] += 1
+
+        return {
+            "ok": True,
+            "message": (
+                f"バックアップから{counts['products']}件の商品、"
+                f"{counts['cores']}件のCore、{counts['generated']}件の生成物を復元しました。"
+            ),
+            **counts,
+        }
+
     def _list_products_from_supabase(self) -> List[dict]:
         workspace_db_id = _workspace_db_id_from_session()
         if not workspace_db_id:
