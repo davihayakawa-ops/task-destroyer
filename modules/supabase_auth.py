@@ -134,3 +134,17 @@ def send_password_reset(email: str) -> tuple[bool, str]:
         return False, f"再設定メールを送信できませんでした: {str(exc)[:200]}"
 
     return True, "パスワード再設定メールを送信しました。メールの案内に従ってください。"
+
+
+def update_password_with_recovery(access_token: str, refresh_token: str, new_password: str) -> tuple[bool, str]:
+    if len(new_password or "") < 8:
+        return False, "新しいパスワードは8文字以上にしてください。"
+    if not access_token or not refresh_token:
+        return False, "再設定リンクの情報が不足しています。もう一度メールを送信してください。"
+    try:
+        client = _client()
+        client.auth.set_session(access_token, refresh_token)
+        client.auth.update_user({"password": new_password})
+    except Exception as exc:
+        return False, f"パスワードを変更できませんでした: {str(exc)[:200]}"
+    return True, "パスワードを変更しました。新しいパスワードでログインしてください。"

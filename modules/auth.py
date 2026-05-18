@@ -15,12 +15,14 @@ import json
 from typing import Any
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 from modules.config import secret_or_env
 from modules.supabase_auth import send_password_reset as supabase_password_reset
 from modules.supabase_auth import sign_in as supabase_sign_in
 from modules.supabase_auth import sign_up as supabase_sign_up
 from modules.supabase_auth import supabase_configured
+from modules.supabase_auth import update_password_with_recovery
 
 
 def _secret_or_env(key: str, default: str = "") -> str:
@@ -43,6 +45,87 @@ def _normalize_workspace(value: str) -> str:
             chars.append("-")
             last_dash = True
     return "".join(chars).strip("-") or "default"
+
+
+def _query_value(key: str) -> str:
+    try:
+        value = st.query_params.get(key, "")
+    except Exception:
+        value = ""
+    if isinstance(value, list):
+        return str(value[0] if value else "")
+    return str(value or "")
+
+
+def _capture_supabase_recovery_hash() -> None:
+    components.html(
+        """
+        <script>
+        const parentLocation = window.parent.location;
+        const hash = parentLocation.hash || "";
+        if (hash.length > 1 && !parentLocation.search.includes("td_auth_hash=1")) {
+            const hashParams = new URLSearchParams(hash.slice(1));
+            const shouldCapture = hashParams.has("access_token") || hashParams.has("error") || hashParams.get("type") === "recovery";
+            if (shouldCapture) {
+                const next = new URL(parentLocation.href);
+                hashParams.forEach((value, key) => next.searchParams.set(key, value));
+                next.searchParams.set("td_auth_hash", "1");
+                next.hash = "";
+                parentLocation.replace(next.toString());
+            }
+        }
+        </script>
+        """,
+        height=0,
+    )
+
+
+def _clear_auth_query_params() -> None:
+    try:
+        for key in (
+            "access_token", "refresh_token", "expires_in", "token_type",
+            "type", "td_auth_hash", "error", "error_code", "error_description",
+        ):
+            if key in st.query_params:
+                del st.query_params[key]
+    except Exception:
+        pass
+
+
+def _render_password_recovery_form() -> bool:
+    error = _query_value("error")
+    error_description = _query_value("error_description").replace("+", " ")
+    access_token = _query_value("access_token")
+    refresh_token = _query_value("refresh_token")
+    recovery_type = _query_value("type")
+
+    if error:
+        st.error(error_description or "再設定リンクが無効、または期限切れです。もう一度パスワード再設定メールを送信してください。")
+        if st.button("ログイン画面に戻る", use_container_width=True):
+            _clear_auth_query_params()
+            st.rerun()
+        return True
+
+    if not access_token or recovery_type != "recovery":
+        return False
+
+    st.markdown("### パスワードを再設定")
+    st.caption("新しいパスワードを入力してください。変更後はログイン画面に戻ります。")
+    with st.form("td_supabase_recovery_update_form"):
+        new_password = st.text_input("New password", type="password", key="td_recovery_new_password")
+        new_password_confirm = st.text_input("New password confirmation", type="password", key="td_recovery_new_password_confirm")
+        submitted = st.form_submit_button("パスワードを変更 / Update password", type="primary")
+    if submitted:
+        if new_password != new_password_confirm:
+            st.error("確認用パスワードが一致しません。")
+        else:
+            ok, message = update_password_with_recovery(access_token, refresh_token, new_password)
+            if ok:
+                _clear_auth_query_params()
+                st.success(message)
+            else:
+                st.error(message)
+    return True
 
 
 def load_users() -> list[dict[str, Any]]:
@@ -139,6 +222,7 @@ def ensure_supabase_authentication() -> bool:
     if st.session_state.get("auth_user"):
         return True
 
+    _capture_supabase_recovery_hash()
     st.markdown(
         """
         <style>
@@ -175,6 +259,10 @@ def ensure_supabase_authentication() -> bool:
         """,
         unsafe_allow_html=True,
     )
+
+    if _render_password_recovery_form():
+        return False
+
     tab_login, tab_signup, tab_reset = st.tabs(["ログイン", "新規登録", "パスワード再設定"])
 
     with tab_login:
