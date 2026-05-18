@@ -2508,9 +2508,8 @@ def page_core_generation():
                     svc["storage"].log_activity(pid, "Core改善", " / ".join(selected_improvements), "")
                     st.rerun()
     else:
-        if method == "auto":
-            _hint = _lt("「Core生成」ボタンを押してCoreを生成してください。", "Clique no botão Gerar Core para criar o Core.", "Click the Core generation button to create the Core.", lang)
-            st.markdown(f'<div class="cs-info">💡 {_hint}</div>', unsafe_allow_html=True)
+        _hint = _lt("「Core生成」ボタンを押してCoreを生成してください。", "Clique no botão Gerar Core para criar o Core.", "Click the Core generation button to create the Core.", lang)
+        st.markdown(f'<div class="cs-info">💡 {_hint}</div>', unsafe_allow_html=True)
 
 
 # ── Page: External Core Import ────────────────────────────────────────────────
