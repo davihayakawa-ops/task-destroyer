@@ -914,6 +914,9 @@ class GeneratorEngine:
             if key == "shopify_common_css":
                 sections[key] = _fallback_css(design_options)
                 continue
+            if key == "shopify_hero_section_code":
+                sections[key] = _fallback_hero(product_name, design_options)
+                continue
             generated = self._generate_one_section(
                 key, marker, instructions, args, fallbacks[key]
             )
