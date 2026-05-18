@@ -47,7 +47,7 @@ _CORE_FIELDS = (
     "name", "category", "price", "target", "gender", "age",
     "product_url", "features", "weaknesses", "brand_tone",
     "prohibited", "description", "use_scenes", "competitor_urls",
-    "notes", "assignee", "final_reviewer",
+    "product_image_summary", "notes", "assignee", "final_reviewer",
 )
 
 _TRANSLATION_DEFAULTS = {

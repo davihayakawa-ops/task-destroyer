@@ -88,14 +88,22 @@ CORE_IMPROVEMENT_PROMPT = """
 """
 
 
+def _format_product_info(product_info: dict) -> str:
+    lines = []
+    for key, value in (product_info or {}).items():
+        if key == "product_image":
+            continue
+        if value:
+            lines.append(f"- {key}: {value}")
+    return "\n".join(lines)
+
+
 class CoreEngine:
     def __init__(self, llm: LLMClient):
         self.llm = llm
 
     def generate_from_product(self, product_info: dict, core_options: Optional[dict] = None) -> str:
-        info_text = "\n".join(
-            f"- {k}: {v}" for k, v in product_info.items() if v
-        )
+        info_text = _format_product_info(product_info)
         prompt = COMMERCE_CORE_PROMPT.format(
             product_info=info_text,
             core_direction=self._format_core_options(core_options),
@@ -103,9 +111,7 @@ class CoreEngine:
         return self.llm.generate_structured(prompt)
 
     def improve_core(self, core_text: str, product_info: dict, improvement_options: Optional[dict] = None) -> str:
-        info_text = "\n".join(
-            f"- {k}: {v}" for k, v in product_info.items() if v
-        )
+        info_text = _format_product_info(product_info)
         prompt = CORE_IMPROVEMENT_PROMPT.format(
             product_info=info_text,
             core_text=core_text,

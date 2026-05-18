@@ -826,7 +826,11 @@ class GeneratorEngine:
         self.llm = llm
 
     def generate_product_page(self, core: str, product_info: dict, generation_options: Optional[dict] = None) -> str:
-        info_text = "\n".join(f"- {k}: {v}" for k, v in product_info.items() if v)
+        info_text = "\n".join(
+            f"- {k}: {v}"
+            for k, v in (product_info or {}).items()
+            if v and k != "product_image"
+        )
         prompt = PRODUCT_PAGE_PROMPT.format(core=core, product_info=info_text)
         prompt += "\n\n【販売先・出力言語】\n" + _market_instructions(generation_options)
         return self.llm.generate_structured(prompt)

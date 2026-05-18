@@ -36,6 +36,7 @@ CORE_SOURCE_FIELDS = (
     "description",
     "use_scenes",
     "competitor_urls",
+    "product_image_summary",
     "notes",
 )
 

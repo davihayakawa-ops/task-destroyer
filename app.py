@@ -868,6 +868,72 @@ hr,
     font-size:.74rem;
     line-height:1.5;
 }
+
+/* ── Business workspace polish ── */
+[data-testid="stAppViewContainer"] {
+    background-color: #080d14 !important;
+    background-image:
+        linear-gradient(rgba(148,163,184,0.022) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(148,163,184,0.022) 1px, transparent 1px) !important;
+    background-size: 40px 40px !important;
+}
+[data-testid="stMain"] .block-container {
+    padding-top: 2.75rem !important;
+}
+[data-testid="stSidebar"] {
+    background: #0b1220 !important;
+    background-image: none !important;
+    border-right: 1px solid #334155 !important;
+}
+[data-testid="stSidebar"] hr {
+    background: #334155 !important;
+    margin: 1.2rem 0 !important;
+}
+.cs-logo-img {
+    width: 132px !important;
+}
+.section-header {
+    font-size: 1.22rem !important;
+    margin-top: .95rem !important;
+}
+.cs-card,
+.td-workflow,
+.td-page-summary,
+.td-action-card,
+[data-testid="stExpander"] {
+    box-shadow: none !important;
+}
+.cs-card:hover {
+    border-color: #334155 !important;
+    box-shadow: none !important;
+}
+[data-testid="stMarkdownContainer"] p,
+[data-testid="stMarkdownContainer"] li {
+    font-size: .88rem !important;
+}
+[data-testid="stWidgetLabel"] label,
+[data-testid="stTextArea"] label,
+[data-testid="stTextInput"] label,
+[data-testid="stSelectbox"] label,
+[data-testid="stMultiSelect"] label,
+[data-testid="stFileUploader"] label {
+    font-size: .82rem !important;
+}
+.stButton > button {
+    min-height: 36px !important;
+}
+.cs-image-note {
+    background:#0f172a;
+    border:1px solid #334155;
+    border-radius:8px;
+    padding:10px 12px;
+    margin-top:10px;
+    color:#cbd5e1;
+    font-size:.82rem;
+}
+.cs-image-note strong {
+    color:#f8fafc;
+}
 @media (max-width: 900px) {
     .td-step-grid,
     .td-action-grid {
@@ -1052,6 +1118,64 @@ def _price_placeholder_for_market(lang: str, target_market: str) -> str:
     if target_market in {"us", "global"}:
         return _lt("例：$39.99", "Ex.: US$39.99", "Example: $39.99", lang)
     return t("product_input.price_custom_placeholder")
+
+
+_PRODUCT_IMAGE_ALLOWED_TYPES = {
+    "image/png": "png",
+    "image/jpeg": "jpg",
+    "image/webp": "webp",
+}
+_PRODUCT_IMAGE_MAX_BYTES = 3 * 1024 * 1024
+
+
+def _product_image_payload(uploaded_file, lang: str) -> tuple[dict, str]:
+    if uploaded_file is None:
+        return {}, ""
+    raw = uploaded_file.getvalue()
+    filename = uploaded_file.name or "product-image"
+    suffix = Path(filename).suffix.lower().lstrip(".")
+    mime_type = uploaded_file.type or {
+        "png": "image/png",
+        "jpg": "image/jpeg",
+        "jpeg": "image/jpeg",
+        "webp": "image/webp",
+    }.get(suffix, "")
+
+    if mime_type not in _PRODUCT_IMAGE_ALLOWED_TYPES:
+        return {}, _lt(
+            "商品画像は PNG / JPG / WebP のみ対応しています。",
+            "A imagem do produto deve ser PNG, JPG ou WebP.",
+            "Product images must be PNG, JPG, or WebP.",
+            lang,
+        )
+    if len(raw) > _PRODUCT_IMAGE_MAX_BYTES:
+        return {}, _lt(
+            "商品画像は3MB以下にしてください。",
+            "A imagem do produto deve ter até 3 MB.",
+            "Product images must be 3 MB or smaller.",
+            lang,
+        )
+
+    data_url = f"data:{mime_type};base64,{base64.b64encode(raw).decode('ascii')}"
+    return {
+        "filename": filename,
+        "mime_type": mime_type,
+        "size_bytes": len(raw),
+        "data_url": data_url,
+        "updated_at": datetime.now().isoformat(timespec="seconds"),
+    }, ""
+
+
+def _product_image_summary(image: dict, lang: str) -> str:
+    if not isinstance(image, dict) or not image.get("data_url"):
+        return ""
+    filename = image.get("filename") or "image"
+    return _lt(
+        f"商品画像添付あり: {filename}",
+        f"Imagem do produto anexada: {filename}",
+        f"Product image attached: {filename}",
+        lang,
+    )
 
 
 def _resolve_option_index_multi(saved: str, opts: list, alt_lists: list) -> int:
@@ -1777,6 +1901,40 @@ def page_product_input():
             value=info.get("product_url", ""),
             placeholder=t("product_input.url_placeholder"),
         )
+        current_product_image = info.get("product_image") if isinstance(info.get("product_image"), dict) else {}
+        uploaded_product_image = st.file_uploader(
+            _lt("商品画像（任意）", "Imagem do produto (opcional)", "Product image (optional)", lang),
+            type=["png", "jpg", "jpeg", "webp"],
+            key="product_image_upload",
+            help=_lt(
+                "PNG / JPG / WebP、3MBまで。Coreには画像データ本体ではなく添付情報だけ渡します。",
+                "PNG / JPG / WebP, até 3 MB. O Core recebe apenas a informação do anexo, não o arquivo em si.",
+                "PNG / JPG / WebP, up to 3 MB. Core receives attachment metadata, not the image data itself.",
+                lang,
+            ),
+        )
+        st.caption(_lt("保存できる画像: PNG / JPG / WebP、3MBまで", "Imagem salva: PNG / JPG / WebP, até 3 MB", "Saved image: PNG / JPG / WebP, up to 3 MB", lang))
+        remove_product_image = False
+        if uploaded_product_image is not None:
+            st.image(
+                uploaded_product_image,
+                caption=_lt("保存時にこの画像へ更新", "Será atualizada ao salvar", "Will update on save", lang),
+                width=220,
+            )
+        elif current_product_image.get("data_url"):
+            st.markdown(
+                '<div class="cs-image-note"><strong>'
+                + _lt("保存済み画像", "Imagem salva", "Saved image", lang)
+                + "</strong><br>"
+                + html.escape(current_product_image.get("filename", "product image"))
+                + "</div>",
+                unsafe_allow_html=True,
+            )
+            st.image(current_product_image["data_url"], width=220)
+            remove_product_image = st.checkbox(
+                _lt("この画像を削除", "Remover esta imagem", "Remove this image", lang),
+                key="product_image_remove",
+            )
 
     ex_price = info.get("price", "")
     price_idx = _resolve_option_index_multi(ex_price, price_opts, price_alt_opts)
@@ -1921,6 +2079,17 @@ def page_product_input():
                 )
             )
         else:
+            if uploaded_product_image is not None:
+                product_image, image_error = _product_image_payload(uploaded_product_image, lang)
+            elif remove_product_image:
+                product_image, image_error = {}, ""
+            else:
+                product_image, image_error = current_product_image, ""
+
+            if image_error:
+                st.error(image_error)
+                return
+
             product_id = ensure_product_id()
 
             # ── Phase 3: duplicate name warning ──────────────────────────────
@@ -1964,6 +2133,8 @@ def page_product_input():
                 "weaknesses": weaknesses, "brand_tone": brand_tone,
                 "prohibited": prohibited, "description": description,
                 "use_scenes": use_scenes, "competitor_urls": competitor_urls,
+                "product_image": product_image,
+                "product_image_summary": _product_image_summary(product_image, lang),
                 "notes": notes,
                 **_generation_options_from_state(),
             }
@@ -2487,7 +2658,7 @@ def page_core_generation():
     st.markdown("**📦 " + _lt("商品情報からCore自動生成", "Gerar Core automaticamente", "Auto-generate Core from product info", lang) + "**")
 
     info_summary = "\n".join(
-        f"- **{k}**: {v}" for k, v in product_info.items() if v
+        f"- **{k}**: {v}" for k, v in product_info.items() if v and k != "product_image"
     )
     with st.expander(_lt("入力中の商品情報を確認", "Ver informações do produto", "Review entered product info", lang), expanded=False):
         st.markdown(info_summary)
