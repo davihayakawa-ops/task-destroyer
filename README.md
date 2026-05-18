@@ -168,6 +168,8 @@ core_studio/
 | `STRIPE_SUCCESS_URL` | Checkout成功後の戻り先URL | `APP_BASE_URL?billing=success` |
 | `STRIPE_CANCEL_URL` | Checkoutキャンセル後の戻り先URL | `APP_BASE_URL?billing=cancel` |
 
+Supabase Authの確認メール/パスワード再設定メールは、開発中はSupabase標準メールでも動きます。一般販売で登録数が増える前に、SupabaseのSMTP Settingsで自社または契約メール送信サービスを設定してください。
+
 ## 本番公開前チェック
 
 - `APP_ENV=production` を設定する

@@ -131,7 +131,10 @@ def send_password_reset(email: str) -> tuple[bool, str]:
         else:
             auth.reset_password_email(clean_email)
     except Exception as exc:
-        return False, f"再設定メールを送信できませんでした: {str(exc)[:200]}"
+        message = str(exc)[:200]
+        if "email rate limit exceeded" in message.lower():
+            return False, "メール送信回数の上限に当たっています。しばらく待つか、Supabase管理画面でパスワードを変更してください。"
+        return False, f"再設定メールを送信できませんでした: {message}"
 
     return True, "パスワード再設定メールを送信しました。メールの案内に従ってください。"
 

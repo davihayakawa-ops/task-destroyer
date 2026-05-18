@@ -132,6 +132,7 @@ def page_production_check(users: list[dict[str, Any]]) -> None:
             "- 別ユーザーでログインした時に、他ユーザーの商品が表示されない\n"
             "- AuthのSite URLとRedirect URLに公開URLを追加済み\n"
             "- Email confirmation / Password recovery のメールが届く\n"
+            "- 一般販売で登録数が増える前に、Supabase AuthのSMTP設定を自社/契約メール送信サービスに切り替える\n"
             "- `SUPABASE_SERVICE_ROLE_KEY` はサーバー側Secretsのみで管理\n"
             "- テストユーザーで商品保存、Core生成、再ログイン後の復元を確認"
         )
@@ -144,7 +145,8 @@ def page_production_check(users: list[dict[str, Any]]) -> None:
             "4. Streamlit Secretsに `SUPABASE_URL`、`SUPABASE_ANON_KEY`、`SUPABASE_SERVICE_ROLE_KEY` を貼る\n"
             "5. SupabaseのSQL Editorで、このリポジトリの `supabase_schema.sql` を全部実行する\n"
             "6. Authentication → URL Configuration で、公開URLを Site URL と Redirect URLs に入れる\n"
-            "7. アプリを再起動して、新規登録・ログイン・保存・再ログイン復元を確認する\n\n"
+            "7. 一般販売前に Authentication → SMTP Settings を設定して、確認メール/再設定メールの送信上限を実運用向けにする\n"
+            "8. アプリを再起動して、新規登録・ログイン・保存・再ログイン復元を確認する\n\n"
             "`service_role key` は管理者用の強いキーです。画面やGitHubには出さず、Streamlit Secretsだけに入れてください。"
         )
 
