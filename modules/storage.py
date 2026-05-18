@@ -167,6 +167,22 @@ def _is_under(path: Path, base: Path) -> bool:
         return False
 
 
+def _workspace_db_id_from_session() -> str:
+    try:
+        from streamlit.runtime.scriptrunner import get_script_run_ctx
+
+        if get_script_run_ctx(suppress_warning=True) is None:
+            return ""
+        import streamlit as st
+    except Exception:
+        return ""
+    try:
+        user = st.session_state.get("auth_user") or {}
+    except Exception:
+        return ""
+    return str(user.get("workspace_db_id") or "").strip()
+
+
 class Storage:
     """JSON file-based storage. Swappable to Supabase by replacing this module."""
 
@@ -244,7 +260,29 @@ class Storage:
         path = self.data_dir / "projects" / f"{product_id}.json"
         path.write_text(json.dumps(data, ensure_ascii=False, indent=2))
         self.audit.log("storage", "save_product", "ok", product_id=product_id)
+        self._mirror_product_to_supabase(product_id, data)
         return product_id
+
+    def _mirror_product_to_supabase(self, product_id: str, data: dict) -> None:
+        """Best-effort product mirror for account-isolated public sales."""
+        workspace_db_id = _workspace_db_id_from_session()
+        if not workspace_db_id:
+            return
+        try:
+            from modules.supabase_db import SupabaseRepository, supabase_db_configured
+
+            if not supabase_db_configured():
+                return
+            SupabaseRepository().upsert_product(workspace_db_id, product_id, data)
+            self.audit.log("supabase", "mirror_product", "ok", product_id=product_id)
+        except Exception as exc:
+            self.audit.log(
+                "supabase",
+                "mirror_product",
+                "error",
+                product_id=product_id,
+                detail={"message": str(exc)[:300]},
+            )
 
     def load_product(self, product_id: str) -> Optional[dict]:
         product_id = _safe_file_stem(product_id)
