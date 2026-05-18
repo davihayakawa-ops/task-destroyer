@@ -5,11 +5,15 @@ Deploy this separately from the Streamlit UI when selling publicly.
 
 from __future__ import annotations
 
+from typing import Optional
+
 from fastapi import FastAPI, Header, HTTPException, Request
+from pydantic import BaseModel
 
 from modules.billing import (
     apply_plan_to_workspace,
     extract_price_id_from_subscription,
+    price_for_plan,
     plan_for_price,
     stripe_enabled,
 )
@@ -19,9 +23,108 @@ from modules.supabase_db import SupabaseRepository
 app = FastAPI(title="Task Destroyer Billing Webhook")
 
 
+class CheckoutRequest(BaseModel):
+    workspace_id: str
+    plan: str
+    customer_email: Optional[str] = None
+    success_url: Optional[str] = None
+    cancel_url: Optional[str] = None
+
+
 @app.get("/health")
 def health():
     return {"ok": True, "stripe": stripe_enabled()}
+
+
+def _require_billing_api_key(api_key: str) -> None:
+    expected = secret_or_env("BILLING_API_KEY")
+    if not expected:
+        raise HTTPException(status_code=500, detail="BILLING_API_KEY is not configured")
+    if api_key != expected:
+        raise HTTPException(status_code=401, detail="Invalid billing API key")
+
+
+def _stripe_client():
+    try:
+        import stripe
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="stripe package is not installed") from exc
+
+    stripe.api_key = secret_or_env("STRIPE_SECRET_KEY")
+    if not stripe.api_key:
+        raise HTTPException(status_code=500, detail="STRIPE_SECRET_KEY is not configured")
+    return stripe
+
+
+def _checkout_url(kind: str, override: str = "") -> str:
+    if override:
+        return override
+    configured = secret_or_env(f"STRIPE_{kind.upper()}_URL")
+    if configured:
+        return configured
+    app_base = secret_or_env("APP_BASE_URL")
+    if app_base:
+        suffix = "billing=success" if kind == "success" else "billing=cancel"
+        separator = "&" if "?" in app_base else "?"
+        return f"{app_base}{separator}{suffix}"
+    raise HTTPException(status_code=500, detail=f"STRIPE_{kind.upper()}_URL or APP_BASE_URL is required")
+
+
+def _stripe_value(obj, key: str) -> str:
+    if hasattr(obj, key):
+        return str(getattr(obj, key) or "")
+    if isinstance(obj, dict):
+        return str(obj.get(key) or "")
+    return ""
+
+
+@app.post("/stripe/checkout-session")
+def create_checkout_session(
+    request: CheckoutRequest,
+    x_billing_api_key: str = Header(default="", alias="X-Billing-Api-Key"),
+):
+    _require_billing_api_key(x_billing_api_key)
+
+    workspace_id = request.workspace_id.strip()
+    plan = request.plan.strip().lower()
+    if not workspace_id or not plan:
+        raise HTTPException(status_code=400, detail="workspace_id and plan are required")
+
+    repo = SupabaseRepository()
+    workspace = repo.load_workspace(workspace_id)
+    if not workspace:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+
+    price_id = price_for_plan(plan)
+    if not price_id:
+        raise HTTPException(status_code=400, detail=f"No Stripe price configured for plan: {plan}")
+
+    stripe = _stripe_client()
+    metadata = {
+        "workspace_id": workspace_id,
+        "plan": plan,
+        "price_id": price_id,
+    }
+    session_args = {
+        "mode": "subscription",
+        "line_items": [{"price": price_id, "quantity": 1}],
+        "success_url": _checkout_url("success", request.success_url or ""),
+        "cancel_url": _checkout_url("cancel", request.cancel_url or ""),
+        "client_reference_id": workspace_id,
+        "metadata": metadata,
+        "subscription_data": {"metadata": metadata},
+    }
+    if request.customer_email:
+        session_args["customer_email"] = request.customer_email.strip().lower()
+
+    session = stripe.checkout.Session.create(**session_args)
+    return {
+        "id": _stripe_value(session, "id"),
+        "url": _stripe_value(session, "url"),
+        "workspace_id": workspace_id,
+        "plan": plan,
+        "price_id": price_id,
+    }
 
 
 def _stripe_event(payload: bytes, signature: str):
@@ -104,4 +207,3 @@ async def stripe_webhook(request: Request, stripe_signature: str = Header(defaul
         result = {"ignored": True, "type": event_type}
 
     return {"received": True, **result}
-

@@ -34,6 +34,26 @@ def price_plan_map() -> dict[str, str]:
     return {str(k): str(v).strip().lower() for k, v in loaded.items() if str(v).strip()}
 
 
+def plan_price_map() -> dict[str, str]:
+    raw = secret_or_env("STRIPE_PLAN_PRICE_MAP")
+    if raw:
+        try:
+            loaded = json.loads(raw)
+        except Exception:
+            loaded = {}
+        if isinstance(loaded, dict):
+            return {str(k).strip().lower(): str(v) for k, v in loaded.items() if str(v).strip()}
+
+    inverse = {}
+    for price_id, plan in price_plan_map().items():
+        inverse.setdefault(plan, price_id)
+    return inverse
+
+
+def price_for_plan(plan: str) -> str:
+    return plan_price_map().get(str(plan or "").strip().lower(), "")
+
+
 def plan_limits() -> dict[str, int]:
     raw = secret_or_env("TASK_DESTROYER_PLAN_LIMITS")
     result = dict(PLAN_DEFAULT_LIMITS)
@@ -94,4 +114,3 @@ def apply_plan_to_workspace(
             "subscription_status": subscription_status or None,
         },
     )
-

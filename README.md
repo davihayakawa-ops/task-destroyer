@@ -162,6 +162,10 @@ core_studio/
 | `STRIPE_SECRET_KEY` | Stripeサーバー側Secret Key | 未設定 |
 | `STRIPE_WEBHOOK_SECRET` | Stripe Webhook署名検証用Secret | 未設定 |
 | `STRIPE_PRICE_PLAN_MAP` | Stripe Price IDとプラン名の対応JSON。例: `{"price_xxx":"pro"}` | 未設定 |
+| `STRIPE_PLAN_PRICE_MAP` | プラン名とStripe Price IDの対応JSON。例: `{"pro":"price_xxx"}` | 未設定 |
+| `BILLING_API_KEY` | Checkout作成API用のサーバー間認証キー | 未設定 |
+| `STRIPE_SUCCESS_URL` | Checkout成功後の戻り先URL | `APP_BASE_URL?billing=success` |
+| `STRIPE_CANCEL_URL` | Checkoutキャンセル後の戻り先URL | `APP_BASE_URL?billing=cancel` |
 
 ## 本番公開前チェック
 
@@ -175,6 +179,7 @@ core_studio/
 - JSONログインを使う場合は `TASK_DESTROYER_USERS` を設定し、`password` ではなく `password_hash` を使う
 - `TASK_DESTROYER_MONTHLY_CALL_LIMIT` を 1 以上にする
 - Stripe課金を使う場合は `billing_webhook.py` をAPIとして別デプロイし、Webhook URLを `/stripe/webhook` に設定する
+- Checkout URL作成は `POST /stripe/checkout-session` を使い、`X-Billing-Api-Key` に `BILLING_API_KEY` を渡す
 - Stripe Checkout作成時は `metadata.workspace_id` または `client_reference_id` にSupabaseのworkspace IDを入れる
 - Stripe Checkout作成時は `metadata.plan` または `metadata.price_id` を入れ、`STRIPE_PRICE_PLAN_MAP` と一致させる
 - `TASK_DESTROYER_TERMS_VERSION` を規約更新日などに合わせる

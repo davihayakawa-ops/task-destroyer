@@ -44,6 +44,8 @@ def _readiness_items(users: list[dict[str, Any]]) -> list[tuple[str, str, str]]:
     stripe_secret = secret_or_env("STRIPE_SECRET_KEY")
     stripe_webhook = secret_or_env("STRIPE_WEBHOOK_SECRET")
     stripe_price_map = secret_or_env("STRIPE_PRICE_PLAN_MAP")
+    stripe_plan_price_map = secret_or_env("STRIPE_PLAN_PRICE_MAP")
+    billing_api_key = secret_or_env("BILLING_API_KEY")
     terms_version = secret_or_env("TASK_DESTROYER_TERMS_VERSION", "2026-05-18")
 
     items: list[tuple[str, str, str]] = []
@@ -84,8 +86,8 @@ def _readiness_items(users: list[dict[str, Any]]) -> list[tuple[str, str, str]]:
     ))
     items.append((
         "Stripe課金",
-        "OK" if stripe_secret and stripe_webhook and stripe_price_map else "確認",
-        "STRIPE_SECRET_KEY / STRIPE_WEBHOOK_SECRET / STRIPE_PRICE_PLAN_MAP を設定。",
+        "OK" if stripe_secret and stripe_webhook and (stripe_price_map or stripe_plan_price_map) and billing_api_key else "確認",
+        "Stripe Secret/Webhook/Price Map/Billing API Keyを設定。",
     ))
     items.append((
         "規約同意",
