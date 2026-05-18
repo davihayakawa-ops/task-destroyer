@@ -10,6 +10,25 @@ from typing import Any, Optional
 from modules.config import secret_or_env
 
 
+def _normalize_workspace_slug(value: str, fallback: str = "workspace") -> str:
+    raw = str(value or fallback or "workspace").strip().lower()
+    chars = []
+    last_dash = False
+    for ch in raw:
+        if ch.isascii() and ch.isalnum():
+            chars.append(ch)
+            last_dash = False
+        elif not last_dash:
+            chars.append("-")
+            last_dash = True
+    return "".join(chars).strip("-") or "workspace"
+
+
+def _private_slug(base_slug: str, user_id: str) -> str:
+    suffix = _normalize_workspace_slug(user_id, "user")[:12] or "user"
+    return _normalize_workspace_slug(f"{base_slug}-{suffix}", suffix)
+
+
 def supabase_db_configured() -> bool:
     return bool(
         secret_or_env("SUPABASE_URL")
@@ -55,7 +74,7 @@ class SupabaseRepository:
         }
         self.client.table("profiles").upsert(profile, on_conflict="id").execute()
 
-        slug = user.get("workspace") or user_id
+        slug = _normalize_workspace_slug(user.get("workspace") or user_id, user_id)
         existing = (
             self.client.table("workspaces")
             .select("*")
@@ -64,6 +83,19 @@ class SupabaseRepository:
             .execute()
         )
         workspace = existing.data[0] if existing.data else None
+        if workspace and str(workspace.get("owner_id") or "") != user_id:
+            slug = _private_slug(slug, user_id)
+            existing = (
+                self.client.table("workspaces")
+                .select("*")
+                .eq("slug", slug)
+                .limit(1)
+                .execute()
+            )
+            workspace = existing.data[0] if existing.data else None
+            if workspace and str(workspace.get("owner_id") or "") != user_id:
+                raise PermissionError("Workspace slug is already owned by another user")
+
         if not workspace:
             created = (
                 self.client.table("workspaces")
