@@ -292,17 +292,47 @@ class Storage:
         repo = SupabaseRepository()
         row = repo.load_product(workspace_db_id, product_id)
         if not row:
-            row = repo.upsert_product(workspace_db_id, product_id, self.load_product(product_id) or {})
+            row = repo.upsert_product(workspace_db_id, product_id, self._load_product_file(product_id) or {})
         return repo, row
 
-    def load_product(self, product_id: str) -> Optional[dict]:
+    def _load_product_file(self, product_id: str) -> Optional[dict]:
         product_id = _safe_file_stem(product_id)
         path = self.data_dir / "projects" / f"{product_id}.json"
         if not path.exists():
             return None
         return _fill_translation_defaults(json.loads(path.read_text()))
 
+    def _load_product_from_supabase(self, product_id: str) -> Optional[dict]:
+        workspace_db_id = _workspace_db_id_from_session()
+        if not workspace_db_id:
+            return None
+        try:
+            from modules.supabase_db import SupabaseRepository, supabase_db_configured
+
+            if not supabase_db_configured():
+                return None
+            row = SupabaseRepository().load_product(workspace_db_id, product_id)
+            data = row.get("data") if row else None
+            if not isinstance(data, dict):
+                return None
+            return _fill_translation_defaults(data)
+        except Exception as exc:
+            self.audit.log(
+                "supabase",
+                "load_product",
+                "error",
+                product_id=product_id,
+                detail={"message": str(exc)[:300]},
+            )
+            return None
+
+    def load_product(self, product_id: str) -> Optional[dict]:
+        return self._load_product_from_supabase(product_id) or self._load_product_file(product_id)
+
     def list_products(self) -> List[dict]:
+        db_products = self._list_products_from_supabase()
+        if db_products:
+            return db_products
         result = []
         proj_dir = self.data_dir / "projects"
         for p in sorted(proj_dir.glob("*.json")):
@@ -326,6 +356,37 @@ class Storage:
                 result.append(entry)
             except Exception:
                 pass
+        return result
+
+    def _list_products_from_supabase(self) -> List[dict]:
+        workspace_db_id = _workspace_db_id_from_session()
+        if not workspace_db_id:
+            return []
+        try:
+            from modules.supabase_db import SupabaseRepository, supabase_db_configured
+
+            if not supabase_db_configured():
+                return []
+            rows = SupabaseRepository().list_products(workspace_db_id)
+        except Exception as exc:
+            self.audit.log(
+                "supabase",
+                "list_products",
+                "error",
+                detail={"message": str(exc)[:300]},
+            )
+            return []
+
+        result = []
+        for row in rows:
+            local_id = _safe_file_stem(row.get("local_id") or row.get("id") or "")
+            data = row.get("data") if isinstance(row.get("data"), dict) else {}
+            local_path = self.data_dir / "projects" / f"{local_id}.json"
+            result.append({
+                "id": local_id,
+                "file_path": str(local_path.resolve()) if local_path.exists() else "",
+                **_fill_translation_defaults(data),
+            })
         return result
 
     # ── Core Library ──────────────────────────────────────────────────────────
