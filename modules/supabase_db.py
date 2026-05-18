@@ -17,6 +17,14 @@ def supabase_db_configured() -> bool:
     )
 
 
+def supabase_db_mode() -> str:
+    if not secret_or_env("SUPABASE_URL"):
+        return "disabled"
+    if not secret_or_env("SUPABASE_SERVICE_ROLE_KEY"):
+        return "auth_only"
+    return "service"
+
+
 def supabase_db_client():
     try:
         from supabase import create_client
@@ -146,3 +154,17 @@ class SupabaseRepository:
             "detail": event.get("detail", {}),
         }
         self.client.table("audit_logs").insert(row).execute()
+
+
+def bootstrap_user_workspace(user: dict[str, str]) -> tuple[bool, str]:
+    if not supabase_db_configured():
+        return True, ""
+    try:
+        workspace = SupabaseRepository().ensure_profile_and_workspace(user)
+    except Exception as exc:
+        return False, f"Supabase DB初期化に失敗しました: {str(exc)[:200]}"
+
+    user["workspace_db_id"] = str(workspace.get("id", ""))
+    user["workspace"] = str(workspace.get("slug") or user.get("workspace") or "default")
+    user["workspace_name"] = str(workspace.get("name") or user.get("name") or user["workspace"])
+    return True, ""

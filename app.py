@@ -4360,7 +4360,7 @@ def main():
         workspace = auth_user.get("workspace") or "default"
         if st.session_state.get("shop_id") != workspace:
             st.session_state["shop_id"] = workspace
-            st.session_state["shop_name"] = auth_user.get("name") or workspace
+            st.session_state["shop_name"] = auth_user.get("workspace_name") or auth_user.get("name") or workspace
             clear_active_product_context()
             st.rerun()
 

@@ -9,6 +9,7 @@ from typing import Any
 import streamlit as st
 
 from modules.config import secret_or_env
+from modules.supabase_db import bootstrap_user_workspace
 
 
 def supabase_configured() -> bool:
@@ -76,7 +77,11 @@ def sign_in(email: str, password: str) -> tuple[bool, str]:
     if not user:
         return False, "メールアドレスまたはパスワードが違います。"
 
-    st.session_state["auth_user"] = auth_user_from_supabase_user(user)
+    auth_user = auth_user_from_supabase_user(user)
+    ok, message = bootstrap_user_workspace(auth_user)
+    if not ok:
+        return False, message
+    st.session_state["auth_user"] = auth_user
     if session:
         st.session_state["supabase_access_token"] = str(getattr(session, "access_token", "") or "")
         st.session_state["supabase_refresh_token"] = str(getattr(session, "refresh_token", "") or "")
@@ -94,6 +99,10 @@ def sign_up(email: str, password: str) -> tuple[bool, str]:
 
     user = getattr(result, "user", None)
     if user:
-        st.session_state["auth_user"] = auth_user_from_supabase_user(user)
+        auth_user = auth_user_from_supabase_user(user)
+        ok, message = bootstrap_user_workspace(auth_user)
+        if not ok:
+            return False, message
+        st.session_state["auth_user"] = auth_user
         return True, ""
     return True, "確認メールを送信しました。メール認証後にログインしてください。"

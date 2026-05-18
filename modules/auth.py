@@ -191,6 +191,10 @@ def current_user() -> dict[str, str]:
         "name": str(user.get("name") or "Local Dev"),
         "role": str(user.get("role") or "admin"),
         "workspace": str(user.get("workspace") or "default"),
+        "workspace_db_id": str(user.get("workspace_db_id") or ""),
+        "workspace_name": str(user.get("workspace_name") or user.get("workspace") or "default"),
+        "provider": str(user.get("provider") or "local"),
+        "user_id": str(user.get("user_id") or ""),
     }
 
 
