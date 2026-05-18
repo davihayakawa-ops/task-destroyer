@@ -190,6 +190,18 @@ core_studio/
 - `.env` や `.streamlit/secrets.toml` はGitにコミットしない
 - 生成・削除・バックアップなどの運用ログは `data/.../audit_logs/` に保存されます
 
+## Supabase設定の進め方
+
+1. Supabaseで新しいプロジェクトを作る
+2. Project Settings → API から `Project URL` と `anon public key` をコピーする
+3. Project Settings → API から `service_role key` をコピーする。このキーは公開しない
+4. Streamlit Secretsに `SUPABASE_URL`、`SUPABASE_ANON_KEY`、`SUPABASE_SERVICE_ROLE_KEY` を貼る
+5. SupabaseのSQL Editorで `supabase_schema.sql` を全部実行する
+6. Authentication → URL Configuration で、公開URLを Site URL と Redirect URLs に入れる
+7. アプリを再起動して、新規登録・ログイン・商品保存・再ログイン後の復元を確認する
+
+`service_role key` は管理者用の強いキーです。GitHub、画面、販売ページには出さず、Streamlit Secretsだけに保存してください。
+
 ## 販売前のユーザー分離テスト
 
 一般販売前に、最低1回は下記を本番相当環境で確認してください。

@@ -136,6 +136,18 @@ def page_production_check(users: list[dict[str, Any]]) -> None:
             "- テストユーザーで商品保存、Core生成、再ログイン後の復元を確認"
         )
 
+    with st.expander("Supabase設定の進め方", expanded=False):
+        st.markdown(
+            "1. Supabaseで新しいプロジェクトを作る\n"
+            "2. Project Settings → API から `Project URL` と `anon public key` をコピーする\n"
+            "3. Project Settings → API から `service_role key` をコピーする。これは公開しない\n"
+            "4. Streamlit Secretsに `SUPABASE_URL`、`SUPABASE_ANON_KEY`、`SUPABASE_SERVICE_ROLE_KEY` を貼る\n"
+            "5. SupabaseのSQL Editorで、このリポジトリの `supabase_schema.sql` を全部実行する\n"
+            "6. Authentication → URL Configuration で、公開URLを Site URL と Redirect URLs に入れる\n"
+            "7. アプリを再起動して、新規登録・ログイン・保存・再ログイン復元を確認する\n\n"
+            "`service_role key` は管理者用の強いキーです。画面やGitHubには出さず、Streamlit Secretsだけに入れてください。"
+        )
+
     with st.expander("販売前のユーザー分離テスト", expanded=False):
         st.markdown(
             "1. Supabase AuthでテストユーザーAとBを作成する\n"
