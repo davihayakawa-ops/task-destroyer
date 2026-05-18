@@ -70,7 +70,10 @@ def sign_in(email: str, password: str) -> tuple[bool, str]:
             "password": password,
         })
     except Exception as exc:
-        return False, f"ログインに失敗しました: {str(exc)[:200]}"
+        message = str(exc)[:200]
+        if "Email not confirmed" in message:
+            return False, "メール確認がまだ完了していません。受信箱の確認リンクを押してからログインしてください。"
+        return False, f"ログインに失敗しました: {message}"
 
     user = getattr(result, "user", None)
     session = getattr(result, "session", None)
@@ -95,7 +98,10 @@ def sign_up(email: str, password: str) -> tuple[bool, str]:
             "password": password,
         })
     except Exception as exc:
-        return False, f"登録に失敗しました: {str(exc)[:200]}"
+        message = str(exc)[:200]
+        if "email rate limit exceeded" in message.lower():
+            return False, "確認メールの送信回数制限に当たっています。少し待つか、管理画面でユーザーを作成してください。"
+        return False, f"登録に失敗しました: {message}"
 
     user = getattr(result, "user", None)
     if user:

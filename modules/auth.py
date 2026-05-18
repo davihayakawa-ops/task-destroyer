@@ -139,11 +139,46 @@ def ensure_supabase_authentication() -> bool:
     if st.session_state.get("auth_user"):
         return True
 
+    st.markdown(
+        """
+        <style>
+        .td-auth-wrap {
+            max-width: 760px;
+        }
+        .td-auth-note {
+            background: #111827;
+            border: 1px solid #263244;
+            border-radius: 10px;
+            color: #cbd5e1;
+            font-size: .88rem;
+            line-height: 1.7;
+            margin: 14px 0 18px;
+            padding: 14px 16px;
+        }
+        .td-auth-note strong {
+            color: #f8fafc;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
     st.markdown("## Task Destroyer")
     st.caption("ログインしてください / Please sign in")
+    st.markdown(
+        """
+        <div class="td-auth-wrap">
+            <div class="td-auth-note">
+                <strong>ログインすると、商品・Core・Shopifyコードが自分のアカウントに保存されます。</strong><br>
+                初めて使う場合は新規登録してください。メール確認が必要な場合は、受信箱の確認リンクを押してからログインします。
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
     tab_login, tab_signup, tab_reset = st.tabs(["ログイン", "新規登録", "パスワード再設定"])
 
     with tab_login:
+        st.caption("登録済みのメールアドレスとパスワードでログインします。")
         with st.form("td_supabase_login_form"):
             email = st.text_input("Email", key="td_supabase_login_email").strip().lower()
             password = st.text_input("Password", type="password", key="td_supabase_login_password")
@@ -157,8 +192,11 @@ def ensure_supabase_authentication() -> bool:
                 st.session_state.pop("_market_loaded_for_product", None)
                 st.rerun()
             st.error(message or "ログインに失敗しました。")
+            if "not confirmed" in str(message).lower():
+                st.info("メール確認が未完了です。受信箱の確認リンクを押すか、管理者に確認済みにしてもらってください。")
 
     with tab_signup:
+        st.caption("登録後、確認メールが届いた場合はリンクを押してからログインしてください。")
         with st.form("td_supabase_signup_form"):
             email = st.text_input("Email", key="td_supabase_signup_email").strip().lower()
             password = st.text_input("Password", type="password", key="td_supabase_signup_password")
