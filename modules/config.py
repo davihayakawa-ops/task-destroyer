@@ -37,6 +37,7 @@ def validate_runtime_config(users: list[dict[str, Any]]) -> dict[str, list[str]]
     users_raw = secret_or_env("TASK_DESTROYER_USERS")
     supabase_url = secret_or_env("SUPABASE_URL")
     supabase_anon_key = secret_or_env("SUPABASE_ANON_KEY")
+    supabase_service_key = secret_or_env("SUPABASE_SERVICE_ROLE_KEY")
     supabase_enabled = bool(supabase_url and supabase_anon_key)
 
     try:
@@ -58,6 +59,9 @@ def validate_runtime_config(users: list[dict[str, Any]]) -> dict[str, list[str]]
 
     if bool(supabase_url) != bool(supabase_anon_key):
         errors.append("SUPABASE_URL と SUPABASE_ANON_KEY はセットで設定してください。")
+
+    if is_production() and supabase_enabled and not supabase_service_key:
+        warnings.append("Supabase DB保存へ移行する場合は SUPABASE_SERVICE_ROLE_KEY をサーバー側Secretsに設定してください。")
 
     if users_raw and not users:
         errors.append("TASK_DESTROYER_USERS を読み込めません。JSON形式を確認してください。")
