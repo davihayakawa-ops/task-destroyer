@@ -41,6 +41,9 @@ def _readiness_items(users: list[dict[str, Any]]) -> list[tuple[str, str, str]]:
     app_base_url = secret_or_env("APP_BASE_URL")
     monthly_limit = secret_or_env("TASK_DESTROYER_MONTHLY_CALL_LIMIT", "1000")
     plan_limits = secret_or_env("TASK_DESTROYER_PLAN_LIMITS")
+    stripe_secret = secret_or_env("STRIPE_SECRET_KEY")
+    stripe_webhook = secret_or_env("STRIPE_WEBHOOK_SECRET")
+    stripe_price_map = secret_or_env("STRIPE_PRICE_PLAN_MAP")
     terms_version = secret_or_env("TASK_DESTROYER_TERMS_VERSION", "2026-05-18")
 
     items: list[tuple[str, str, str]] = []
@@ -78,6 +81,11 @@ def _readiness_items(users: list[dict[str, Any]]) -> list[tuple[str, str, str]]:
         "プラン別上限",
         "OK" if plan_limits else "確認",
         "TASK_DESTROYER_PLAN_LIMITSで free/starter/pro/team などを上書き可能。",
+    ))
+    items.append((
+        "Stripe課金",
+        "OK" if stripe_secret and stripe_webhook and stripe_price_map else "確認",
+        "STRIPE_SECRET_KEY / STRIPE_WEBHOOK_SECRET / STRIPE_PRICE_PLAN_MAP を設定。",
     ))
     items.append((
         "規約同意",

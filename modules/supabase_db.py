@@ -119,6 +119,42 @@ class SupabaseRepository:
         )
         return result.data[0] if result.data else None
 
+    def load_workspace(self, workspace_id: str) -> Optional[dict[str, Any]]:
+        result = (
+            self.client.table("workspaces")
+            .select("*")
+            .eq("id", workspace_id)
+            .limit(1)
+            .execute()
+        )
+        return result.data[0] if result.data else None
+
+    def load_workspace_by_stripe(self, customer_id: str = "", subscription_id: str = "") -> Optional[dict[str, Any]]:
+        query = self.client.table("workspaces").select("*")
+        if subscription_id:
+            result = query.eq("stripe_subscription_id", subscription_id).limit(1).execute()
+            if result.data:
+                return result.data[0]
+        if customer_id:
+            result = query.eq("stripe_customer_id", customer_id).limit(1).execute()
+            if result.data:
+                return result.data[0]
+        return None
+
+    def update_workspace_billing(self, workspace_id: str, billing: dict[str, Any]) -> dict[str, Any]:
+        allowed = {
+            "plan", "monthly_call_limit", "stripe_customer_id",
+            "stripe_subscription_id", "subscription_status",
+        }
+        row = {k: v for k, v in billing.items() if k in allowed and v is not None}
+        result = (
+            self.client.table("workspaces")
+            .update(row)
+            .eq("id", workspace_id)
+            .execute()
+        )
+        return result.data[0]
+
     def save_core(self, workspace_id: str, product_row_id: str, local_product_id: str,
                   core_data: dict[str, Any], version_label: str = "") -> dict[str, Any]:
         result = self.client.table("cores").insert({

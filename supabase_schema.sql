@@ -20,9 +20,16 @@ create table if not exists public.workspaces (
   name text not null,
   plan text not null default 'free',
   monthly_call_limit integer not null default 100,
+  stripe_customer_id text,
+  stripe_subscription_id text,
+  subscription_status text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.workspaces add column if not exists stripe_customer_id text;
+alter table public.workspaces add column if not exists stripe_subscription_id text;
+alter table public.workspaces add column if not exists subscription_status text;
 
 create table if not exists public.workspace_members (
   workspace_id uuid not null references public.workspaces(id) on delete cascade,

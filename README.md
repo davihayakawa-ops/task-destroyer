@@ -159,6 +159,9 @@ core_studio/
 | `TASK_DESTROYER_MONTHLY_CALL_LIMIT` | ワークスペースごとの月間LLM呼び出し上限。`0`で無効 | `1000` |
 | `TASK_DESTROYER_PLAN_LIMITS` | プラン別月間上限JSON。例: `{"free":100,"starter":500,"pro":2000}` | 内蔵デフォルト |
 | `TASK_DESTROYER_TERMS_VERSION` | 利用規約・プライバシー同意のバージョン。変更すると再同意が必要 | `2026-05-18` |
+| `STRIPE_SECRET_KEY` | Stripeサーバー側Secret Key | 未設定 |
+| `STRIPE_WEBHOOK_SECRET` | Stripe Webhook署名検証用Secret | 未設定 |
+| `STRIPE_PRICE_PLAN_MAP` | Stripe Price IDとプラン名の対応JSON。例: `{"price_xxx":"pro"}` | 未設定 |
 
 ## 本番公開前チェック
 
@@ -171,6 +174,9 @@ core_studio/
 - Supabaseログイン後、`profiles`・`workspaces`・`workspace_members` は自動作成されます
 - JSONログインを使う場合は `TASK_DESTROYER_USERS` を設定し、`password` ではなく `password_hash` を使う
 - `TASK_DESTROYER_MONTHLY_CALL_LIMIT` を 1 以上にする
+- Stripe課金を使う場合は `billing_webhook.py` をAPIとして別デプロイし、Webhook URLを `/stripe/webhook` に設定する
+- Stripe Checkout作成時は `metadata.workspace_id` または `client_reference_id` にSupabaseのworkspace IDを入れる
+- Stripe Checkout作成時は `metadata.plan` または `metadata.price_id` を入れ、`STRIPE_PRICE_PLAN_MAP` と一致させる
 - `TASK_DESTROYER_TERMS_VERSION` を規約更新日などに合わせる
 - `.env` や `.streamlit/secrets.toml` はGitにコミットしない
 - 生成・削除・バックアップなどの運用ログは `data/.../audit_logs/` に保存されます
