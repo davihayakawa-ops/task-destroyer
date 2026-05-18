@@ -26,6 +26,10 @@ class AuditLogger:
 
     def _actor(self) -> str:
         try:
+            from streamlit.runtime.scriptrunner import get_script_run_ctx
+
+            if get_script_run_ctx(suppress_warning=True) is None:
+                return "unknown"
             from modules.auth import current_user
             user = current_user()
             return user.get("email") or user.get("name") or "unknown"

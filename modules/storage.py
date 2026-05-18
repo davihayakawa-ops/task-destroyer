@@ -284,6 +284,17 @@ class Storage:
                 detail={"message": str(exc)[:300]},
             )
 
+    def _supabase_product_row(self, workspace_db_id: str, product_id: str):
+        from modules.supabase_db import SupabaseRepository, supabase_db_configured
+
+        if not supabase_db_configured():
+            return None, None
+        repo = SupabaseRepository()
+        row = repo.load_product(workspace_db_id, product_id)
+        if not row:
+            row = repo.upsert_product(workspace_db_id, product_id, self.load_product(product_id) or {})
+        return repo, row
+
     def load_product(self, product_id: str) -> Optional[dict]:
         product_id = _safe_file_stem(product_id)
         path = self.data_dir / "projects" / f"{product_id}.json"
@@ -332,7 +343,27 @@ class Storage:
         }
         path = self.data_dir / "core_library" / f"{product_id}_{core_id}.json"
         path.write_text(json.dumps(entry, ensure_ascii=False, indent=2))
+        self._mirror_core_to_supabase(product_id, core_data, version_label)
         return core_id
+
+    def _mirror_core_to_supabase(self, product_id: str, core_data: dict, version_label: str = "") -> None:
+        workspace_db_id = _workspace_db_id_from_session()
+        if not workspace_db_id:
+            return
+        try:
+            repo, product_row = self._supabase_product_row(workspace_db_id, product_id)
+            if not repo or not product_row:
+                return
+            repo.save_core(workspace_db_id, product_row["id"], product_id, core_data, version_label)
+            self.audit.log("supabase", "mirror_core", "ok", product_id=product_id)
+        except Exception as exc:
+            self.audit.log(
+                "supabase",
+                "mirror_core",
+                "error",
+                product_id=product_id,
+                detail={"message": str(exc)[:300]},
+            )
 
     def list_cores(self, product_id: str) -> List[dict]:
         product_id = _safe_file_stem(product_id)
@@ -366,7 +397,27 @@ class Storage:
         }
         path = self.data_dir / "projects" / f"{product_id}_{content_type}_{content_id}.json"
         path.write_text(json.dumps(entry, ensure_ascii=False, indent=2))
+        self._mirror_generated_to_supabase(product_id, content_type, content)
         return content_id
+
+    def _mirror_generated_to_supabase(self, product_id: str, content_type: str, content: dict) -> None:
+        workspace_db_id = _workspace_db_id_from_session()
+        if not workspace_db_id:
+            return
+        try:
+            repo, product_row = self._supabase_product_row(workspace_db_id, product_id)
+            if not repo or not product_row:
+                return
+            repo.save_generated(workspace_db_id, product_row["id"], product_id, content_type, content)
+            self.audit.log("supabase", "mirror_generated", "ok", product_id=product_id, detail={"content_type": content_type})
+        except Exception as exc:
+            self.audit.log(
+                "supabase",
+                "mirror_generated",
+                "error",
+                product_id=product_id,
+                detail={"content_type": content_type, "message": str(exc)[:300]},
+            )
 
     def load_generated(self, product_id: str, content_type: str) -> Optional[dict]:
         product_id = _safe_file_stem(product_id)

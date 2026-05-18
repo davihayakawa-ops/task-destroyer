@@ -164,7 +164,7 @@ core_studio/
 - `ANTHROPIC_API_KEY` は Streamlit Secrets などサーバー側Secretsに置く
 - 一般販売では `SUPABASE_URL` と `SUPABASE_ANON_KEY` を設定し、Supabase Authを使う
 - DB保存へ移行する場合は `supabase_schema.sql` をSupabase SQL Editorで実行し、`SUPABASE_SERVICE_ROLE_KEY` をSecretsに設定する
-- Supabase DBが設定済みの場合、商品プロジェクト保存時にJSON保存と並行して `products` テーブルへミラー保存されます
+- Supabase DBが設定済みの場合、商品プロジェクト、Core、関連生成物はJSON保存と並行してDBへミラー保存されます
 - Supabaseログイン後、`profiles`・`workspaces`・`workspace_members` は自動作成されます
 - JSONログインを使う場合は `TASK_DESTROYER_USERS` を設定し、`password` ではなく `password_hash` を使う
 - `TASK_DESTROYER_MONTHLY_CALL_LIMIT` を 1 以上にする
