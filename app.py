@@ -506,12 +506,13 @@ hr {
     color: #e2e8f0 !important;
 }
 [data-testid="stSidebar"] .stButton > button {
-    background: transparent !important;
-    border: 1px solid transparent !important;
+    background: rgba(11, 18, 32, .72) !important;
+    border: 1px solid rgba(38, 50, 68, .95) !important;
     color: #cbd5e1 !important;
     justify-content: flex-start;
     min-height: 38px;
     border-radius: var(--app-radius) !important;
+    box-shadow: inset 0 -1px 0 rgba(148, 163, 184, .04) !important;
 }
 [data-testid="stSidebar"] .stButton > button:hover {
     background: #172033 !important;
@@ -1231,36 +1232,6 @@ def render_sidebar():
             unsafe_allow_html=True,
         )
 
-        # ── Shop switcher ─────────────────────────────────────────────────
-        if auth_user.get("role") == "admin":
-            shops = Storage.list_shops()
-        else:
-            workspace = auth_user.get("workspace") or "default"
-            shops = [{"id": workspace, "name": auth_user.get("name") or workspace}]
-        current_shop_id = st.session_state.get("shop_id", "default")
-        shop_ids = [s["id"] for s in shops]
-        if current_shop_id not in shop_ids:
-            current_shop_id = shop_ids[0] if shop_ids else "default"
-            st.session_state["shop_id"] = current_shop_id
-        shop_names = {s["id"]: s["name"] for s in shops}
-        shop_label = _lt("ショップ", "Loja", "Shop", lang) if auth_user.get("role") == "admin" else _lt("ワークスペース", "Workspace", "Workspace", lang)
-        st.markdown(
-            f'<div class="sb-mode-label">{shop_label}</div>',
-            unsafe_allow_html=True,
-        )
-        selected_shop_id = st.selectbox(
-            shop_label,
-            options=shop_ids,
-            index=shop_ids.index(current_shop_id),
-            format_func=lambda sid: (_lt("共通", "Comum", "Shared", lang) if (sid == "default") else shop_names.get(sid, sid)),
-            label_visibility="collapsed",
-        )
-        if selected_shop_id != st.session_state.get("shop_id", "default"):
-            st.session_state["shop_id"] = selected_shop_id
-            st.session_state["shop_name"] = shop_names.get(selected_shop_id, selected_shop_id)
-            clear_active_product_context()
-            st.rerun()
-
         cur_page = st.session_state.get("page", "")
 
         st.markdown(
@@ -1371,6 +1342,37 @@ def render_sidebar():
             ):
                 st.session_state["page"] = "billing"
                 st.rerun()
+
+        # ── Workspace switcher ────────────────────────────────────────────
+        if auth_user.get("role") == "admin":
+            shops = Storage.list_shops()
+        else:
+            workspace = auth_user.get("workspace") or "default"
+            shops = [{"id": workspace, "name": auth_user.get("name") or workspace}]
+        current_shop_id = st.session_state.get("shop_id", "default")
+        shop_ids = [s["id"] for s in shops]
+        if current_shop_id not in shop_ids:
+            current_shop_id = shop_ids[0] if shop_ids else "default"
+            st.session_state["shop_id"] = current_shop_id
+        shop_names = {s["id"]: s["name"] for s in shops}
+        shop_label = _lt("ショップ", "Loja", "Shop", lang) if auth_user.get("role") == "admin" else _lt("ワークスペース", "Workspace", "Workspace", lang)
+        st.markdown("---")
+        st.markdown(
+            f'<div class="sb-mode-label">{shop_label}</div>',
+            unsafe_allow_html=True,
+        )
+        selected_shop_id = st.selectbox(
+            shop_label,
+            options=shop_ids,
+            index=shop_ids.index(current_shop_id),
+            format_func=lambda sid: (_lt("共通", "Comum", "Shared", lang) if (sid == "default") else shop_names.get(sid, sid)),
+            label_visibility="collapsed",
+        )
+        if selected_shop_id != st.session_state.get("shop_id", "default"):
+            st.session_state["shop_id"] = selected_shop_id
+            st.session_state["shop_name"] = shop_names.get(selected_shop_id, selected_shop_id)
+            clear_active_product_context()
+            st.rerun()
 
         # ── Account footer ────────────────────────────────────────────────
         user_label = html.escape(auth_user.get("name") or auth_user.get("email") or "User")
