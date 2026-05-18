@@ -2768,7 +2768,7 @@ def page_product_page():
                 "icon": "🎨",
                 "num": "00",
                 "instruction": (
-                    "他のセクションより先に設置してください。<br>"
+                    "00単体では表示は変わりません。01〜08より先に貼ると、色・余白・共通パーツがそろいます。<br>"
                     "Shopify管理画面 → オンラインストア → テーマ → カスタマイズ → "
                     "商品ページ → セクション追加 → <strong>Custom Liquid</strong> に貼り付け"
                 ),
@@ -2778,7 +2778,7 @@ def page_product_page():
                 "label": "01 ファーストビュー",
                 "icon": "🌟",
                 "num": "01",
-                "instruction": "商品ページの最上部に設置してください。",
+                "instruction": "00 共通CSSの次に設置してください。商品ページの最上部に置くメイン表示です。",
             },
             {
                 "key": "shopify_about_section_code",
@@ -2827,7 +2827,7 @@ def page_product_page():
                 "label": "08 CTA",
                 "icon": "🛒",
                 "num": "08",
-                "instruction": "ページの最下部に設置してください。",
+                "instruction": "ページの最下部に設置してください。背景色は選択したアクセントカラーに合わせます。",
             },
         ]
 

@@ -270,7 +270,8 @@ _SHOPIFY_RULES = """【共通ルール】
 【レイアウト】max-width:1100px;margin:0 auto;padding:80px 24px → スマホ:padding:48px 16px
 【デザイン】{design_instructions}
 【販売先・出力言語】{market_instructions}
-各セクションは<style>タグを含む単体で動作するコードにする。"""
+01〜08は必ず .td-section と .td-container を使い、色は var(--td-bg) / var(--td-text) / var(--td-accent) / var(--td-card) / var(--td-border) を優先する。
+CSS変数には必ずフォールバック値を入れる（例: var(--td-accent,#3d6b4f)）。"""
 
 _SECTION_BASE_PROMPT = """あなたはShopifyのカスタムLiquid制作の専門家です。
 1つのセクションのHTMLコードを生成してください。
@@ -302,13 +303,15 @@ SHOPIFY_SECTION_CONFIGS = [
     (
         "shopify_common_css",
         "SECTION_00_COMMON_CSS",
-        ":root CSS変数（--td-bg:#faf8f4 / --td-text:#2b2b2b / --td-accent:#3d6b4f / --td-radius:16px）"
-        "＋ .td-section / .td-container / .td-badge の基本クラス定義。<style>タグのみ。<section>タグは含めない。",
+        "指定されたデザインオプションの色を正確に使った共通CSS。"
+        ":root と .td-product-page にCSS変数（--td-bg / --td-text / --td-accent / --td-card / --td-border / --td-radius）を定義し、"
+        ".td-section / .td-container / .td-badge / .td-card / .td-btn の基本クラスを定義。"
+        "<style>タグのみ。<section>タグは含めない。固定の緑色など、指定外の色は使わない。",
     ),
     (
         "shopify_hero_section_code",
         "SECTION_01_HERO",
-        """ファーストビュー（短め・印象的に）。<style>＋<section>。
+        """ファーストビュー（短め・印象的に）。<style>＋<section class="td-section td-hero">。
 
 構成：
 1. カテゴリバッジ：【商品情報】のカテゴリ名
@@ -318,7 +321,8 @@ SHOPIFY_SECTION_CONFIGS = [
 4. ベネフィット3点：【Core】のbenefitsから3つ選びチェックマーク付きカードで表示
 5. 信頼テキスト：【Core】のreassuranceから1〜2点を小さく表示（例：「累計〇〇件」等は使わず、定性的な安心感）
 
-文章はすべて【Core】のbrand_toneに合わせた上品・自然な日本語で書くこと。""",
+CSSはtd-hero内にスコープし、色はCSS変数を優先する。画面幅いっぱいの高さ固定・position:absolute・重なりやすい装飾は使わない。
+文章はすべて指定された出力言語で、【Core】のbrand_toneに合わせて自然に書くこと。""",
     ),
     (
         "shopify_about_section_code",
@@ -421,7 +425,7 @@ details[open]時にsummary::after が「－」になるCSSを入れること。"
     (
         "shopify_cta_section_code",
         "SECTION_08_CTA",
-        """CTAセクション（自然な購入後押し）。緑背景（#3d6b4f）。<style>＋<section>。
+        """CTAセクション（自然な購入後押し）。<style>＋<section class="td-section td-cta">。
 
 構成：
 1. 見出し：背中をそっと押す一言（煽らない）
@@ -434,6 +438,8 @@ details[open]時にsummary::after が「－」になるCSSを入れること。"
 3. 安心ワード（小さく）：「目立たない梱包でお届け」「ご自身のペースで」など1〜2点
 4. 免責文（最小フォント）：「※個人差があります」
 
+背景は必ず指定デザインのアクセントカラー、または var(--td-accent) を使うこと。
+固定の緑色（#3d6b4fなど）や指定外の色を勝手に使わないこと。
 テキストカラーは#ffffffまたはrgba(255,255,255,0.9)で白系にすること。""",
     ),
 ]
@@ -524,38 +530,66 @@ def _market_instructions(options: Optional[dict] = None) -> str:
 def _fallback_css(design_options: Optional[dict] = None) -> str:
     opts = _design_options(design_options)
     return """<style>
-:root{--td-bg:%(background_color)s;--td-text:%(text_color)s;--td-accent:%(accent_color)s;--td-card:%(card_color)s;--td-border:%(border_color)s;--td-radius:%(radius)s;--td-font-lg:clamp(28px,4vw,48px);--td-font-md:clamp(24px,3vw,36px);--td-font-sm:clamp(18px,2vw,24px);--td-font-body:clamp(16px,1.4vw,18px)}
-.td-section{background:var(--td-bg);padding:80px 24px}
-.td-container{max-width:1100px;margin:0 auto}
-.td-badge{display:inline-block;background:var(--td-accent);color:#fff;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:600;letter-spacing:.05em}
-@media(max-width:767px){.td-section{padding:48px 16px}}
+:root,.td-product-page{--td-bg:%(background_color)s;--td-text:%(text_color)s;--td-accent:%(accent_color)s;--td-card:%(card_color)s;--td-border:%(border_color)s;--td-radius:%(radius)s;--td-font-lg:clamp(28px,4vw,48px);--td-font-md:clamp(24px,3vw,36px);--td-font-sm:clamp(18px,2vw,24px);--td-font-body:clamp(16px,1.4vw,18px);--td-space-y:80px}
+.td-product-page,.td-section{font-family:inherit;color:var(--td-text,%(text_color)s)}
+.td-section,.td-section *{box-sizing:border-box}
+.td-section{width:100%%;background:var(--td-bg,%(background_color)s);padding:var(--td-space-y) 24px}
+.td-container{width:100%%;max-width:1100px;margin:0 auto}
+.td-badge{display:inline-flex;align-items:center;gap:6px;background:var(--td-accent,%(accent_color)s);color:#fff;padding:5px 14px;border-radius:999px;font-size:13px;font-weight:700;line-height:1.4}
+.td-card{background:var(--td-card,%(card_color)s);border:1px solid var(--td-border,%(border_color)s);border-radius:var(--td-radius,%(radius)s)}
+.td-btn{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:12px 22px;border-radius:999px;background:var(--td-accent,%(accent_color)s);color:#fff;text-decoration:none;font-weight:700}
+@media(max-width:767px){.td-product-page{--td-space-y:52px}.td-section{padding:var(--td-space-y) 16px}.td-container{max-width:100%%}}
 </style>""" % opts
 
 
 def _fallback_hero(product_name: str, design_options: Optional[dict] = None) -> str:
     opts = _design_options(design_options)
+    lang = _market_options(design_options)["output_language"]
+    copy = {
+        "ja": {
+            "badge": "こだわりのアイテム",
+            "headline": f"毎日に、{product_name}という選択を。",
+            "sub": "生活の中に自然になじみ、自分のペースで続けられる一品です。",
+            "benefits": ["自宅で手軽に使える", "日常習慣に馴染む設計", "丁寧な梱包でお届け"],
+            "trust": "※個人差があります",
+        },
+        "pt": {
+            "badge": "Item selecionado",
+            "headline": f"Uma escolha mais simples para sua rotina: {product_name}.",
+            "sub": "Feito para entrar no dia a dia com naturalidade, no seu ritmo.",
+            "benefits": ["Fácil de usar em casa", "Pensado para a rotina", "Enviado com cuidado"],
+            "trust": "*Os resultados podem variar.",
+        },
+        "en": {
+            "badge": "Thoughtfully selected",
+            "headline": f"Make {product_name} part of your routine.",
+            "sub": "Designed to fit naturally into everyday life, at your own pace.",
+            "benefits": ["Easy to use at home", "Built for daily routines", "Shipped with care"],
+            "trust": "*Individual experiences may vary.",
+        },
+    }[lang]
     return f"""<style>
-.td-hero{{background:{opts['background_color']};padding:80px 24px;text-align:center}}
+.td-hero{{background:var(--td-bg,{opts['background_color']});padding:80px 24px;text-align:center}}
 .td-hero .td-container{{max-width:1100px;margin:0 auto}}
-.td-hero .td-badge{{margin-bottom:24px;display:inline-block}}
-.td-hero h1{{font-size:clamp(28px,4vw,52px);color:{opts['text_color']};font-weight:700;line-height:1.3;margin-bottom:16px}}
-.td-hero-sub{{font-size:clamp(16px,1.6vw,20px);color:{opts['text_color']};opacity:.78;line-height:1.8;margin-bottom:48px}}
-.td-hero-benefits{{display:flex;justify-content:center;gap:20px;flex-wrap:wrap;margin-bottom:40px}}
-.td-hero-benefit{{background:{opts['card_color']};border:1px solid {opts['border_color']};border-radius:{opts['radius']};padding:14px 22px;font-size:clamp(15px,1.3vw,17px);color:{opts['accent_color']};font-weight:600}}
-.td-hero-trust{{font-size:13px;color:#aaa}}
-@media(max-width:767px){{.td-hero{{padding:48px 16px}}.td-hero-benefits{{flex-direction:column;align-items:center}}.td-hero-benefit{{width:100%;text-align:center}}}}
+.td-hero .td-badge{{margin-bottom:24px}}
+.td-hero h1{{font-size:clamp(28px,4vw,52px);color:var(--td-text,{opts['text_color']});font-weight:800;line-height:1.22;margin:0 0 16px}}
+.td-hero-sub{{font-size:clamp(16px,1.6vw,20px);color:var(--td-text,{opts['text_color']});opacity:.78;line-height:1.8;margin:0 auto 40px;max-width:760px}}
+.td-hero-benefits{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:0 0 28px}}
+.td-hero-benefit{{background:var(--td-card,{opts['card_color']});border:1px solid var(--td-border,{opts['border_color']});border-radius:var(--td-radius,{opts['radius']});padding:16px 18px;font-size:clamp(15px,1.3vw,17px);color:var(--td-accent,{opts['accent_color']});font-weight:700;line-height:1.6}}
+.td-hero-trust{{font-size:13px;color:var(--td-text,{opts['text_color']});opacity:.56;margin:0}}
+@media(max-width:767px){{.td-hero{{padding:52px 16px}}.td-hero-benefits{{grid-template-columns:1fr}}}}
 </style>
-<section class="td-hero">
+<section class="td-section td-hero">
   <div class="td-container">
-    <span class="td-badge">こだわりのアイテム</span>
-    <h1>{product_name}</h1>
-    <p class="td-hero-sub">毎日の生活に、ちょっとした豊かさを。<br>自分のペースで、無理なく続けられる一品です。</p>
+    <span class="td-badge">{copy["badge"]}</span>
+    <h1>{copy["headline"]}</h1>
+    <p class="td-hero-sub">{copy["sub"]}</p>
     <div class="td-hero-benefits">
-      <div class="td-hero-benefit">✓ 自宅で手軽に使える</div>
-      <div class="td-hero-benefit">✓ 日常習慣に馴染む設計</div>
-      <div class="td-hero-benefit">✓ 丁寧な梱包でお届け</div>
+      <div class="td-hero-benefit">✓ {copy["benefits"][0]}</div>
+      <div class="td-hero-benefit">✓ {copy["benefits"][1]}</div>
+      <div class="td-hero-benefit">✓ {copy["benefits"][2]}</div>
     </div>
-    <p class="td-hero-trust">※個人差があります</p>
+    <p class="td-hero-trust">{copy["trust"]}</p>
   </div>
 </section>"""
 
@@ -727,21 +761,64 @@ def _fallback_faq(product_name: str, design_options: Optional[dict] = None) -> s
 
 def _fallback_cta(product_name: str, design_options: Optional[dict] = None) -> str:
     opts = _design_options(design_options)
+    lang = _market_options(design_options)["output_language"]
+    copy = {
+        "ja": {
+            "headline": "自分のペースで、はじめてみませんか",
+            "body": f"{product_name}は、毎日のルーティンにそっと寄り添うアイテムです。まずはご自身のペースでお試しください。",
+            "note": "発送は目立たない梱包でプライバシーに配慮しています。※個人差があります。",
+        },
+        "pt": {
+            "headline": "Comece no seu ritmo",
+            "body": f"{product_name} foi pensado para acompanhar sua rotina com discrição e facilidade. Experimente no seu tempo.",
+            "note": "Enviado com embalagem discreta. *Os resultados podem variar.",
+        },
+        "en": {
+            "headline": "Start at your own pace",
+            "body": f"{product_name} is designed to fit naturally into your routine. Try it in a way that feels right for you.",
+            "note": "Ships in discreet packaging. *Individual experiences may vary.",
+        },
+    }[lang]
     return f"""<style>
-.td-cta{{background:{opts['accent_color']};padding:80px 24px;text-align:center}}
+.td-cta{{background:var(--td-accent,{opts['accent_color']});padding:80px 24px;text-align:center}}
 .td-cta .td-container{{max-width:800px;margin:0 auto}}
 .td-cta h2{{font-size:clamp(24px,3vw,36px);color:#fff;margin-bottom:16px}}
-.td-cta p{{font-size:clamp(16px,1.5vw,19px);color:rgba(255,255,255,.85);line-height:1.8;margin-bottom:40px}}
+.td-cta p{{font-size:clamp(16px,1.5vw,19px);color:rgba(255,255,255,.9);line-height:1.8;margin:0 auto 26px;max-width:680px}}
 .td-cta-note{{font-size:13px;color:rgba(255,255,255,.6);margin-top:24px}}
 @media(max-width:767px){{.td-cta{{padding:56px 16px}}}}
 </style>
-<section class="td-cta">
+<section class="td-section td-cta">
   <div class="td-container">
-    <h2>自分のペースで、はじめてみませんか</h2>
-    <p>{product_name}は、特別な日のためだけでなく、毎日のルーティンにそっと寄り添うアイテムです。<br>まずは一度、ご自身で体感してみてください。</p>
-    <p class="td-cta-note">発送は目立たない梱包でプライバシーに配慮しています。</p>
+    <h2>{copy["headline"]}</h2>
+    <p>{copy["body"]}</p>
+    <p class="td-cta-note">{copy["note"]}</p>
   </div>
 </section>"""
+
+
+def _stabilize_shopify_section(key: str, code: str, design_options: Optional[dict] = None) -> str:
+    opts = _design_options(design_options)
+    if key == "shopify_common_css":
+        return _fallback_css(opts)
+    replacements = {
+        "#3d6b4f": opts["accent_color"],
+        "#3D6B4F": opts["accent_color"],
+        "#faf8f4": opts["background_color"],
+        "#FAF8F4": opts["background_color"],
+        "#2b2b2b": opts["text_color"],
+        "#2B2B2B": opts["text_color"],
+        "#e8e4de": opts["border_color"],
+        "#E8E4DE": opts["border_color"],
+    }
+    for before, after in replacements.items():
+        code = code.replace(before, after)
+    if key == "shopify_cta_section_code" and opts["accent_color"].lower() not in code.lower():
+        code += (
+            "\n<style>"
+            f".td-cta{{background:var(--td-accent,{opts['accent_color']})!important}}"
+            "</style>"
+        )
+    return code
 
 
 class GeneratorEngine:
@@ -834,9 +911,13 @@ class GeneratorEngine:
         }
         sections = {}
         for key, marker, instructions in SHOPIFY_SECTION_CONFIGS:
-            sections[key] = self._generate_one_section(
+            if key == "shopify_common_css":
+                sections[key] = _fallback_css(design_options)
+                continue
+            generated = self._generate_one_section(
                 key, marker, instructions, args, fallbacks[key]
             )
+            sections[key] = _stabilize_shopify_section(key, generated, design_options)
         return sections
 
     # ── Per-item generation ───────────────────────────────────────────────────
