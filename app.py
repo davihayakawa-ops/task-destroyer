@@ -26,6 +26,7 @@ from modules.product_input_logic import PRODUCT_FIELD_LABELS_JA, PRODUCT_TRANSLA
 from modules.selection_pages import page_ads_sns as render_page_ads_sns, page_image_prompt as render_page_image_prompt, page_video_script as render_page_video_script
 from modules.saved_data_page import page_saved_data
 from modules.production_check_page import page_production_check
+from modules.billing_page import page_billing
 from modules.i18n import load_i18n, t, tl, resolve_option_index
 from modules.auth import ensure_authentication, current_user, load_users, logout
 from modules.config import render_config_guard
@@ -1244,6 +1245,14 @@ def render_sidebar():
             type="primary" if cur_page == "production_check" else "secondary",
         ):
             st.session_state["page"] = "production_check"
+            st.rerun()
+        if st.button(
+            _lt("💳 プラン・課金", "💳 Plano/Faturamento", "💳 Plan & Billing", lang),
+            key="simple_nav_billing",
+            use_container_width=True,
+            type="primary" if cur_page == "billing" else "secondary",
+        ):
+            st.session_state["page"] = "billing"
             st.rerun()
 
         # ── Product info summary ──────────────────────────────────────────
@@ -4416,6 +4425,7 @@ def main():
         "export_center": page_export_center,
         "saved_data": lambda: page_saved_data(svc),
         "production_check": lambda: page_production_check(users),
+        "billing": lambda: page_billing(svc),
     }
 
     render_fn = page_map.get(page, page_product_input)

@@ -20,6 +20,7 @@ PAGES = [
     "ads_sns",
     "export_center",
     "production_check",
+    "billing",
 ]
 
 BASE_PRODUCT = {
