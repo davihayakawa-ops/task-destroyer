@@ -138,3 +138,15 @@ def page_production_check(users: list[dict[str, Any]]) -> None:
             "- `SUPABASE_SERVICE_ROLE_KEY` はサーバー側Secretsのみで管理\n"
             "- テストユーザーで商品保存、Core生成、再ログイン後の復元を確認"
         )
+
+    with st.expander("販売前のユーザー分離テスト", expanded=False):
+        st.markdown(
+            "1. Supabase AuthでテストユーザーAとBを作成する\n"
+            "2. Aでログインし、商品名に`A_ONLY_TEST`を含む商品を保存する\n"
+            "3. AでCore生成とShopifyコード生成を1回ずつ実行し、ログアウトする\n"
+            "4. Bでログインし、保存済み商品に`A_ONLY_TEST`が表示されないことを確認する\n"
+            "5. Bで商品名に`B_ONLY_TEST`を含む商品を保存し、ログアウトする\n"
+            "6. Aで再ログインし、`A_ONLY_TEST`だけが見えて`B_ONLY_TEST`が見えないことを確認する\n"
+            "7. Supabase SQL Editorで`products`、`cores`、`generated_contents`の`workspace_id`がユーザーごとに分かれていることを確認する\n\n"
+            "このテストが通れば、個人ごとの商品・Core・生成物の分離は販売前チェックとして一段安心です。"
+        )

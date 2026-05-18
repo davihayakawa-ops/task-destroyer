@@ -187,3 +187,17 @@ core_studio/
 - `TASK_DESTROYER_TERMS_VERSION` を規約更新日などに合わせる
 - `.env` や `.streamlit/secrets.toml` はGitにコミットしない
 - 生成・削除・バックアップなどの運用ログは `data/.../audit_logs/` に保存されます
+
+## 販売前のユーザー分離テスト
+
+一般販売前に、最低1回は下記を本番相当環境で確認してください。
+
+1. Supabase AuthでテストユーザーAとBを作成する
+2. Aでログインし、商品名に`A_ONLY_TEST`を含む商品を保存する
+3. AでCore生成とShopifyコード生成を実行し、ログアウトする
+4. Bでログインし、保存済み商品に`A_ONLY_TEST`が表示されないことを確認する
+5. Bで商品名に`B_ONLY_TEST`を含む商品を保存し、ログアウトする
+6. Aで再ログインし、`A_ONLY_TEST`だけが見えて`B_ONLY_TEST`が見えないことを確認する
+7. Supabase SQL Editorで`products`、`cores`、`generated_contents`の`workspace_id`がユーザーごとに分かれていることを確認する
+
+このテストが通れば、ログインユーザーごとの商品・Core・生成物が混ざらない基本動作を確認できます。
