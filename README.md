@@ -185,6 +185,7 @@ core_studio/
 - Checkout URL作成は `POST /stripe/checkout-session` を使い、`X-Billing-Api-Key` に `BILLING_API_KEY` を渡す
 - Stripe Checkout作成時は `metadata.workspace_id` または `client_reference_id` にSupabaseのworkspace IDを入れる
 - Stripe Checkout作成時は `metadata.plan` または `metadata.price_id` を入れ、`STRIPE_PRICE_PLAN_MAP` と一致させる
+- 料金はStripeのPrice側で後から決められます。アプリ側には `STRIPE_PLAN_PRICE_MAP={"starter":"price_xxx","pro":"price_xxx","team":"price_xxx"}` のようにPrice ID対応を入れます
 - `TASK_DESTROYER_TERMS_VERSION` を規約更新日などに合わせる
 - `.env` や `.streamlit/secrets.toml` はGitにコミットしない
 - 生成・削除・バックアップなどの運用ログは `data/.../audit_logs/` に保存されます

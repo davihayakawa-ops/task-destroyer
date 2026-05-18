@@ -9,6 +9,7 @@ import streamlit as st
 
 from modules.config import app_env, secret_or_env, validate_runtime_config
 from modules.supabase_db import supabase_db_mode
+from modules.billing import billing_config_status
 
 
 def _mask(value: str) -> str:
@@ -41,12 +42,7 @@ def _readiness_items(users: list[dict[str, Any]]) -> list[tuple[str, str, str]]:
     app_base_url = secret_or_env("APP_BASE_URL")
     monthly_limit = secret_or_env("TASK_DESTROYER_MONTHLY_CALL_LIMIT", "1000")
     plan_limits = secret_or_env("TASK_DESTROYER_PLAN_LIMITS")
-    stripe_secret = secret_or_env("STRIPE_SECRET_KEY")
-    stripe_webhook = secret_or_env("STRIPE_WEBHOOK_SECRET")
-    stripe_price_map = secret_or_env("STRIPE_PRICE_PLAN_MAP")
-    stripe_plan_price_map = secret_or_env("STRIPE_PLAN_PRICE_MAP")
-    billing_api_key = secret_or_env("BILLING_API_KEY")
-    billing_api_base = secret_or_env("BILLING_API_BASE_URL")
+    billing_status = billing_config_status()
     terms_version = secret_or_env("TASK_DESTROYER_TERMS_VERSION", "2026-05-18")
 
     items: list[tuple[str, str, str]] = []
@@ -87,8 +83,9 @@ def _readiness_items(users: list[dict[str, Any]]) -> list[tuple[str, str, str]]:
     ))
     items.append((
         "Stripe課金",
-        "OK" if stripe_secret and stripe_webhook and (stripe_price_map or stripe_plan_price_map) and billing_api_key and billing_api_base else "確認",
-        "Stripe Secret/Webhook/Price Map/Billing API Key/API URLを設定。",
+        "OK" if billing_status["ready"] else "確認",
+        "未設定: " + ", ".join(billing_status["missing"] + [f"{p}:price" for p in billing_status["missing_prices"]])
+        if not billing_status["ready"] else "Stripe/Billing API/Price ID設定済み。",
     ))
     items.append((
         "規約同意",
@@ -149,4 +146,23 @@ def page_production_check(users: list[dict[str, Any]]) -> None:
             "6. Aで再ログインし、`A_ONLY_TEST`だけが見えて`B_ONLY_TEST`が見えないことを確認する\n"
             "7. Supabase SQL Editorで`products`、`cores`、`generated_contents`の`workspace_id`がユーザーごとに分かれていることを確認する\n\n"
             "このテストが通れば、個人ごとの商品・Core・生成物の分離は販売前チェックとして一段安心です。"
+        )
+
+    with st.expander("Stripe課金の設定チェック", expanded=False):
+        billing_status = billing_config_status()
+        if billing_status["ready"]:
+            st.success("Stripe課金の基本設定はそろっています。")
+        else:
+            if billing_status["missing"]:
+                st.warning("未設定: " + ", ".join(billing_status["missing"]))
+            if billing_status["missing_prices"]:
+                st.warning("Price ID未設定プラン: " + ", ".join(billing_status["missing_prices"]))
+            if billing_status["invalid_json"]:
+                st.error("JSON形式を確認: " + ", ".join(billing_status["invalid_json"]))
+            if billing_status["invalid_plans"]:
+                st.error("未対応プラン名: " + ", ".join(billing_status["invalid_plans"]))
+        st.markdown(
+            "- 料金はStripeのPrice側で後から変更できます\n"
+            "- アプリ側は`STRIPE_PLAN_PRICE_MAP`に`{\"pro\":\"price_xxx\"}`のように対応を入れます\n"
+            "- Checkout完了後、Webhookで`workspaces.plan`と`monthly_call_limit`が更新されます"
         )

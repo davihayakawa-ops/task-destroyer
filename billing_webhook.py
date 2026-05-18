@@ -12,6 +12,7 @@ from pydantic import BaseModel
 
 from modules.billing import (
     apply_plan_to_workspace,
+    billing_config_status,
     extract_price_id_from_subscription,
     price_for_plan,
     plan_for_price,
@@ -33,7 +34,8 @@ class CheckoutRequest(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"ok": True, "stripe": stripe_enabled()}
+    status = billing_config_status()
+    return {"ok": True, "stripe": stripe_enabled(), "billing_ready": status["ready"], "missing": status["missing"]}
 
 
 def _require_billing_api_key(api_key: str) -> None:
@@ -89,6 +91,8 @@ def create_checkout_session(
     plan = request.plan.strip().lower()
     if not workspace_id or not plan:
         raise HTTPException(status_code=400, detail="workspace_id and plan are required")
+    if plan not in {"starter", "pro", "team"}:
+        raise HTTPException(status_code=400, detail="Unsupported checkout plan")
 
     repo = SupabaseRepository()
     workspace = repo.load_workspace(workspace_id)

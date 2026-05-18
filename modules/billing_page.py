@@ -9,7 +9,7 @@ import streamlit as st
 
 from modules.auth import current_user
 from modules.config import secret_or_env
-from modules.billing import PLAN_DEFAULT_LIMITS, plan_limits
+from modules.billing import PLAN_DEFAULT_LIMITS, billing_config_status, plan_limits
 
 
 PLAN_LABELS = {
@@ -82,7 +82,8 @@ def page_billing(svc: dict) -> None:
     if current_plan == "default":
         current_plan = "free"
     limits = plan_limits()
-    checkout_ready = bool(_checkout_endpoint() and secret_or_env("BILLING_API_KEY"))
+    billing_status = billing_config_status()
+    checkout_ready = bool(billing_status["checkout_ready"])
 
     st.markdown('<div class="breadcrumb">💳 課金 › プラン</div>', unsafe_allow_html=True)
     st.markdown('<div class="section-header">💳 プラン・課金</div>', unsafe_allow_html=True)
@@ -110,13 +111,25 @@ def page_billing(svc: dict) -> None:
         unsafe_allow_html=True,
     )
 
+    if not billing_status["ready"]:
+        with st.expander("Stripe設定チェック", expanded=False):
+            if billing_status["missing"]:
+                st.warning("未設定: " + ", ".join(billing_status["missing"]))
+            if billing_status["missing_prices"]:
+                st.warning("Price ID未設定プラン: " + ", ".join(billing_status["missing_prices"]))
+            if billing_status["invalid_json"]:
+                st.error("JSON形式を確認: " + ", ".join(billing_status["invalid_json"]))
+            if billing_status["invalid_plans"]:
+                st.error("未対応プラン名: " + ", ".join(billing_status["invalid_plans"]))
+            st.caption("料金はStripe側のPriceで後から決められます。アプリ側にはPrice IDとプラン名の対応だけ設定します。")
+
     workspace_id = user.get("workspace_db_id") or ""
     if not workspace_id:
         st.warning("Supabaseログイン後のワークスペースIDが必要です。一般販売ではSupabase Authでログインしてください。")
         return
 
     if not checkout_ready:
-        st.info("アップグレードボタンを使うには、BILLING_API_BASE_URL と BILLING_API_KEY を設定してください。")
+        st.info("アップグレードボタンを使うには、Stripe/Billing API設定と各有料プランのPrice IDを設定してください。")
         return
 
     st.markdown("### アップグレード")
