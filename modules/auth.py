@@ -17,6 +17,9 @@ from typing import Any
 import streamlit as st
 
 from modules.config import secret_or_env
+from modules.supabase_auth import sign_in as supabase_sign_in
+from modules.supabase_auth import sign_up as supabase_sign_up
+from modules.supabase_auth import supabase_configured
 
 
 def _secret_or_env(key: str, default: str = "") -> str:
@@ -86,6 +89,9 @@ def _verify_password(user: dict[str, Any], password: str) -> bool:
 
 
 def ensure_authentication() -> bool:
+    if supabase_configured():
+        return ensure_supabase_authentication()
+
     users = load_users()
     if auth_is_configured() and not users:
         st.error("ログイン設定 TASK_DESTROYER_USERS を読み込めません。JSON形式を確認してください。")
@@ -128,6 +134,56 @@ def ensure_authentication() -> bool:
     return False
 
 
+def ensure_supabase_authentication() -> bool:
+    if st.session_state.get("auth_user"):
+        return True
+
+    st.markdown("## Task Destroyer")
+    st.caption("ログインしてください / Please sign in")
+    tab_login, tab_signup = st.tabs(["ログイン", "新規登録"])
+
+    with tab_login:
+        with st.form("td_supabase_login_form"):
+            email = st.text_input("Email", key="td_supabase_login_email").strip().lower()
+            password = st.text_input("Password", type="password", key="td_supabase_login_password")
+            submitted = st.form_submit_button("ログイン / Sign in", type="primary")
+        if submitted:
+            ok, message = supabase_sign_in(email, password)
+            if ok:
+                user = current_user()
+                st.session_state["shop_id"] = user["workspace"]
+                st.session_state["shop_name"] = user["workspace"]
+                st.session_state.pop("_market_loaded_for_product", None)
+                st.rerun()
+            st.error(message or "ログインに失敗しました。")
+
+    with tab_signup:
+        with st.form("td_supabase_signup_form"):
+            email = st.text_input("Email", key="td_supabase_signup_email").strip().lower()
+            password = st.text_input("Password", type="password", key="td_supabase_signup_password")
+            password_confirm = st.text_input("Password confirmation", type="password", key="td_supabase_signup_password_confirm")
+            submitted = st.form_submit_button("アカウント作成 / Sign up", type="primary")
+        if submitted:
+            if len(password) < 8:
+                st.error("パスワードは8文字以上にしてください。")
+            elif password != password_confirm:
+                st.error("確認用パスワードが一致しません。")
+            else:
+                ok, message = supabase_sign_up(email, password)
+                if ok and st.session_state.get("auth_user"):
+                    user = current_user()
+                    st.session_state["shop_id"] = user["workspace"]
+                    st.session_state["shop_name"] = user["workspace"]
+                    st.session_state.pop("_market_loaded_for_product", None)
+                    st.rerun()
+                if ok:
+                    st.success(message or "アカウントを作成しました。ログインしてください。")
+                else:
+                    st.error(message or "登録に失敗しました。")
+
+    return False
+
+
 def current_user() -> dict[str, str]:
     user = st.session_state.get("auth_user") or {}
     return {
@@ -139,6 +195,9 @@ def current_user() -> dict[str, str]:
 
 
 def logout():
-    for key in ("auth_user", "product_id", "product_info", "core_text", "generated"):
+    for key in (
+        "auth_user", "supabase_access_token", "supabase_refresh_token",
+        "product_id", "product_info", "core_text", "generated",
+    ):
         st.session_state.pop(key, None)
     st.rerun()

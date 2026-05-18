@@ -148,6 +148,8 @@ core_studio/
 | 変数名 | 説明 | デフォルト |
 |--------|------|-----------|
 | `ANTHROPIC_API_KEY` | Anthropic APIキー | 必須 |
+| `SUPABASE_URL` | SupabaseプロジェクトURL。設定時はSupabase Authを使用 | 未設定 |
+| `SUPABASE_ANON_KEY` | Supabase anon key。`SUPABASE_URL` とセットで設定 | 未設定 |
 | `LLM_MODEL` | 使用するモデル | `claude-sonnet-4-6` |
 | `APP_ENV` | `development` / `production`。本番では設定チェックが厳格化されます | `development` |
 | `DATA_DIR` | データ保存ディレクトリ | `data` |
@@ -159,7 +161,8 @@ core_studio/
 
 - `APP_ENV=production` を設定する
 - `ANTHROPIC_API_KEY` は Streamlit Secrets などサーバー側Secretsに置く
-- `TASK_DESTROYER_USERS` を設定し、`password` ではなく `password_hash` を使う
+- 一般販売では `SUPABASE_URL` と `SUPABASE_ANON_KEY` を設定し、Supabase Authを使う
+- JSONログインを使う場合は `TASK_DESTROYER_USERS` を設定し、`password` ではなく `password_hash` を使う
 - `TASK_DESTROYER_MONTHLY_CALL_LIMIT` を 1 以上にする
 - `TASK_DESTROYER_TERMS_VERSION` を規約更新日などに合わせる
 - `.env` や `.streamlit/secrets.toml` はGitにコミットしない

@@ -35,6 +35,9 @@ def validate_runtime_config(users: list[dict[str, Any]]) -> dict[str, list[str]]
     anthropic_key = secret_or_env("ANTHROPIC_API_KEY")
     monthly_limit_raw = secret_or_env("TASK_DESTROYER_MONTHLY_CALL_LIMIT", "1000")
     users_raw = secret_or_env("TASK_DESTROYER_USERS")
+    supabase_url = secret_or_env("SUPABASE_URL")
+    supabase_anon_key = secret_or_env("SUPABASE_ANON_KEY")
+    supabase_enabled = bool(supabase_url and supabase_anon_key)
 
     try:
         monthly_limit = int(monthly_limit_raw)
@@ -50,8 +53,11 @@ def validate_runtime_config(users: list[dict[str, Any]]) -> dict[str, list[str]]
     elif is_production() and monthly_limit == 0:
         errors.append("本番環境では TASK_DESTROYER_MONTHLY_CALL_LIMIT を 1 以上にしてください。")
 
-    if is_production() and not users_raw:
-        errors.append("本番環境では TASK_DESTROYER_USERS を必ず設定してください。")
+    if is_production() and not users_raw and not supabase_enabled:
+        errors.append("本番環境では Supabase Auth か TASK_DESTROYER_USERS を必ず設定してください。")
+
+    if bool(supabase_url) != bool(supabase_anon_key):
+        errors.append("SUPABASE_URL と SUPABASE_ANON_KEY はセットで設定してください。")
 
     if users_raw and not users:
         errors.append("TASK_DESTROYER_USERS を読み込めません。JSON形式を確認してください。")
