@@ -1219,26 +1219,6 @@ def render_sidebar():
         st.markdown("---")
 
         auth_user = current_user()
-        user_label = html.escape(auth_user.get("name") or auth_user.get("email") or "User")
-        role_label = html.escape(auth_user.get("role", "member"))
-        st.markdown(
-            f'<div class="sb-mode-label">{_lt("ユーザー", "Usuário", "User", st.session_state["lang"])}</div>'
-            f'<div class="cs-note" style="margin-bottom:10px;">{user_label}<br>'
-            f'<span style="font-size:0.78rem;color:#8a93a3;">{role_label}</span></div>',
-            unsafe_allow_html=True,
-        )
-        if st.button(_lt("ログアウト", "Sair", "Sign out", st.session_state["lang"]), use_container_width=True):
-            logout()
-        if st.button(
-            _lt("アカウント設定", "Configurações da conta", "Account Settings", st.session_state["lang"]),
-            key="simple_nav_account",
-            use_container_width=True,
-            type="primary" if st.session_state.get("page") == "account" else "secondary",
-        ):
-            st.session_state["page"] = "account"
-            st.rerun()
-
-        st.markdown("---")
 
         # ── Mode badge ────────────────────────────────────────────────────
         mode = get_mode(st.session_state["mode"])
@@ -1391,6 +1371,27 @@ def render_sidebar():
             ):
                 st.session_state["page"] = "billing"
                 st.rerun()
+
+        # ── Account footer ────────────────────────────────────────────────
+        user_label = html.escape(auth_user.get("name") or auth_user.get("email") or "User")
+        role_label = html.escape(auth_user.get("role", "member"))
+        st.markdown("---")
+        st.markdown(
+            f'<div class="sb-mode-label">{_lt("ユーザー", "Usuário", "User", lang)}</div>'
+            f'<div class="cs-note" style="margin-bottom:10px;">{user_label}<br>'
+            f'<span style="font-size:0.78rem;color:#8a93a3;">{role_label}</span></div>',
+            unsafe_allow_html=True,
+        )
+        if st.button(
+            _lt("アカウント設定", "Configurações da conta", "Account Settings", lang),
+            key="simple_nav_account",
+            use_container_width=True,
+            type="primary" if st.session_state.get("page") == "account" else "secondary",
+        ):
+            st.session_state["page"] = "account"
+            st.rerun()
+        if st.button(_lt("ログアウト", "Sair", "Sign out", lang), key="sidebar_logout", use_container_width=True):
+            logout()
 
 def render_breadcrumb():
     page    = st.session_state.get("page", "")
