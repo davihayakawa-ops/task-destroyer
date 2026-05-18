@@ -206,6 +206,8 @@ def current_user() -> dict[str, str]:
         "workspace": str(user.get("workspace") or "default"),
         "workspace_db_id": str(user.get("workspace_db_id") or ""),
         "workspace_name": str(user.get("workspace_name") or user.get("workspace") or "default"),
+        "plan": str(user.get("plan") or ""),
+        "workspace_monthly_call_limit": str(user.get("workspace_monthly_call_limit") or ""),
         "provider": str(user.get("provider") or "local"),
         "user_id": str(user.get("user_id") or ""),
     }

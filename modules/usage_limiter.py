@@ -3,7 +3,7 @@
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from modules.config import secret_or_env
 
@@ -14,6 +14,51 @@ def _secret_or_env(key: str, default: str = "") -> str:
 
 def _now() -> str:
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+def _current_user_limits() -> tuple[str, Optional[int]]:
+    try:
+        from streamlit.runtime.scriptrunner import get_script_run_ctx
+
+        if get_script_run_ctx(suppress_warning=True) is None:
+            return "", None
+        from modules.auth import current_user
+    except Exception:
+        return "", None
+
+    try:
+        user = current_user()
+    except Exception:
+        return "", None
+
+    plan = str(user.get("plan") or "").strip().lower()
+    raw_limit = str(user.get("workspace_monthly_call_limit") or "").strip()
+    if raw_limit:
+        try:
+            return plan, max(int(raw_limit), 0)
+        except ValueError:
+            return plan, None
+    return plan, None
+
+
+def _plan_limits() -> dict[str, int]:
+    defaults = {"free": 100, "starter": 500, "pro": 2000, "team": 5000}
+    raw = _secret_or_env("TASK_DESTROYER_PLAN_LIMITS", "")
+    if not raw:
+        return defaults
+    try:
+        loaded = json.loads(raw)
+    except Exception:
+        return defaults
+    if not isinstance(loaded, dict):
+        return defaults
+    result = dict(defaults)
+    for key, value in loaded.items():
+        try:
+            result[str(key).strip().lower()] = max(int(value), 0)
+        except Exception:
+            continue
+    return result
 
 
 class UsageLimiter:
@@ -31,6 +76,12 @@ class UsageLimiter:
 
     @property
     def monthly_limit(self) -> int:
+        plan, workspace_limit = _current_user_limits()
+        if workspace_limit is not None:
+            return workspace_limit
+        plan_limits = _plan_limits()
+        if plan and plan in plan_limits:
+            return plan_limits[plan]
         raw = _secret_or_env("TASK_DESTROYER_MONTHLY_CALL_LIMIT", "1000")
         try:
             value = int(raw)
@@ -82,6 +133,7 @@ class UsageLimiter:
             "percent": percent,
             "is_limited": limit > 0,
             "is_exhausted": limit > 0 and used >= limit,
+            "plan": _current_user_limits()[0] or "default",
         }
 
     def try_consume(self, action: str = "llm_generate") -> tuple[bool, str]:

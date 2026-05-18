@@ -157,6 +157,7 @@ core_studio/
 | `DATA_DIR` | データ保存ディレクトリ | `data` |
 | `TASK_DESTROYER_USERS` | ログインユーザーJSON。未設定時はローカル開発モード | 未設定 |
 | `TASK_DESTROYER_MONTHLY_CALL_LIMIT` | ワークスペースごとの月間LLM呼び出し上限。`0`で無効 | `1000` |
+| `TASK_DESTROYER_PLAN_LIMITS` | プラン別月間上限JSON。例: `{"free":100,"starter":500,"pro":2000}` | 内蔵デフォルト |
 | `TASK_DESTROYER_TERMS_VERSION` | 利用規約・プライバシー同意のバージョン。変更すると再同意が必要 | `2026-05-18` |
 
 ## 本番公開前チェック

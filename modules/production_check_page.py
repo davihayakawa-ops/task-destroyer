@@ -40,6 +40,7 @@ def _readiness_items(users: list[dict[str, Any]]) -> list[tuple[str, str, str]]:
     supabase_service = secret_or_env("SUPABASE_SERVICE_ROLE_KEY")
     app_base_url = secret_or_env("APP_BASE_URL")
     monthly_limit = secret_or_env("TASK_DESTROYER_MONTHLY_CALL_LIMIT", "1000")
+    plan_limits = secret_or_env("TASK_DESTROYER_PLAN_LIMITS")
     terms_version = secret_or_env("TASK_DESTROYER_TERMS_VERSION", "2026-05-18")
 
     items: list[tuple[str, str, str]] = []
@@ -72,6 +73,11 @@ def _readiness_items(users: list[dict[str, Any]]) -> list[tuple[str, str, str]]:
         "利用上限",
         "OK" if monthly_limit.isdigit() and int(monthly_limit) > 0 else "確認",
         f"月間LLM上限: {monthly_limit}。販売時はプランごとに調整。",
+    ))
+    items.append((
+        "プラン別上限",
+        "OK" if plan_limits else "確認",
+        "TASK_DESTROYER_PLAN_LIMITSで free/starter/pro/team などを上書き可能。",
     ))
     items.append((
         "規約同意",
@@ -119,4 +125,3 @@ def page_production_check(users: list[dict[str, Any]]) -> None:
             "- `SUPABASE_SERVICE_ROLE_KEY` はサーバー側Secretsのみで管理\n"
             "- テストユーザーで商品保存、Core生成、再ログイン後の復元を確認"
         )
-

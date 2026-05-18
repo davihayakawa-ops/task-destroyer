@@ -202,4 +202,6 @@ def bootstrap_user_workspace(user: dict[str, str]) -> tuple[bool, str]:
     user["workspace_db_id"] = str(workspace.get("id", ""))
     user["workspace"] = str(workspace.get("slug") or user.get("workspace") or "default")
     user["workspace_name"] = str(workspace.get("name") or user.get("name") or user["workspace"])
+    user["plan"] = str(workspace.get("plan") or user.get("plan") or "free")
+    user["workspace_monthly_call_limit"] = str(workspace.get("monthly_call_limit") or "")
     return True, ""
