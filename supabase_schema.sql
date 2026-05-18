@@ -13,21 +13,6 @@ begin
 end;
 $$;
 
-create or replace function public.is_workspace_member(target_workspace_id uuid)
-returns boolean
-language sql
-security definer
-set search_path = public
-stable
-as $$
-  select exists (
-    select 1
-    from public.workspace_members wm
-    where wm.workspace_id = target_workspace_id
-      and wm.user_id = auth.uid()
-  );
-$$;
-
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text not null,
@@ -63,6 +48,21 @@ create table if not exists public.workspace_members (
   created_at timestamptz not null default now(),
   primary key (workspace_id, user_id)
 );
+
+create or replace function public.is_workspace_member(target_workspace_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1
+    from public.workspace_members wm
+    where wm.workspace_id = target_workspace_id
+      and wm.user_id = auth.uid()
+  );
+$$;
 
 create table if not exists public.products (
   id uuid primary key default gen_random_uuid(),
