@@ -93,6 +93,14 @@ def page_billing(svc: dict) -> None:
     col2.metric("今月の利用", f'{usage["used"]:,} calls')
     col3.metric("月間上限", f'{usage["limit"]:,} calls' if usage["is_limited"] else "無制限")
 
+    if usage["is_limited"]:
+        if usage["is_exhausted"]:
+            st.error("今月の生成上限に達しています。追加で生成するには上位プランへ変更してください。")
+        elif usage["percent"] >= 80:
+            st.warning(f'残り {usage["remaining"]:,} calls です。多めに生成する予定がある場合は、先に上位プランを検討してください。')
+        else:
+            st.info(f'今月はあと {usage["remaining"]:,} calls 生成できます。')
+
     ordered = ["free", "starter", "pro", "team"]
     st.markdown(
         '<div class="cs-grid-2">'
@@ -128,4 +136,3 @@ def page_billing(svc: dict) -> None:
     checkout_url = st.session_state.get("checkout_url")
     if checkout_url:
         st.link_button("Stripe決済ページを開く", checkout_url, type="primary", use_container_width=True)
-

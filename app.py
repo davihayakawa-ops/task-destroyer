@@ -1273,20 +1273,43 @@ def render_sidebar():
         usage = svc["usage_limiter"].summary()
         if usage["is_limited"]:
             usage_text = f'{usage["used"]:,} / {usage["limit"]:,} calls'
+            remaining_text = _lt(
+                f'残り {usage["remaining"]:,} calls',
+                f'Restam {usage["remaining"]:,} calls',
+                f'{usage["remaining"]:,} calls remaining',
+                lang,
+            )
             fill_width = usage["percent"]
         else:
             usage_text = f'{usage["used"]:,} calls'
+            remaining_text = _lt("無制限", "Ilimitado", "Unlimited", lang)
             fill_width = 0
+        usage_color = "#ef4444" if usage["is_exhausted"] else ("#f59e0b" if usage["is_limited"] and usage["percent"] >= 80 else "#94a3b8")
         st.markdown(
             '<div class="nd-sidebar-footer">'
             '<div style="color:#94a3b8;font-size:.6rem;letter-spacing:.1em;">API USAGE</div>'
             f'<div class="nd-use-bar"><div class="nd-use-fill" style="width:{fill_width}%;"></div></div>'
             f'<div>{usage_text}</div>'
-            f'<div style="font-size:.72rem;color:#94a3b8;">{usage["period"]}</div>'
+            f'<div style="font-size:.72rem;color:{usage_color};">{remaining_text}</div>'
+            f'<div style="font-size:.72rem;color:#94a3b8;">{usage["period"]} · {usage.get("plan", "default")}</div>'
             '<div style="margin-top:4px;color:#94a3b8;">v2.0 · Commerce</div>'
             '</div>',
             unsafe_allow_html=True,
         )
+        if usage["is_exhausted"]:
+            st.warning(_lt(
+                "今月の生成上限に達しました。プラン画面で上限を確認してください。",
+                "O limite mensal de geração foi atingido. Verifique seu plano.",
+                "Monthly generation limit reached. Check your plan.",
+                lang,
+            ))
+            if st.button(
+                _lt("プランを見る", "Ver plano", "View plan", lang),
+                key="sidebar_usage_upgrade",
+                use_container_width=True,
+            ):
+                st.session_state["page"] = "billing"
+                st.rerun()
 
 def render_breadcrumb():
     page    = st.session_state.get("page", "")

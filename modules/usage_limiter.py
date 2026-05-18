@@ -144,7 +144,11 @@ class UsageLimiter:
         data = self._read()
         used = int(data.get("used_calls") or 0)
         if used >= limit:
-            return False, f"[API利用上限：{self.period} は {used}/{limit} calls に達しています。管理者に上限追加を依頼してください]"
+            return (
+                False,
+                f"[API利用上限：{self.period} の生成上限 {used}/{limit} calls に達しました。"
+                "プラン画面で上限を確認し、必要に応じてアップグレードしてください]"
+            )
 
         data["used_calls"] = used + 1
         events = data.setdefault("events", [])
