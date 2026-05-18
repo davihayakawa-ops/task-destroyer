@@ -131,6 +131,17 @@ class SupabaseRepository:
         }).execute()
         return result.data[0]
 
+    def list_cores(self, workspace_id: str, local_product_id: str) -> list[dict[str, Any]]:
+        result = (
+            self.client.table("cores")
+            .select("*")
+            .eq("workspace_id", workspace_id)
+            .eq("local_product_id", local_product_id)
+            .order("created_at", desc=False)
+            .execute()
+        )
+        return result.data or []
+
     def save_generated(self, workspace_id: str, product_row_id: str, local_product_id: str,
                        content_type: str, content: dict[str, Any]) -> dict[str, Any]:
         result = self.client.table("generated_contents").insert({
@@ -141,6 +152,30 @@ class SupabaseRepository:
             "data": content,
         }).execute()
         return result.data[0]
+
+    def load_generated(self, workspace_id: str, local_product_id: str, content_type: str) -> Optional[dict[str, Any]]:
+        result = (
+            self.client.table("generated_contents")
+            .select("*")
+            .eq("workspace_id", workspace_id)
+            .eq("local_product_id", local_product_id)
+            .eq("content_type", content_type)
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        return result.data[0] if result.data else None
+
+    def list_generated(self, workspace_id: str, local_product_id: str) -> list[dict[str, Any]]:
+        result = (
+            self.client.table("generated_contents")
+            .select("*")
+            .eq("workspace_id", workspace_id)
+            .eq("local_product_id", local_product_id)
+            .order("created_at", desc=False)
+            .execute()
+        )
+        return result.data or []
 
     def log_audit(self, workspace_id: str, event: dict[str, Any]) -> None:
         row = {

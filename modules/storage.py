@@ -428,12 +428,48 @@ class Storage:
 
     def list_cores(self, product_id: str) -> List[dict]:
         product_id = _safe_file_stem(product_id)
+        db_cores = self._list_cores_from_supabase(product_id)
+        if db_cores:
+            return db_cores
         result = []
         for p in sorted((self.data_dir / "core_library").glob(f"{product_id}_*.json")):
             try:
                 result.append(json.loads(p.read_text()))
             except Exception:
                 pass
+        return result
+
+    def _list_cores_from_supabase(self, product_id: str) -> List[dict]:
+        workspace_db_id = _workspace_db_id_from_session()
+        if not workspace_db_id:
+            return []
+        try:
+            from modules.supabase_db import SupabaseRepository, supabase_db_configured
+
+            if not supabase_db_configured():
+                return []
+            rows = SupabaseRepository().list_cores(workspace_db_id, product_id)
+        except Exception as exc:
+            self.audit.log(
+                "supabase",
+                "list_cores",
+                "error",
+                product_id=product_id,
+                detail={"message": str(exc)[:300]},
+            )
+            return []
+
+        result = []
+        for row in rows:
+            core_data = row.get("data") if isinstance(row.get("data"), dict) else {}
+            result.append({
+                "id": str(row.get("id") or ""),
+                "product_id": product_id,
+                "version_label": str(row.get("version_label") or row.get("created_at") or ""),
+                "created_at": str(row.get("created_at") or ""),
+                "status": str(row.get("status") or core_data.get("status") or "ai_generated"),
+                "core": core_data,
+            })
         return result
 
     def load_latest_core(self, product_id: str) -> Optional[dict]:
@@ -483,6 +519,9 @@ class Storage:
     def load_generated(self, product_id: str, content_type: str) -> Optional[dict]:
         product_id = _safe_file_stem(product_id)
         content_type = _safe_file_stem(content_type, "generated")
+        db_entry = self._load_generated_from_supabase(product_id, content_type)
+        if db_entry:
+            return db_entry
         matches = sorted((self.data_dir / "projects").glob(f"{product_id}_{content_type}_*.json"))
         if not matches:
             return None
@@ -491,10 +530,44 @@ class Storage:
         except Exception:
             return None
 
+    def _load_generated_from_supabase(self, product_id: str, content_type: str) -> Optional[dict]:
+        workspace_db_id = _workspace_db_id_from_session()
+        if not workspace_db_id:
+            return None
+        try:
+            from modules.supabase_db import SupabaseRepository, supabase_db_configured
+
+            if not supabase_db_configured():
+                return None
+            row = SupabaseRepository().load_generated(workspace_db_id, product_id, content_type)
+        except Exception as exc:
+            self.audit.log(
+                "supabase",
+                "load_generated",
+                "error",
+                product_id=product_id,
+                detail={"content_type": content_type, "message": str(exc)[:300]},
+            )
+            return None
+        if not row:
+            return None
+        content = row.get("data") if isinstance(row.get("data"), dict) else {}
+        return {
+            "id": str(row.get("id") or ""),
+            "product_id": product_id,
+            "content_type": content_type,
+            "created_at": str(row.get("created_at") or ""),
+            "status": str(content.get("status") or "ai_generated"),
+            "content": content,
+        }
+
     def load_all_generated(self, product_id: str) -> dict:
         """Load the latest generated text for every content_type saved for this product.
         Returns {content_type: text_string}."""
         product_id = _safe_file_stem(product_id)
+        db_result = self._load_all_generated_from_supabase(product_id)
+        if db_result:
+            return db_result
         # Collect unique content_types from file names {pid}_{ct}_{id}.json
         content_types = set()
         for p in (self.data_dir / "projects").glob(f"{product_id}_*.json"):
@@ -510,6 +583,49 @@ class Storage:
             if not entry:
                 continue
             content = entry.get("content", {})
+            text = ""
+            if isinstance(content, dict):
+                text = content.get("text", "")
+                items = content.get("items")
+                if not text and isinstance(items, dict):
+                    text = combine_generated_items(items)
+            else:
+                text = str(content)
+            if text:
+                result[ct] = text
+                compat_key = ITEM_COMPAT_KEYS.get(ct)
+                if compat_key:
+                    result[compat_key] = text
+        return result
+
+    def _load_all_generated_from_supabase(self, product_id: str) -> dict:
+        workspace_db_id = _workspace_db_id_from_session()
+        if not workspace_db_id:
+            return {}
+        try:
+            from modules.supabase_db import SupabaseRepository, supabase_db_configured
+
+            if not supabase_db_configured():
+                return {}
+            rows = SupabaseRepository().list_generated(workspace_db_id, product_id)
+        except Exception as exc:
+            self.audit.log(
+                "supabase",
+                "list_generated",
+                "error",
+                product_id=product_id,
+                detail={"message": str(exc)[:300]},
+            )
+            return {}
+
+        latest_by_type = {}
+        for row in rows:
+            content_type = _safe_file_stem(row.get("content_type") or "", "generated")
+            latest_by_type[content_type] = row
+
+        result = {}
+        for ct, row in latest_by_type.items():
+            content = row.get("data") if isinstance(row.get("data"), dict) else {}
             text = ""
             if isinstance(content, dict):
                 text = content.get("text", "")
