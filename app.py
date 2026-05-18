@@ -893,8 +893,9 @@ hr,
     width: 132px !important;
 }
 .section-header {
-    font-size: 1.22rem !important;
+    font-size: 1.12rem !important;
     margin-top: .95rem !important;
+    padding-bottom: 10px !important;
 }
 .cs-card,
 .td-workflow,
@@ -921,6 +922,31 @@ hr,
 }
 .stButton > button {
     min-height: 36px !important;
+}
+.sb-mode-label {
+    border-top: 1px solid #1f2937;
+    color: #9aa4b2 !important;
+    font-size: .7rem !important;
+    font-weight: 750 !important;
+    letter-spacing: .04em !important;
+    margin: 14px 0 8px !important;
+    padding-top: 12px !important;
+}
+[data-testid="stSidebar"] .stButton > button {
+    font-size: .84rem !important;
+    margin-bottom: 4px;
+}
+[data-testid="stSidebar"] [data-testid="stSelectbox"] > div {
+    min-height: 38px !important;
+}
+[data-testid="stMarkdownContainer"] h1 {
+    font-size: 1.7rem !important;
+}
+[data-testid="stMarkdownContainer"] h2 {
+    font-size: 1.32rem !important;
+}
+[data-testid="stMarkdownContainer"] h3 {
+    font-size: 1.04rem !important;
 }
 .cs-image-note {
     background:#0f172a;
@@ -985,7 +1011,7 @@ init_state()
 # Bump this string whenever new methods are added to any service class.
 # Changing it invalidates the @st.cache_resource cache on Streamlit Cloud,
 # forcing fresh service objects that reflect the latest code.
-_SERVICES_VER = "20260518-legal-consent-v1"
+_SERVICES_VER = "20260519-sales-readiness-v1"
 
 
 @st.cache_resource

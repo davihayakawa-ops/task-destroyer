@@ -46,8 +46,8 @@ def page_account_settings() -> None:
         return
 
     with st.form("td_account_password_form"):
-        new_password = st.text_input("New password", type="password", key="td_account_new_password")
-        confirm_password = st.text_input("New password confirmation", type="password", key="td_account_confirm_password")
+        new_password = st.text_input(_ui("新しいパスワード", "Nova senha", "New password"), type="password", key="td_account_new_password")
+        confirm_password = st.text_input(_ui("新しいパスワード（確認）", "Confirmar nova senha", "Confirm new password"), type="password", key="td_account_confirm_password")
         submitted = st.form_submit_button(
             _ui("パスワードを変更", "Alterar senha", "Update password"),
             type="primary",

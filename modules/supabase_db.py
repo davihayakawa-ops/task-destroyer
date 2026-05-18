@@ -151,6 +151,16 @@ class SupabaseRepository:
         )
         return result.data[0] if result.data else None
 
+    def soft_delete_product(self, workspace_id: str, local_id: str) -> bool:
+        result = (
+            self.client.table("products")
+            .update({"status": "deleted"})
+            .eq("workspace_id", workspace_id)
+            .eq("local_id", local_id)
+            .execute()
+        )
+        return bool(result.data)
+
     def load_workspace(self, workspace_id: str) -> Optional[dict[str, Any]]:
         result = (
             self.client.table("workspaces")

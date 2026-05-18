@@ -343,6 +343,68 @@ def page_saved_data(svc: dict) -> None:
                                 '</div>',
                                 unsafe_allow_html=True,
                             )
+                        if can_perform_action("delete_project") and st.button(
+                            "🗑️ " + _lt("削除", "Excluir", "Delete", lang),
+                            key=f"library_prepare_delete_{pid}",
+                            use_container_width=True,
+                        ):
+                            st.session_state["library_confirm_delete_id"] = pid
+                            st.session_state["library_confirm_delete_name"] = name
+                            st.rerun()
+                    if st.session_state.get("library_confirm_delete_id") == pid:
+                        st.markdown(
+                            '<div class="cs-warning">⚠️ ' +
+                            _lt(
+                                "この商品を保存済み一覧から削除します。Coreや生成物もこの商品からは開けなくなります。",
+                                "Este produto será removido da lista. Core e conteúdos gerados deixarão de abrir por este produto.",
+                                "This product will be removed from the saved list. Its Cores and generated assets will no longer open from this product.",
+                                lang,
+                            ) +
+                            '</div>',
+                            unsafe_allow_html=True,
+                        )
+                        delete_reason = st.text_input(
+                            _lt("削除理由（任意）", "Motivo da exclusão (opcional)", "Reason (optional)", lang),
+                            key=f"library_delete_reason_{pid}",
+                        )
+                        confirm_col, cancel_col = st.columns(2)
+                        with confirm_col:
+                            if st.button(
+                                "🗑️ " + _lt("削除する", "Excluir", "Delete", lang),
+                                key=f"library_delete_{pid}",
+                                type="primary",
+                                use_container_width=True,
+                            ):
+                                result = do_delete_project(pid, p.get("file_path", ""), delete_reason)
+                                if result.get("success"):
+                                    if st.session_state.get("product_id") == pid:
+                                        for key in ("product_id", "product_info", "core_text", "core_status"):
+                                            st.session_state.pop(key, None)
+                                        st.session_state["generated"] = {}
+                                    st.session_state.pop("library_confirm_delete_id", None)
+                                    st.session_state.pop("library_confirm_delete_name", None)
+                                    st.success(
+                                        _lt(
+                                            "削除しました。Supabase保存分も一覧から非表示になります。",
+                                            "Excluído. O item salvo no Supabase também ficará oculto.",
+                                            "Deleted. The Supabase saved item will also be hidden from the list.",
+                                            lang,
+                                        )
+                                    )
+                                    st.rerun()
+                                st.error(
+                                    _lt("削除に失敗しました: ", "Falha ao excluir: ", "Delete failed: ", lang)
+                                    + str(result.get("message", ""))
+                                )
+                        with cancel_col:
+                            if st.button(
+                                "✖ " + _lt("キャンセル", "Cancelar", "Cancel", lang),
+                                key=f"library_cancel_delete_{pid}",
+                                use_container_width=True,
+                            ):
+                                st.session_state.pop("library_confirm_delete_id", None)
+                                st.session_state.pop("library_confirm_delete_name", None)
+                                st.rerun()
 
     with tab_cores:
         if not current_pid:

@@ -284,6 +284,27 @@ class Storage:
                 detail={"message": str(exc)[:300]},
             )
 
+    def _soft_delete_product_in_supabase(self, product_id: str) -> None:
+        """Best-effort soft delete so Cloud rows do not reappear after local deletion."""
+        workspace_db_id = _workspace_db_id_from_session()
+        if not workspace_db_id:
+            return
+        try:
+            from modules.supabase_db import SupabaseRepository, supabase_db_configured
+
+            if not supabase_db_configured():
+                return
+            SupabaseRepository().soft_delete_product(workspace_db_id, product_id)
+            self.audit.log("supabase", "soft_delete_product", "ok", product_id=product_id)
+        except Exception as exc:
+            self.audit.log(
+                "supabase",
+                "soft_delete_product",
+                "error",
+                product_id=product_id,
+                detail={"message": str(exc)[:300]},
+            )
+
     def _supabase_product_row(self, workspace_db_id: str, product_id: str):
         from modules.supabase_db import SupabaseRepository, supabase_db_configured
 
@@ -1082,6 +1103,7 @@ class Storage:
                 self.save_delete_log(product_id, deleted_by, reason, [str(project_file)])
             except Exception:
                 pass
+            self._soft_delete_product_in_supabase(product_id)
             self.audit.log("storage", "delete_project", "ok", product_id=product_id, actor=deleted_by,
                            detail={"mode": "trash"})
             return {
@@ -1113,6 +1135,7 @@ class Storage:
                 self.save_delete_log(product_id, deleted_by, reason, deleted)
             except Exception:
                 pass
+            self._soft_delete_product_in_supabase(product_id)
             self.audit.log("storage", "delete_project", "ok", product_id=product_id, actor=deleted_by,
                            detail={"mode": "cleanup", "deleted_count": len(deleted)})
             return {
@@ -1152,6 +1175,7 @@ class Storage:
             self.save_delete_log(product_id, deleted_by, reason, deleted)
         except Exception:
             pass
+        self._soft_delete_product_in_supabase(product_id)
         self.audit.log("storage", "delete_project", "ok", product_id=product_id, actor=deleted_by,
                        detail={"mode": "delete", "deleted_count": len(deleted)})
 
@@ -1396,6 +1420,7 @@ class Storage:
             clean_data = {k: v for k, v in data.items() if k != "_trash_meta"}
             orig.write_text(json.dumps(clean_data, ensure_ascii=False, indent=2))
             trash_path.unlink()
+            self._mirror_product_to_supabase(str(meta.get("product_id") or orig.stem), clean_data)
             self.audit.log("storage", "restore_from_trash", "ok",
                            product_id=str(meta.get("product_id") or ""),
                            detail={"filename": trash_path.name})

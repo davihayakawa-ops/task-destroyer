@@ -9,7 +9,7 @@ sys.path.insert(0, str(ROOT))
 from modules.product_input_logic import prepare_product_save_data
 
 
-def test_portuguese_save_requires_translation():
+def test_portuguese_save_keeps_direct_core_source():
     base = {
         "name": "Produto",
         "description": "Descricao",
@@ -23,7 +23,8 @@ def test_portuguese_save_requires_translation():
 
     assert result["input_original_language"] == "pt-BR"
     assert result["translation_status"] == "not_translated"
-    assert result["core_source_data"] == {}
+    assert result["core_source_data"]["name"] == "Produto"
+    assert result["core_source_data"]["description"] == "Descricao"
     assert result["input_ja"] == {"name": "古い訳"}
 
 
@@ -62,7 +63,7 @@ def test_admin_review_save_keeps_portuguese_main_fields():
 
 
 def main():
-    test_portuguese_save_requires_translation()
+    test_portuguese_save_keeps_direct_core_source()
     test_admin_japanese_save_builds_core_source()
     test_admin_review_save_keeps_portuguese_main_fields()
     print("product input logic tests ok")
