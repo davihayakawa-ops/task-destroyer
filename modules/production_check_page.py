@@ -67,8 +67,8 @@ def _readiness_items(users: list[dict[str, Any]]) -> list[tuple[str, str, str]]:
     ))
     items.append((
         "Supabase DB保存",
-        "OK" if supabase_url and supabase_service else "確認",
-        f"現在: {supabase_db_mode()}。商品/Core/生成物の個人別保存に使用。",
+        "OK" if supabase_url and supabase_service else "NG",
+        f"現在: {supabase_db_mode()}。一般販売では商品/Core/生成物の個人別保存に必須。",
     ))
     items.append((
         "パスワード再設定URL",
@@ -131,6 +131,8 @@ def page_production_check(users: list[dict[str, Any]]) -> None:
     with st.expander("Supabaseで最後に確認すること", expanded=False):
         st.markdown(
             "- `supabase_schema.sql` をSQL Editorで実行済み\n"
+            "- `products` / `cores` / `generated_contents` にRLSが有効\n"
+            "- 別ユーザーでログインした時に、他ユーザーの商品が表示されない\n"
             "- AuthのSite URLとRedirect URLに公開URLを追加済み\n"
             "- Email confirmation / Password recovery のメールが届く\n"
             "- `SUPABASE_SERVICE_ROLE_KEY` はサーバー側Secretsのみで管理\n"

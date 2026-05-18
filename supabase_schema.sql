@@ -3,6 +3,31 @@
 
 create extension if not exists pgcrypto;
 
+create or replace function public.set_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+create or replace function public.is_workspace_member(target_workspace_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1
+    from public.workspace_members wm
+    where wm.workspace_id = target_workspace_id
+      and wm.user_id = auth.uid()
+  );
+$$;
+
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text not null,
@@ -104,6 +129,28 @@ create table if not exists public.audit_logs (
   created_at timestamptz not null default now()
 );
 
+create index if not exists idx_workspaces_owner_id on public.workspaces(owner_id);
+create index if not exists idx_workspace_members_user_id on public.workspace_members(user_id);
+create index if not exists idx_products_workspace_updated on public.products(workspace_id, updated_at desc);
+create index if not exists idx_cores_workspace_product_created on public.cores(workspace_id, local_product_id, created_at desc);
+create index if not exists idx_generated_workspace_product_type_created on public.generated_contents(workspace_id, local_product_id, content_type, created_at desc);
+create index if not exists idx_audit_logs_workspace_created on public.audit_logs(workspace_id, created_at desc);
+
+drop trigger if exists set_profiles_updated_at on public.profiles;
+create trigger set_profiles_updated_at
+before update on public.profiles
+for each row execute function public.set_updated_at();
+
+drop trigger if exists set_workspaces_updated_at on public.workspaces;
+create trigger set_workspaces_updated_at
+before update on public.workspaces
+for each row execute function public.set_updated_at();
+
+drop trigger if exists set_products_updated_at on public.products;
+create trigger set_products_updated_at
+before update on public.products
+for each row execute function public.set_updated_at();
+
 alter table public.profiles enable row level security;
 alter table public.workspaces enable row level security;
 alter table public.workspace_members enable row level security;
@@ -114,59 +161,47 @@ alter table public.api_usage enable row level security;
 alter table public.consents enable row level security;
 alter table public.audit_logs enable row level security;
 
+drop policy if exists "profiles_select_own" on public.profiles;
+drop policy if exists "profiles_update_own" on public.profiles;
+drop policy if exists "workspace_members_select_own" on public.workspace_members;
+drop policy if exists "workspaces_select_member" on public.workspaces;
+drop policy if exists "products_member_all" on public.products;
+drop policy if exists "cores_member_all" on public.cores;
+drop policy if exists "generated_member_all" on public.generated_contents;
+drop policy if exists "usage_member_select" on public.api_usage;
+drop policy if exists "consents_own_select" on public.consents;
+drop policy if exists "audit_member_select" on public.audit_logs;
+
 create policy "profiles_select_own" on public.profiles
   for select using (id = auth.uid());
+
+create policy "profiles_update_own" on public.profiles
+  for update using (id = auth.uid())
+  with check (id = auth.uid());
 
 create policy "workspace_members_select_own" on public.workspace_members
   for select using (user_id = auth.uid());
 
 create policy "workspaces_select_member" on public.workspaces
-  for select using (
-    exists (
-      select 1 from public.workspace_members wm
-      where wm.workspace_id = id and wm.user_id = auth.uid()
-    )
-  );
+  for select using (public.is_workspace_member(id));
 
 create policy "products_member_all" on public.products
-  for all using (
-    exists (
-      select 1 from public.workspace_members wm
-      where wm.workspace_id = products.workspace_id and wm.user_id = auth.uid()
-    )
-  );
+  for all using (public.is_workspace_member(workspace_id))
+  with check (public.is_workspace_member(workspace_id));
 
 create policy "cores_member_all" on public.cores
-  for all using (
-    exists (
-      select 1 from public.workspace_members wm
-      where wm.workspace_id = cores.workspace_id and wm.user_id = auth.uid()
-    )
-  );
+  for all using (public.is_workspace_member(workspace_id))
+  with check (public.is_workspace_member(workspace_id));
 
 create policy "generated_member_all" on public.generated_contents
-  for all using (
-    exists (
-      select 1 from public.workspace_members wm
-      where wm.workspace_id = generated_contents.workspace_id and wm.user_id = auth.uid()
-    )
-  );
+  for all using (public.is_workspace_member(workspace_id))
+  with check (public.is_workspace_member(workspace_id));
 
 create policy "usage_member_select" on public.api_usage
-  for select using (
-    exists (
-      select 1 from public.workspace_members wm
-      where wm.workspace_id = api_usage.workspace_id and wm.user_id = auth.uid()
-    )
-  );
+  for select using (public.is_workspace_member(workspace_id));
 
 create policy "consents_own_select" on public.consents
   for select using (user_id = auth.uid());
 
 create policy "audit_member_select" on public.audit_logs
-  for select using (
-    exists (
-      select 1 from public.workspace_members wm
-      where wm.workspace_id = audit_logs.workspace_id and wm.user_id = auth.uid()
-    )
-  );
+  for select using (public.is_workspace_member(workspace_id));

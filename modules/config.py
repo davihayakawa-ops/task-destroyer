@@ -61,7 +61,7 @@ def validate_runtime_config(users: list[dict[str, Any]]) -> dict[str, list[str]]
         errors.append("SUPABASE_URL と SUPABASE_ANON_KEY はセットで設定してください。")
 
     if is_production() and supabase_enabled and not supabase_service_key:
-        warnings.append("Supabase DB保存へ移行する場合は SUPABASE_SERVICE_ROLE_KEY をサーバー側Secretsに設定してください。")
+        errors.append("一般販売では SUPABASE_SERVICE_ROLE_KEY をサーバー側Secretsに設定し、個人別DB保存を有効にしてください。")
 
     if users_raw and not users:
         errors.append("TASK_DESTROYER_USERS を読み込めません。JSON形式を確認してください。")
