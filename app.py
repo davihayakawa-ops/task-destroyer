@@ -25,6 +25,7 @@ from modules.mode_registry import list_modes, get_mode
 from modules.product_input_logic import PRODUCT_FIELD_LABELS_JA, PRODUCT_TRANSLATABLE_FIELDS, prepare_product_save_data
 from modules.selection_pages import page_ads_sns as render_page_ads_sns, page_image_prompt as render_page_image_prompt, page_video_script as render_page_video_script
 from modules.saved_data_page import page_saved_data
+from modules.production_check_page import page_production_check
 from modules.i18n import load_i18n, t, tl, resolve_option_index
 from modules.auth import ensure_authentication, current_user, load_users, logout
 from modules.config import render_config_guard
@@ -1234,6 +1235,16 @@ def render_sidebar():
             ):
                 st.session_state["page"] = page_id
                 st.rerun()
+
+        st.markdown("---")
+        if st.button(
+            _lt("🛡️ 本番準備チェック", "🛡️ Checklist de produção", "🛡️ Launch Checklist", lang),
+            key="simple_nav_production_check",
+            use_container_width=True,
+            type="primary" if cur_page == "production_check" else "secondary",
+        ):
+            st.session_state["page"] = "production_check"
+            st.rerun()
 
         # ── Product info summary ──────────────────────────────────────────
         if st.session_state.get("product_info", {}).get("name"):
@@ -4404,6 +4415,7 @@ def main():
         "output": page_output,
         "export_center": page_export_center,
         "saved_data": lambda: page_saved_data(svc),
+        "production_check": lambda: page_production_check(users),
     }
 
     render_fn = page_map.get(page, page_product_input)

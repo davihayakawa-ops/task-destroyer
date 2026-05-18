@@ -19,6 +19,7 @@ PAGES = [
     "video_script",
     "ads_sns",
     "export_center",
+    "production_check",
 ]
 
 BASE_PRODUCT = {
