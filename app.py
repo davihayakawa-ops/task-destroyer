@@ -1551,16 +1551,25 @@ def page_product_input():
     other_lang = "pt" if lang == "ja" else "ja"
     other_i18n = load_i18n(other_lang)
 
-    # ── 表示切り替え: 日本語確認用 / 原文 Português ──────────────────────────
+    # ── Display switch: Japanese review / original input ─────────────────────
     _pi_input_ja_top = info.get("input_ja") or {}
     _pi_has_ja_top   = bool(_pi_input_ja_top)
-    # Default to Japanese mode for admin when translation exists
+    review_mode_key = "ja_review"
+    original_mode_key = "original"
+    legacy_review_label = "🇯🇵 日本語確認用"
+    legacy_original_label = "🇧🇷 原文 Português"
+    if st.session_state.get("pi_disp_mode") == legacy_review_label:
+        st.session_state["pi_disp_mode"] = review_mode_key
+    elif st.session_state.get("pi_disp_mode") == legacy_original_label:
+        st.session_state["pi_disp_mode"] = original_mode_key
+
+    # Default to Japanese review mode when translation exists.
     if _pi_has_ja_top:
-        if st.session_state.get("pi_disp_mode") not in ("🇯🇵 日本語確認用", "🇧🇷 原文 Português"):
-            st.session_state["pi_disp_mode"] = "🇯🇵 日本語確認用"
+        if st.session_state.get("pi_disp_mode") not in (review_mode_key, original_mode_key):
+            st.session_state["pi_disp_mode"] = review_mode_key
     _pi_show_ja = (
         _pi_has_ja_top
-        and st.session_state.get("pi_disp_mode") == "🇯🇵 日本語確認用"
+        and st.session_state.get("pi_disp_mode") == review_mode_key
     )
     # Overlay Japanese translations onto info so all info.get() calls use Japanese
     if _pi_show_ja:
@@ -1628,23 +1637,38 @@ def page_product_input():
         known_tones_default.append(free_input)
     custom_tone_default = "、".join(custom_tone_parts)
 
-    # ── 表示モード切り替えUI ──────────────────────────────────────────────
+    # ── Display mode UI ─────────────────────────────────────────────────
     if _pi_has_ja_top:
         _pi_disp_sel = st.radio(
-            "表示モード / Modo de exibição",
-            ["🇯🇵 日本語確認用", "🇧🇷 原文 Português"],
+            _lt("表示モード", "Modo de exibição", "Display mode", lang),
+            [review_mode_key, original_mode_key],
             index=0 if _pi_show_ja else 1,
             horizontal=True,
             key="pi_disp_mode",
+            format_func=lambda v: {
+                review_mode_key: _lt("🇯🇵 日本語確認用", "🇯🇵 Revisão em japonês", "🇯🇵 Japanese review"),
+                original_mode_key: _lt("🌐 原文", "🌐 Original", "🌐 Original"),
+            }.get(v, v),
             label_visibility="collapsed",
         )
         if _pi_show_ja:
             st.caption(
-                "🇯🇵 日本語確認用データを表示中　—　"
-                "保存すると日本語確認用データが更新されます（原文Portuguêsは保持）"
+                _lt(
+                    "🇯🇵 日本語確認用データを表示中。保存すると日本語確認用データが更新されます（原文は保持）。",
+                    "🇯🇵 Exibindo dados de revisão em japonês. Ao salvar, a revisão é atualizada e o original é mantido.",
+                    "🇯🇵 Showing Japanese review data. Saving updates the review copy and keeps the original.",
+                    lang,
+                )
             )
         else:
-            st.caption("🇧🇷 Português原文を表示中　—　保存すると原文データが更新されます")
+            st.caption(
+                _lt(
+                    "🌐 原文データを表示中。保存すると原文データが更新されます。",
+                    "🌐 Exibindo dados originais. Ao salvar, o original é atualizado.",
+                    "🌐 Showing original input. Saving updates the original data.",
+                    lang,
+                )
+            )
 
     st.markdown(
         f'<div class="cs-card-title"><span class="icon">🌎</span> '
@@ -1880,7 +1904,7 @@ def page_product_input():
             _exist = svc["storage"].load_product(product_id) or {}
             _save_lang     = st.session_state.get("lang", "ja")
             _pi_save_in_ja = (
-                st.session_state.get("pi_disp_mode") == "🇯🇵 日本語確認用"
+                st.session_state.get("pi_disp_mode") == review_mode_key
                 and _pi_has_ja_top
             )
             new_info = prepare_product_save_data(
@@ -2760,7 +2784,7 @@ def page_product_page():
     if not st.session_state.get("core_text"):
         st.markdown('<div class="cs-warning">⚠️ ' + t("common.no_core_warning") + '</div>',
                     unsafe_allow_html=True)
-        if st.button("✨ " + ("Core生成画面へ" if is_ja else "Ir para Gerar Core")):
+        if st.button("✨ " + _lt("Core生成画面へ", "Ir para Gerar Core", "Go to Build Core", lang)):
             st.session_state["page"] = "core_generation"
             st.rerun()
         return
@@ -2814,6 +2838,8 @@ def page_product_page():
             {
                 "key": "shopify_common_css",
                 "label": "00 共通CSS",
+                "label_pt": "00 CSS comum",
+                "label_en": "00 Common CSS",
                 "icon": "🎨",
                 "num": "00",
                 "instruction": (
@@ -2821,66 +2847,121 @@ def page_product_page():
                     "Shopify管理画面 → オンラインストア → テーマ → カスタマイズ → "
                     "商品ページ → セクション追加 → <strong>Custom Liquid</strong> に貼り付け"
                 ),
+                "instruction_pt": (
+                    "O 00 sozinho não muda a aparência. Cole antes do 01-08 para alinhar cores, espaçamento e peças comuns.<br>"
+                    "Shopify Admin → Loja virtual → Temas → Personalizar → Página do produto → Adicionar seção → "
+                    "cole em <strong>Custom Liquid</strong>"
+                ),
+                "instruction_en": (
+                    "Section 00 does not show anything by itself. Paste it before 01-08 to align colors, spacing, and shared parts.<br>"
+                    "Shopify Admin → Online Store → Themes → Customize → Product page → Add section → paste into "
+                    "<strong>Custom Liquid</strong>"
+                ),
             },
             {
                 "key": "shopify_hero_section_code",
                 "label": "01 ファーストビュー",
+                "label_pt": "01 Primeira dobra",
+                "label_en": "01 First view",
                 "icon": "🌟",
                 "num": "01",
                 "instruction": "00 共通CSSの次に設置してください。商品ページの最上部に置くメイン表示です。",
+                "instruction_pt": "Instale depois do CSS comum 00. Esta é a seção principal no topo da página do produto.",
+                "instruction_en": "Place this after 00 Common CSS. This is the main top section of the product page.",
             },
             {
                 "key": "shopify_about_section_code",
                 "label": "02 商品について",
+                "label_pt": "02 Sobre o produto",
+                "label_en": "02 About product",
                 "icon": "📦",
                 "num": "02",
                 "instruction": "ファーストビューの次に設置。画像セクションを間に挟んでも OK。",
+                "instruction_pt": "Place after the first view. You can insert an image section between them.",
+                "instruction_en": "Place after the first view. You can insert an image section between them.",
             },
             {
                 "key": "shopify_problem_section_code",
                 "label": "03 悩み・共感",
+                "label_pt": "03 Dor / empatia",
+                "label_en": "03 Problem / empathy",
                 "icon": "💭",
                 "num": "03",
                 "instruction": "商品についての後に設置。画像・動画セクションと組み合わせ可。",
+                "instruction_pt": "Place after the product section. Works well with image or video sections.",
+                "instruction_en": "Place after the product section. Works well with image or video sections.",
             },
             {
                 "key": "shopify_features_section_code",
                 "label": "04 特徴カード",
+                "label_pt": "04 Cards de diferenciais",
+                "label_en": "04 Feature cards",
                 "icon": "✨",
                 "num": "04",
                 "instruction": "特徴を強調したい位置に設置してください。",
+                "instruction_pt": "Place where you want to emphasize the main features.",
+                "instruction_en": "Place where you want to emphasize the main features.",
             },
             {
                 "key": "shopify_usage_scene_section_code",
                 "label": "05 使用シーン",
+                "label_pt": "05 Cenas de uso",
+                "label_en": "05 Usage scenes",
                 "icon": "🏠",
                 "num": "05",
                 "instruction": "使用イメージが伝わる位置に設置。画像スライダーの前後がおすすめ。",
+                "instruction_pt": "Place where usage feels clear. Recommended before or after image sliders.",
+                "instruction_en": "Place where usage feels clear. Recommended before or after image sliders.",
             },
             {
                 "key": "shopify_comparison_section_code",
                 "label": "06 比較表",
+                "label_pt": "06 Tabela comparativa",
+                "label_en": "06 Comparison table",
                 "icon": "📊",
                 "num": "06",
                 "instruction": "他との違いを訴求したい位置に設置してください。",
+                "instruction_pt": "Place where you want to show differences from alternatives.",
+                "instruction_en": "Place where you want to show differences from alternatives.",
             },
             {
                 "key": "shopify_faq_section_code",
                 "label": "07 FAQ",
+                "label_pt": "07 FAQ",
+                "label_en": "07 FAQ",
                 "icon": "❓",
                 "num": "07",
                 "instruction": "CTAの直前に設置するのがおすすめです。",
+                "instruction_pt": "Recommended right before the CTA.",
+                "instruction_en": "Recommended right before the CTA.",
             },
             {
                 "key": "shopify_cta_section_code",
                 "label": "08 CTA",
+                "label_pt": "08 CTA",
+                "label_en": "08 CTA",
                 "icon": "🛒",
                 "num": "08",
                 "instruction": "ページの最下部に設置してください。背景色は選択したアクセントカラーに合わせます。",
+                "instruction_pt": "Place at the bottom of the page. The background follows the selected accent color.",
+                "instruction_en": "Place at the bottom of the page. The background follows the selected accent color.",
             },
         ]
 
         ALL_SECTION_KEYS = [s["key"] for s in SECTIONS]
+
+        def _section_label(s: dict) -> str:
+            return s["label"] if is_ja else (s["label_en"] if lang == "en" else s["label_pt"])
+
+        def _section_instruction(s: dict) -> str:
+            return s["instruction"] if is_ja else (s["instruction_en"] if lang == "en" else s["instruction_pt"])
+
+        def _preset_label(preset_key: str) -> str:
+            if is_ja:
+                return preset_key
+            if lang == "en":
+                return SECTION_PRESET_LABEL_EN.get(preset_key, preset_key)
+            return SECTION_PRESET_LABEL_PT.get(preset_key, preset_key)
 
         def _html_preview(title: str, code: str) -> str:
             return (
@@ -2900,7 +2981,7 @@ def page_product_page():
                     continue
                 code = sections_data.get(s["key"], "")
                 if code:
-                    parts.append(f"<!-- {s['label']} -->\n{code}")
+                    parts.append(f"<!-- {_section_label(s)} -->\n{code}")
             return "\n\n".join(parts)
 
         SECTION_PRESETS = {
@@ -3221,7 +3302,7 @@ def page_product_page():
             st.caption(SECTION_PRESETS[section_preset]["description"] if is_ja else (SECTION_PRESET_DESC_EN.get(section_preset, SECTION_PRESETS[section_preset]["description"]) if lang == "en" else SECTION_PRESET_DESC_PT.get(section_preset, SECTION_PRESETS[section_preset]["description"])))
         with section_col2:
             section_labels = [
-                f'{s["num"]} {s["label"].split(" ", 1)[-1]}'
+                _section_label(s)
                 for s in SECTIONS
                 if s["key"] in selected_section_keys
             ]
@@ -3386,7 +3467,7 @@ def page_product_page():
             else:
                 st.markdown("---")
                 st.markdown(
-                    f'<div class="cs-info">📌 <strong>{section_preset}</strong> ' + _lt(
+                    f'<div class="cs-info">📌 <strong>{_preset_label(section_preset)}</strong> ' + _lt(
                         '構成です。下の一括コードを、選択した順番でShopifyのCustom Liquidへ貼り付けできます。',
                         'é a estrutura selecionada. Cole o código abaixo no Shopify Custom Liquid na ordem escolhida.',
                         'is the selected structure. Paste the code below into Shopify Custom Liquid in the selected order.',
@@ -3445,9 +3526,9 @@ def page_product_page():
 
                 for s in SECTIONS:
                     code = gen.get(s["key"], "")
-                    with st.expander(f'{s["icon"]} {s["label"]}', expanded=False):
+                    with st.expander(f'{s["icon"]} {_section_label(s)}', expanded=False):
                         st.markdown(
-                            f'<div class="cs-info">📌 {s["instruction"]}</div>',
+                            f'<div class="cs-info">📌 {_section_instruction(s)}</div>',
                             unsafe_allow_html=True,
                         )
                         if code:
@@ -3465,7 +3546,7 @@ def page_product_page():
                             with dl2:
                                 st.download_button(
                                     _lt("⬇️ .html 確認用", "⬇️ .html para prévia", "⬇️ .html preview", lang),
-                                    data=_html_preview(s["label"], code).encode("utf-8"),
+                                    data=_html_preview(_section_label(s), code).encode("utf-8"),
                                     file_name=f"shopify_{s['num']}_{product_name}.html",
                                     mime="text/html",
                                     key=f"dl_html_{s['key']}",
@@ -3507,7 +3588,7 @@ def page_product_page():
                 code = gen.get(sec["key"], "")
                 st.markdown("---")
                 st.markdown(
-                    f'<div class="cs-info">📌 {sec["instruction"]}</div>',
+                    f'<div class="cs-info">📌 {_section_instruction(sec)}</div>',
                     unsafe_allow_html=True,
                 )
                 if code:
@@ -3525,7 +3606,7 @@ def page_product_page():
                     with dl2:
                         st.download_button(
                             _lt("⬇️ .html 確認用", "⬇️ .html para prévia", "⬇️ .html preview", lang),
-                            data=_html_preview(sec["label"], code).encode("utf-8"),
+                            data=_html_preview(_section_label(sec), code).encode("utf-8"),
                             file_name=f"shopify_{sec['num']}_{product_name}.html",
                             mime="text/html",
                             key=f"dl_single_html_{sec['key']}",

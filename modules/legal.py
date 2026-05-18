@@ -66,6 +66,15 @@ def record_consent(data_dir: Path, user: dict, audit_logger: Optional[object] = 
         )
 
 
+def _ui(ja: str, pt: str, en: str) -> str:
+    lang = st.session_state.get("lang", "ja")
+    if lang == "ja":
+        return ja
+    if lang == "en":
+        return en
+    return pt
+
+
 def render_consent_gate(data_dir: Path, audit_logger: Optional[object] = None) -> bool:
     user = current_user()
     email = user.get("email", "")
@@ -74,10 +83,49 @@ def render_consent_gate(data_dir: Path, audit_logger: Optional[object] = None) -
     if has_current_consent(data_dir, email):
         return True
 
-    st.markdown("## Task Destroyer 利用開始前の確認")
+    st.markdown("## " + _ui(
+        "Task Destroyer 利用開始前の確認",
+        "Confirmação antes de usar o Task Destroyer",
+        "Before you start using Task Destroyer",
+    ))
     st.caption(f"Terms version: {terms_version()}")
 
-    st.markdown("""
+    if st.session_state.get("lang", "ja") == "en":
+        st.markdown("""
+### Key Terms
+- This app helps generate product pages, ad copy, image prompts, video scripts, and social posts.
+- Do not publish AI outputs as-is. You are responsible for checking facts, laws, and platform rules.
+- Check medical claims, guaranteed results, No.1 claims, reviews, prices, and comparisons against the rules of your sales market.
+- You may not use this app for misuse, rights infringement, false advertising, spam, or illegal products.
+
+### Disclaimer
+- We do not guarantee accuracy, legality, sales results, or ad approval.
+- You are responsible for compliance with Shopify, ad platforms, social platforms, and local laws.
+
+### Privacy
+- Product info, generated outputs, operation logs, API usage, and consent records are stored to run the app.
+- Audit logs do not store prompt or generated text. They store operation type, result, character counts, and error type.
+- Inputs may be sent to external AI APIs for generation.
+""")
+    elif st.session_state.get("lang", "ja") == "pt":
+        st.markdown("""
+### Pontos principais dos termos
+- Este app ajuda a gerar páginas de produto, anúncios, prompts de imagem, roteiros de vídeo e textos para redes sociais.
+- Não publique resultados de IA sem revisar. Você deve conferir fatos, leis e regras das plataformas.
+- Verifique alegações médicas, garantias, No.1, reviews, preços e comparações conforme o mercado de venda.
+- O app não pode ser usado para abuso, violação de direitos, propaganda falsa, spam ou produtos ilegais.
+
+### Isenção
+- Não garantimos exatidão, legalidade, vendas ou aprovação em anúncios.
+- A conformidade com Shopify, plataformas de anúncios, redes sociais e leis locais é responsabilidade do usuário.
+
+### Privacidade
+- Informações de produto, conteúdos gerados, logs, uso de API e consentimentos são salvos para operar o app.
+- Logs de auditoria não salvam prompts nem textos gerados. Salvam tipo de operação, resultado, contagem de caracteres e tipo de erro.
+- As entradas podem ser enviadas para APIs externas de IA para geração.
+""")
+    else:
+        st.markdown("""
 ### 利用規約の要点
 - 本アプリは商品ページ、広告文、画像プロンプト、動画台本、SNS文の生成支援ツールです。
 - 生成結果はそのまま公開せず、利用者自身が事実確認、法令確認、プラットフォーム規約確認を行ってください。
@@ -94,12 +142,16 @@ def render_consent_gate(data_dir: Path, audit_logger: Optional[object] = None) -
 - API生成のため、入力内容は外部AI APIに送信される場合があります。
 """)
 
-    agree = st.checkbox("上記の利用規約・免責・プライバシー内容を確認し、同意します。")
-    if st.button("同意して開始", type="primary", disabled=not agree):
+    agree = st.checkbox(_ui(
+        "上記の利用規約・免責・プライバシー内容を確認し、同意します。",
+        "Li e concordo com os termos, isenção e privacidade acima.",
+        "I have reviewed and agree to the terms, disclaimer, and privacy notes above.",
+    ))
+    if st.button(_ui("同意して開始", "Concordar e começar", "Agree and start"), type="primary", disabled=not agree):
         record_consent(data_dir, user, audit_logger)
         st.rerun()
 
-    if st.button("ログアウト"):
+    if st.button(_ui("ログアウト", "Sair", "Sign out")):
         from modules.auth import logout
         logout()
     return False

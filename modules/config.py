@@ -81,19 +81,32 @@ def validate_runtime_config(users: list[dict[str, Any]]) -> dict[str, list[str]]
     return {"errors": errors, "warnings": warnings}
 
 
+def _ui(ja: str, pt: str, en: str) -> str:
+    lang = st.session_state.get("lang", "ja")
+    if lang == "ja":
+        return ja
+    if lang == "en":
+        return en
+    return pt
+
+
 def render_config_guard(users: list[dict[str, Any]]) -> bool:
     """Render config issues. Return True when the app can continue."""
     result = validate_runtime_config(users)
     if result["errors"]:
-        st.error("本番設定に問題があります。")
+        st.error(_ui(
+            "本番設定に問題があります。",
+            "Há um problema na configuração de produção.",
+            "There is a production configuration issue.",
+        ))
         for item in result["errors"]:
             st.markdown(f"- {item}")
         return False
     if result["warnings"] and not st.session_state.get("_config_warning_dismissed"):
-        with st.expander("設定の確認", expanded=False):
+        with st.expander(_ui("設定の確認", "Verificar configuração", "Configuration check"), expanded=False):
             for item in result["warnings"]:
                 st.warning(item)
-            if st.button("この警告を閉じる", key="dismiss_config_warning"):
+            if st.button(_ui("この警告を閉じる", "Fechar aviso", "Dismiss warning"), key="dismiss_config_warning"):
                 st.session_state["_config_warning_dismissed"] = True
                 st.rerun()
     return True
