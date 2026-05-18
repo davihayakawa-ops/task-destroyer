@@ -17,6 +17,7 @@ from typing import Any
 import streamlit as st
 
 from modules.config import secret_or_env
+from modules.supabase_auth import send_password_reset as supabase_password_reset
 from modules.supabase_auth import sign_in as supabase_sign_in
 from modules.supabase_auth import sign_up as supabase_sign_up
 from modules.supabase_auth import supabase_configured
@@ -140,7 +141,7 @@ def ensure_supabase_authentication() -> bool:
 
     st.markdown("## Task Destroyer")
     st.caption("ログインしてください / Please sign in")
-    tab_login, tab_signup = st.tabs(["ログイン", "新規登録"])
+    tab_login, tab_signup, tab_reset = st.tabs(["ログイン", "新規登録", "パスワード再設定"])
 
     with tab_login:
         with st.form("td_supabase_login_form"):
@@ -180,6 +181,18 @@ def ensure_supabase_authentication() -> bool:
                     st.success(message or "アカウントを作成しました。ログインしてください。")
                 else:
                     st.error(message or "登録に失敗しました。")
+
+    with tab_reset:
+        st.caption("登録済みメールアドレスへ再設定メールを送ります。")
+        with st.form("td_supabase_password_reset_form"):
+            email = st.text_input("Email", key="td_supabase_reset_email").strip().lower()
+            submitted = st.form_submit_button("再設定メールを送信 / Send reset email", type="primary")
+        if submitted:
+            ok, message = supabase_password_reset(email)
+            if ok:
+                st.success(message)
+            else:
+                st.error(message)
 
     return False
 

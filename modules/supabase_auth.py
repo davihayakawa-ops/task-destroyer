@@ -106,3 +106,25 @@ def sign_up(email: str, password: str) -> tuple[bool, str]:
         st.session_state["auth_user"] = auth_user
         return True, ""
     return True, "確認メールを送信しました。メール認証後にログインしてください。"
+
+
+def send_password_reset(email: str) -> tuple[bool, str]:
+    clean_email = email.strip().lower()
+    if not clean_email:
+        return False, "メールアドレスを入力してください。"
+
+    options = {}
+    redirect_to = secret_or_env("APP_BASE_URL")
+    if redirect_to:
+        options["redirect_to"] = redirect_to
+
+    try:
+        auth = _client().auth
+        if options:
+            auth.reset_password_email(clean_email, options=options)
+        else:
+            auth.reset_password_email(clean_email)
+    except Exception as exc:
+        return False, f"再設定メールを送信できませんでした: {str(exc)[:200]}"
+
+    return True, "パスワード再設定メールを送信しました。メールの案内に従ってください。"

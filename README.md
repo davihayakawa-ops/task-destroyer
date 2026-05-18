@@ -153,6 +153,7 @@ core_studio/
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase DB書き込み用のサーバー側キー。公開禁止 | 未設定 |
 | `LLM_MODEL` | 使用するモデル | `claude-sonnet-4-6` |
 | `APP_ENV` | `development` / `production`。本番では設定チェックが厳格化されます | `development` |
+| `APP_BASE_URL` | パスワード再設定メールなどの戻り先URL | 未設定 |
 | `DATA_DIR` | データ保存ディレクトリ | `data` |
 | `TASK_DESTROYER_USERS` | ログインユーザーJSON。未設定時はローカル開発モード | 未設定 |
 | `TASK_DESTROYER_MONTHLY_CALL_LIMIT` | ワークスペースごとの月間LLM呼び出し上限。`0`で無効 | `1000` |
@@ -163,6 +164,7 @@ core_studio/
 - `APP_ENV=production` を設定する
 - `ANTHROPIC_API_KEY` は Streamlit Secrets などサーバー側Secretsに置く
 - 一般販売では `SUPABASE_URL` と `SUPABASE_ANON_KEY` を設定し、Supabase Authを使う
+- パスワード再設定を使う場合は `APP_BASE_URL` を公開URLに設定し、Supabase AuthのRedirect URLにも追加する
 - DB保存へ移行する場合は `supabase_schema.sql` をSupabase SQL Editorで実行し、`SUPABASE_SERVICE_ROLE_KEY` をSecretsに設定する
 - Supabase DBが設定済みの場合、商品プロジェクト、Core、関連生成物はJSON保存と並行してDBへミラー保存・復元されます
 - Supabaseログイン後、`profiles`・`workspaces`・`workspace_members` は自動作成されます
