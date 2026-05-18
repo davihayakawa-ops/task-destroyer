@@ -27,6 +27,7 @@ from modules.selection_pages import page_ads_sns as render_page_ads_sns, page_im
 from modules.saved_data_page import page_saved_data
 from modules.production_check_page import page_production_check
 from modules.billing_page import page_billing
+from modules.account_page import page_account_settings
 from modules.i18n import load_i18n, t, tl, resolve_option_index
 from modules.auth import ensure_authentication, current_user, load_users, logout
 from modules.config import render_config_guard
@@ -1077,6 +1078,9 @@ _BREADCRUMB_MAP_JA = {
     "ads_sns":          ("⚡ 生成",        "広告・SNS"),
     "export_center":    ("⚡ 生成",        "出力・コピー"),
     "output":           ("⚡ 生成",        "出力・コピー"),
+    "account":          ("👤 アカウント",  "設定"),
+    "production_check": ("🛡️ 本番準備",    "チェック"),
+    "billing":          ("💳 プラン",      "課金"),
 }
 _BREADCRUMB_MAP_PT = {
     "dashboard":        ("🏠 Início",       "Painel"),
@@ -1091,6 +1095,9 @@ _BREADCRUMB_MAP_PT = {
     "ads_sns":          ("⚡ Gerar",        "Anúncios/SNS"),
     "export_center":    ("⚡ Gerar",        "Exportar/Copiar"),
     "output":           ("⚡ Gerar",        "Exportar/Copiar"),
+    "account":          ("👤 Conta",        "Configurações"),
+    "production_check": ("🛡️ Produção",     "Checklist"),
+    "billing":          ("💳 Plano",        "Faturamento"),
 }
 _BREADCRUMB_MAP_EN = {
     "dashboard":        ("🏠 Home",                "Dashboard"),
@@ -1105,6 +1112,9 @@ _BREADCRUMB_MAP_EN = {
     "ads_sns":          ("⚡ Generate",            "Ads/SNS"),
     "export_center":    ("⚡ Generate",            "Export / Copy"),
     "output":           ("⚡ Generate",            "Export / Copy"),
+    "account":          ("👤 Account",             "Settings"),
+    "production_check": ("🛡️ Launch",              "Checklist"),
+    "billing":          ("💳 Plan",                "Billing"),
 }
 
 
@@ -1156,6 +1166,14 @@ def render_sidebar():
         )
         if st.button(_lt("ログアウト", "Sair", "Sign out", st.session_state["lang"]), use_container_width=True):
             logout()
+        if st.button(
+            _lt("アカウント設定", "Configurações da conta", "Account Settings", st.session_state["lang"]),
+            key="simple_nav_account",
+            use_container_width=True,
+            type="primary" if st.session_state.get("page") == "account" else "secondary",
+        ):
+            st.session_state["page"] = "account"
+            st.rerun()
 
         st.markdown("---")
 
@@ -4449,6 +4467,7 @@ def main():
         "saved_data": lambda: page_saved_data(svc),
         "production_check": lambda: page_production_check(users),
         "billing": lambda: page_billing(svc),
+        "account": page_account_settings,
     }
 
     render_fn = page_map.get(page, page_product_input)

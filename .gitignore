@@ -3,3 +3,4 @@
 .streamlit/secrets.toml
 data/
 app.py.bak_*
+.DS_Store

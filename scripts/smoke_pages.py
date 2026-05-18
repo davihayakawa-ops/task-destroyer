@@ -21,6 +21,7 @@ PAGES = [
     "export_center",
     "production_check",
     "billing",
+    "account",
 ]
 
 BASE_PRODUCT = {

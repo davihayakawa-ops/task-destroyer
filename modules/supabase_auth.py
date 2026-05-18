@@ -104,12 +104,16 @@ def sign_up(email: str, password: str) -> tuple[bool, str]:
         return False, f"登録に失敗しました: {message}"
 
     user = getattr(result, "user", None)
+    session = getattr(result, "session", None)
     if user:
         auth_user = auth_user_from_supabase_user(user)
         ok, message = bootstrap_user_workspace(auth_user)
         if not ok:
             return False, message
         st.session_state["auth_user"] = auth_user
+        if session:
+            st.session_state["supabase_access_token"] = str(getattr(session, "access_token", "") or "")
+            st.session_state["supabase_refresh_token"] = str(getattr(session, "refresh_token", "") or "")
         return True, ""
     return True, "確認メールを送信しました。メール認証後にログインしてください。"
 
@@ -151,3 +155,26 @@ def update_password_with_recovery(access_token: str, refresh_token: str, new_pas
     except Exception as exc:
         return False, f"パスワードを変更できませんでした: {str(exc)[:200]}"
     return True, "パスワードを変更しました。新しいパスワードでログインしてください。"
+
+
+def update_current_password(new_password: str) -> tuple[bool, str]:
+    if len(new_password or "") < 8:
+        return False, "新しいパスワードは8文字以上にしてください。"
+
+    access_token = str(st.session_state.get("supabase_access_token") or "")
+    refresh_token = str(st.session_state.get("supabase_refresh_token") or "")
+    if not access_token or not refresh_token:
+        return False, "ログイン情報が古い可能性があります。一度ログアウトして、もう一度ログインしてから変更してください。"
+
+    try:
+        client = _client()
+        client.auth.set_session(access_token, refresh_token)
+        result = client.auth.update_user({"password": new_password})
+        session = getattr(result, "session", None)
+        if session:
+            st.session_state["supabase_access_token"] = str(getattr(session, "access_token", "") or "")
+            st.session_state["supabase_refresh_token"] = str(getattr(session, "refresh_token", "") or "")
+    except Exception as exc:
+        return False, f"パスワードを変更できませんでした: {str(exc)[:200]}"
+
+    return True, "パスワードを変更しました。次回から新しいパスワードでログインできます。"
