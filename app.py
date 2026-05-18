@@ -454,6 +454,36 @@ hr {
     margin-left: 0 !important;
     margin-right: auto !important;
 }
+[data-testid="stMarkdownContainer"] {
+    line-height: 1.65;
+}
+[data-testid="stMarkdownContainer"] h1,
+[data-testid="stMarkdownContainer"] h2,
+[data-testid="stMarkdownContainer"] h3,
+[data-testid="stMarkdownContainer"] h4 {
+    letter-spacing: 0 !important;
+    line-height: 1.35 !important;
+}
+[data-testid="stMarkdownContainer"] h1 {
+    font-size: 2rem !important;
+    margin: 0 0 1rem !important;
+}
+[data-testid="stMarkdownContainer"] h2 {
+    font-size: 1.55rem !important;
+    margin: 1.1rem 0 .85rem !important;
+}
+[data-testid="stMarkdownContainer"] h3 {
+    font-size: 1.16rem !important;
+    margin: 1rem 0 .7rem !important;
+}
+[data-testid="stMarkdownContainer"] h4 {
+    font-size: 1rem !important;
+    margin: .9rem 0 .6rem !important;
+}
+[data-testid="stMarkdownContainer"] p,
+[data-testid="stMarkdownContainer"] li {
+    font-size: .92rem;
+}
 [data-testid="stMain"] .block-container::before {
     display: none !important;
 }
@@ -509,13 +539,16 @@ hr {
     color: var(--app-text) !important;
     border-bottom: 1px solid var(--app-border) !important;
     border-image: none !important;
-    font-size: 1.45rem;
+    font-size: 1.32rem;
+    font-weight: 850;
     letter-spacing: 0;
-    margin-bottom: 16px;
+    margin: 1.15rem 0 16px;
     padding-bottom: 12px;
 }
 .section-sub {
     color: var(--app-muted) !important;
+    font-size: .88rem !important;
+    line-height: 1.65;
 }
 
 .cs-card,
@@ -526,6 +559,13 @@ hr {
     border-radius: var(--app-radius) !important;
     color: var(--app-text) !important;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+}
+.cs-card,
+.td-page-summary,
+.td-action-card,
+.generated-box,
+.bilingual-col {
+    border-top-color: #334155 !important;
 }
 .cs-card:hover {
     border-color: #3b82f6 !important;
@@ -538,8 +578,9 @@ hr {
 }
 .cs-card-title {
     color: #cbd5e1 !important;
-    font-size: 0.8rem;
-    letter-spacing: 0.04em;
+    font-size: 0.84rem;
+    letter-spacing: 0;
+    font-weight: 800;
 }
 .generated-box {
     background: #0b1220 !important;
@@ -556,6 +597,7 @@ hr {
     border: 1px solid #334155 !important;
     border-radius: var(--app-radius) !important;
     min-height: 38px;
+    font-size: .9rem !important;
     font-weight: 650;
     box-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
 }
@@ -598,6 +640,7 @@ hr {
 [data-testid="stTabs"] [role="tab"] {
     color: var(--app-muted) !important;
     border-bottom: 2px solid transparent !important;
+    font-size: .92rem !important;
     font-weight: 650;
 }
 [data-testid="stTabs"] [role="tab"][aria-selected="true"] {
@@ -605,8 +648,12 @@ hr {
     border-bottom-color: var(--app-primary) !important;
 }
 
-hr {
-    background: var(--app-border) !important;
+hr,
+[data-testid="stMarkdownContainer"] hr {
+    background: linear-gradient(90deg, transparent, #334155 8%, #334155 92%, transparent) !important;
+    border: 0 !important;
+    height: 1px !important;
+    margin: 1.5rem 0 !important;
 }
 .sb-breadcrumb {
     background: #0f172a !important;
@@ -658,9 +705,14 @@ hr {
     border-radius: var(--app-radius);
     padding: 12px 14px;
 }
+[data-testid="stMetric"] [data-testid="stMetricValue"] {
+    font-size: 1.55rem !important;
+    line-height: 1.1 !important;
+}
 [data-testid="stMetric"] label,
 [data-testid="stMetric"] [data-testid="stMetricLabel"] {
     color: var(--app-muted) !important;
+    font-size: .78rem !important;
 }
 
 [data-testid="stExpander"] {
@@ -670,7 +722,18 @@ hr {
 }
 [data-testid="stExpander"] summary {
     color: var(--app-text) !important;
+    border-bottom: 1px solid rgba(51,65,85,.55);
+    min-height: 42px;
     font-weight: 650;
+}
+[data-testid="stExpander"] details[open] summary {
+    border-bottom-color: var(--app-border);
+}
+[data-testid="stDataFrame"],
+[data-testid="stTable"] {
+    border: 1px solid var(--app-border) !important;
+    border-radius: var(--app-radius) !important;
+    overflow: hidden;
 }
 
 .td-workflow {
@@ -690,7 +753,7 @@ hr {
     margin-bottom:12px;
 }
 .td-workflow-title {
-    font-size: .92rem;
+    font-size: .9rem;
     font-weight: 800;
     color: #f8fafc;
 }
@@ -767,13 +830,13 @@ hr {
     background:#111827;
     border:1px solid #263244;
     border-radius:10px;
-    padding:16px 18px;
-    margin:0 0 16px;
+    padding:14px 16px;
+    margin:0 0 18px;
 }
 .td-page-summary h3 {
     margin:0 0 6px;
     color:#f8fafc;
-    font-size:1rem;
+    font-size:.98rem;
 }
 .td-page-summary p {
     margin:0;
