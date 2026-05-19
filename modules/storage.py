@@ -449,11 +449,9 @@ class Storage:
                 # Skip generated-content wrappers that sneak through
                 if "content_type" in data or "content" in data:
                     continue
-                entry = {
-                    "id": p.stem,
-                    "file_path": str(p.resolve()),  # absolute path → reliable deletion
-                    **_fill_translation_defaults(data),
-                }
+                entry = _fill_translation_defaults(data)
+                entry["id"] = p.stem
+                entry["file_path"] = str(p.resolve())  # absolute path → reliable deletion
                 result.append(entry)
             except Exception:
                 pass
@@ -798,11 +796,10 @@ class Storage:
                 continue
             data = row.get("data") if isinstance(row.get("data"), dict) else {}
             local_path = self.data_dir / "projects" / f"{local_id}.json"
-            result.append({
-                "id": local_id,
-                "file_path": str(local_path.resolve()) if local_path.exists() else "",
-                **_fill_translation_defaults(data),
-            })
+            entry = _fill_translation_defaults(data)
+            entry["id"] = local_id
+            entry["file_path"] = str(local_path.resolve()) if local_path.exists() else ""
+            result.append(entry)
         return result
 
     # ── Core Library ──────────────────────────────────────────────────────────
