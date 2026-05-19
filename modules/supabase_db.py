@@ -126,6 +126,20 @@ class SupabaseRepository:
         )
         return result.data or []
 
+    def list_deleted_product_ids(self, workspace_id: str) -> list[str]:
+        result = (
+            self.client.table("products")
+            .select("local_id")
+            .eq("workspace_id", workspace_id)
+            .eq("status", "deleted")
+            .execute()
+        )
+        return [
+            str(row.get("local_id") or "").strip()
+            for row in (result.data or [])
+            if str(row.get("local_id") or "").strip()
+        ]
+
     def upsert_product(
         self,
         workspace_id: str,
@@ -165,7 +179,7 @@ class SupabaseRepository:
     def find_product(self, workspace_id: str, local_id: str) -> Optional[dict[str, Any]]:
         result = (
             self.client.table("products")
-            .select("id,status")
+            .select("id,local_id,status")
             .eq("workspace_id", workspace_id)
             .eq("local_id", local_id)
             .limit(1)
@@ -173,22 +187,94 @@ class SupabaseRepository:
         )
         return result.data[0] if result.data else None
 
-    def soft_delete_product(self, workspace_id: str, local_id: str) -> bool:
-        before = self.find_product(workspace_id, local_id)
-        if not before:
+    def _delete_related_product_rows(
+        self,
+        workspace_id: str,
+        local_id: str,
+        product_row_ids: Optional[list[str]] = None,
+    ) -> None:
+        product_row_ids = [str(v) for v in (product_row_ids or []) if str(v or "").strip()]
+        for table in ("generated_contents", "cores"):
+            try:
+                (
+                    self.client.table(table)
+                    .delete()
+                    .eq("workspace_id", workspace_id)
+                    .eq("local_product_id", local_id)
+                    .execute()
+                )
+            except Exception:
+                pass
+            for product_row_id in product_row_ids:
+                try:
+                    (
+                        self.client.table(table)
+                        .delete()
+                        .eq("workspace_id", workspace_id)
+                        .eq("product_id", product_row_id)
+                        .execute()
+                    )
+                except Exception:
+                    pass
+
+    def soft_delete_product(
+        self,
+        workspace_id: str,
+        local_id: str,
+        product_row_id: str = "",
+    ) -> bool:
+        local_id = str(local_id or "").strip()
+        product_row_id = str(product_row_id or "").strip()
+        if not local_id and not product_row_id:
             return True
-        (
+        before_query = (
             self.client.table("products")
-            .update({"status": "deleted"})
+            .select("id,local_id,status")
             .eq("workspace_id", workspace_id)
-            .eq("local_id", local_id)
+        )
+        if product_row_id:
+            before_query = before_query.eq("id", product_row_id)
+        else:
+            before_query = before_query.eq("local_id", local_id)
+        before_result = before_query.execute()
+        before_rows = before_result.data or []
+        if not before_rows:
+            if local_id:
+                self._delete_related_product_rows(workspace_id, local_id)
+            return True
+
+        product_row_ids = [str(row.get("id") or "") for row in before_rows if row.get("id")]
+        related_local_ids = {
+            str(row.get("local_id") or "").strip()
+            for row in before_rows
+            if str(row.get("local_id") or "").strip()
+        }
+        if local_id:
+            related_local_ids.add(local_id)
+        for related_local_id in related_local_ids:
+            self._delete_related_product_rows(workspace_id, related_local_id, product_row_ids)
+
+        for row_id in product_row_ids:
+            (
+                self.client.table("products")
+                .update({"status": "deleted"})
+                .eq("workspace_id", workspace_id)
+                .eq("id", row_id)
+                .execute()
+            )
+        active = (
+            self.client.table("products")
+            .select("id")
+            .eq("workspace_id", workspace_id)
+            .in_("id", product_row_ids)
+            .neq("status", "deleted")
+            .limit(1)
             .execute()
         )
-        after = self.find_product(workspace_id, local_id)
-        return bool(after and after.get("status") == "deleted")
+        return not bool(active.data)
 
-    def delete_product(self, workspace_id: str, local_id: str) -> bool:
-        return self.soft_delete_product(workspace_id, local_id)
+    def delete_product(self, workspace_id: str, local_id: str, product_row_id: str = "") -> bool:
+        return self.soft_delete_product(workspace_id, local_id, product_row_id)
 
     def load_workspace(self, workspace_id: str) -> Optional[dict[str, Any]]:
         result = (

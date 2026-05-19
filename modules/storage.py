@@ -280,6 +280,7 @@ class Storage:
 
     def _deleted_product_ids(self) -> set[str]:
         ids = set(_session_deleted_product_ids())
+        ids.update(self._supabase_deleted_product_ids())
         path = self._deleted_registry_path()
         if not path.exists():
             return ids
@@ -299,6 +300,44 @@ class Storage:
                 ids.add(safe)
         return ids
 
+    def _supabase_deleted_product_ids(self) -> set[str]:
+        workspace_db_id = _workspace_db_id_from_session()
+        if not workspace_db_id:
+            return set()
+        try:
+            from streamlit.runtime.scriptrunner import get_script_run_ctx
+
+            if get_script_run_ctx(suppress_warning=True) is None:
+                return set()
+            import streamlit as st
+        except Exception:
+            return set()
+        cache_key = f"supabase_deleted_product_ids_{workspace_db_id}"
+        try:
+            cached = st.session_state.get(cache_key)
+        except Exception:
+            cached = None
+        if isinstance(cached, list):
+            return {
+                _safe_file_stem(str(item or ""))
+                for item in cached
+                if _safe_file_stem(str(item or ""))
+            }
+        try:
+            from modules.supabase_db import SupabaseRepository, supabase_db_configured
+
+            if not supabase_db_configured():
+                return set()
+            ids = {
+                _safe_file_stem(str(item or ""))
+                for item in SupabaseRepository().list_deleted_product_ids(workspace_db_id)
+                if _safe_file_stem(str(item or ""))
+            }
+            st.session_state[cache_key] = sorted(ids)
+            return ids
+        except Exception:
+            return set()
+
     def _mark_product_deleted(self, product_id: str) -> None:
         product_id = _safe_file_stem(product_id)
         if not product_id:
@@ -308,6 +347,18 @@ class Storage:
         ids.add(product_id)
         payload = {"ids": sorted(ids), "updated_at": _now()}
         self._deleted_registry_path().write_text(json.dumps(payload, ensure_ascii=False, indent=2))
+        workspace_db_id = _workspace_db_id_from_session()
+        if workspace_db_id:
+            try:
+                import streamlit as st
+
+                cache_key = f"supabase_deleted_product_ids_{workspace_db_id}"
+                cached = st.session_state.get(cache_key)
+                cached_ids = set(cached if isinstance(cached, list) else [])
+                cached_ids.add(product_id)
+                st.session_state[cache_key] = sorted(cached_ids)
+            except Exception:
+                pass
 
     # ── Product Info ──────────────────────────────────────────────────────────
 
@@ -371,7 +422,12 @@ class Storage:
                 detail={"message": str(exc)[:300]},
             )
 
-    def _delete_product_in_supabase(self, product_id: str) -> tuple[bool, str]:
+    def _delete_product_in_supabase(
+        self,
+        product_id: str,
+        cloud_local_id: str = "",
+        cloud_product_row_id: str = "",
+    ) -> tuple[bool, str]:
         """Authoritative cloud delete for logged-in workspaces."""
         workspace_db_id = _workspace_db_id_from_session()
         if not workspace_db_id:
@@ -381,7 +437,11 @@ class Storage:
 
             if not supabase_db_configured():
                 return True, ""
-            ok = SupabaseRepository().delete_product(workspace_db_id, product_id)
+            ok = SupabaseRepository().delete_product(
+                workspace_db_id,
+                cloud_local_id or product_id,
+                cloud_product_row_id,
+            )
             if ok:
                 self.audit.log("supabase", "delete_product", "ok", product_id=product_id)
                 return True, ""
@@ -855,6 +915,8 @@ class Storage:
             local_path = self.data_dir / "projects" / f"{local_id}.json"
             entry = _fill_translation_defaults(data)
             entry["id"] = local_id
+            entry["_db_local_id"] = str(row.get("local_id") or "")
+            entry["_db_product_row_id"] = str(row.get("id") or "")
             entry["file_path"] = str(local_path.resolve()) if local_path.exists() else ""
             result.append(entry)
         return result
@@ -1179,12 +1241,17 @@ class Storage:
 
     def delete_project(self, product_id: str, deleted_by: str = "",
                        reason: str = "", file_path: str = "",
+                       cloud_local_id: str = "", cloud_product_row_id: str = "",
                        use_trash: bool = True) -> dict:
         product_id = _safe_file_stem(product_id)
 
         cloud_active = self._supabase_products_active()
         if cloud_active:
-            cloud_ok, cloud_message = self._delete_product_in_supabase(product_id)
+            cloud_ok, cloud_message = self._delete_product_in_supabase(
+                product_id,
+                cloud_local_id=cloud_local_id,
+                cloud_product_row_id=cloud_product_row_id,
+            )
             if not cloud_ok:
                 return {
                     "success": False,
