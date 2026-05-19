@@ -1267,10 +1267,10 @@ _MY_PROJECTS_CSS = """
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
-    margin-bottom: -48px;
-    min-height: 334px;
+    margin-bottom: 8px;
+    min-height: 304px;
     overflow: hidden;
-    padding: 16px 16px 64px;
+    padding: 16px;
     position: relative;
 }
 .mp-card:hover {
@@ -1393,18 +1393,18 @@ _MY_PROJECTS_CSS = """
     color: #fff;
 }
 div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .mp-card) {
-    gap: 0 !important;
+    gap: 8px !important;
 }
 div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .mp-card) > div[data-testid="stHorizontalBlock"] {
-    margin: 8px 18px 14px !important;
+    margin: 0 0 26px !important;
     position: relative;
     z-index: 2;
 }
 div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .mp-card) button {
     border-radius: 7px !important;
-    font-size: .68rem !important;
-    min-height: 30px;
-    padding: .20rem .28rem !important;
+    font-size: .76rem !important;
+    min-height: 34px;
+    padding: .26rem .45rem !important;
 }
 .mp-panel {
     background: rgba(17,24,39,.84);
@@ -1964,22 +1964,8 @@ def page_saved_data(svc: dict) -> None:
                     status = status_by_id[pid]
                     with col:
                         st.markdown(_mp_card_html(product, status, lang), unsafe_allow_html=True)
-                        b1, b2, b3 = st.columns(3)
-                        with b1:
-                            if st.button(_mp_text("開く", "Abrir", "Open", lang), key=f"mp_open_{pid}", use_container_width=True):
-                                _mp_open_project(pid, product, svc, "product_input")
-                        with b2:
-                            if st.button(_mp_text("複製", "Duplicar", "Duplicate", lang), key=f"mp_dup_{pid}", use_container_width=True):
-                                duplicated = _mp_duplicate_project(product, svc, lang)
-                                st.success(
-                                    _mp_text("複製しました: ", "Duplicado: ", "Duplicated: ", lang)
-                                    + duplicated.get("name", "")
-                                )
-                                st.rerun()
-                        with b3:
-                            next_page = _mp_next_page(status)
-                            if st.button("▷ " + _mp_text("続き", "Continuar", "Continue", lang), key=f"mp_continue_{pid}", type="primary", use_container_width=True):
-                                _mp_open_project(pid, product, svc, next_page)
+                        if st.button(_mp_text("開く", "Abrir", "Open", lang), key=f"mp_open_{pid}", type="primary", use_container_width=True):
+                            _mp_open_project(pid, product, svc, "product_input")
         else:
             for product in products:
                 pid = product["id"]
@@ -1993,21 +1979,8 @@ def page_saved_data(svc: dict) -> None:
                         st.caption(_mp_text("状態", "Status", "Status", lang))
                         st.markdown(_mp_status_label(status["state"], lang))
                     with c3:
-                        a1, a2, a3 = st.columns(3)
-                        with a1:
-                            if st.button(_mp_text("開く", "Abrir", "Open", lang), key=f"mp_list_open_{pid}", use_container_width=True):
-                                _mp_open_project(pid, product, svc, "product_input")
-                        with a2:
-                            if st.button(_mp_text("続きから", "Continuar", "Continue", lang), key=f"mp_list_continue_{pid}", type="primary", use_container_width=True):
-                                _mp_open_project(pid, product, svc, _mp_next_page(status))
-                        with a3:
-                            if st.button(
-                                _mp_text("削除", "Excluir", "Delete", lang),
-                                key=f"mp_list_del_prepare_{pid}",
-                                use_container_width=True,
-                            ):
-                                _mp_queue_delete(pid)
-                                st.rerun()
+                        if st.button(_mp_text("開く", "Abrir", "Open", lang), key=f"mp_list_open_{pid}", type="primary", use_container_width=True):
+                            _mp_open_project(pid, product, svc, "product_input")
 
         st.caption(
             _mp_text("全", "Total", "Total", lang)
