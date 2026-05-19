@@ -1963,13 +1963,13 @@ def page_saved_data(svc: dict) -> None:
                             next_page = _mp_next_page(status)
                             if st.button("▷ " + _mp_text("続き", "Continuar", "Continue", lang), key=f"mp_continue_{pid}", type="primary", use_container_width=True):
                                 _mp_open_project(pid, product, svc, next_page)
-                        st.button(
+                        if st.button(
                             "🗑️ " + _mp_text("このプロジェクトを削除", "Excluir este projeto", "Delete this project", lang),
                             key=f"mp_del_prepare_{pid}",
                             use_container_width=True,
-                            on_click=_mp_queue_delete,
-                            args=(pid,),
-                        )
+                        ):
+                            _mp_queue_delete(pid)
+                            st.rerun()
         else:
             for product in products:
                 pid = product["id"]
@@ -1991,13 +1991,13 @@ def page_saved_data(svc: dict) -> None:
                             if st.button(_mp_text("続きから", "Continuar", "Continue", lang), key=f"mp_list_continue_{pid}", type="primary", use_container_width=True):
                                 _mp_open_project(pid, product, svc, _mp_next_page(status))
                         with a3:
-                            st.button(
+                            if st.button(
                                 _mp_text("削除", "Excluir", "Delete", lang),
                                 key=f"mp_list_del_prepare_{pid}",
                                 use_container_width=True,
-                                on_click=_mp_queue_delete,
-                                args=(pid,),
-                            )
+                            ):
+                                _mp_queue_delete(pid)
+                                st.rerun()
 
         st.caption(
             _mp_text("全", "Total", "Total", lang)
@@ -2041,6 +2041,29 @@ def page_saved_data(svc: dict) -> None:
                 target = "product_page"
             st.session_state["page"] = target
             st.rerun()
+        if all_products:
+            st.markdown(
+                '<div class="mp-panel mp-side-panel">'
+                f'<div class="mp-panel-title">{_mp_text("プロジェクト削除", "Excluir projeto", "Delete Project", lang)}</div>'
+                f'<div class="mp-activity">{_mp_text("消したいプロジェクトを選んで削除します。", "Escolha o projeto para excluir.", "Choose a project to delete.", lang)}</div>'
+                '</div>',
+                unsafe_allow_html=True,
+            )
+            delete_options = {str(p.get("id") or ""): str(p.get("name") or p.get("id") or "") for p in all_products}
+            delete_target = st.selectbox(
+                _mp_text("削除対象", "Projeto", "Project", lang),
+                list(delete_options.keys()),
+                format_func=lambda pid: delete_options.get(pid, pid),
+                key="mp_side_delete_target",
+                label_visibility="collapsed",
+            )
+            if st.button(
+                "🗑️ " + _mp_text("選択したプロジェクトを削除", "Excluir selecionado", "Delete Selected", lang),
+                key="mp_side_delete_run",
+                use_container_width=True,
+            ):
+                _mp_queue_delete(delete_target)
+                st.rerun()
         st.markdown(
             '<div class="mp-panel mp-side-panel">'
             f'<div class="mp-panel-title">{_mp_text("現在の作業", "Trabalho atual", "Current Work", lang)}</div>'
