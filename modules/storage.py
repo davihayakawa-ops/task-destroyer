@@ -183,6 +183,29 @@ def _workspace_db_id_from_session() -> str:
     return str(user.get("workspace_db_id") or "").strip()
 
 
+def _session_deleted_product_ids() -> set[str]:
+    try:
+        from streamlit.runtime.scriptrunner import get_script_run_ctx
+
+        if get_script_run_ctx(suppress_warning=True) is None:
+            return set()
+        import streamlit as st
+    except Exception:
+        return set()
+    try:
+        raw_ids = st.session_state.get("mp_deleted_product_ids") or []
+    except Exception:
+        return set()
+    if isinstance(raw_ids, str):
+        raw_ids = [raw_ids]
+    result = set()
+    for item in raw_ids:
+        safe = _safe_file_stem(str(item or ""))
+        if safe:
+            result.add(safe)
+    return result
+
+
 class Storage:
     """JSON file-based storage. Swappable to Supabase by replacing this module."""
 
@@ -256,6 +279,9 @@ class Storage:
 
     def save_product(self, product_id: str, data: dict) -> str:
         product_id = _safe_file_stem(product_id)
+        if product_id in _session_deleted_product_ids():
+            self.audit.log("storage", "save_product_skipped_deleted", "ok", product_id=product_id)
+            return product_id
         data["updated_at"] = _now()
         path = self.data_dir / "projects" / f"{product_id}.json"
         path.write_text(json.dumps(data, ensure_ascii=False, indent=2))
@@ -265,6 +291,9 @@ class Storage:
 
     def _mirror_product_to_supabase(self, product_id: str, data: dict) -> None:
         """Best-effort product mirror for account-isolated public sales."""
+        product_id = _safe_file_stem(product_id)
+        if product_id in _session_deleted_product_ids():
+            return
         workspace_db_id = _workspace_db_id_from_session()
         if not workspace_db_id:
             return
@@ -347,9 +376,15 @@ class Storage:
     def _supabase_product_row(self, workspace_db_id: str, product_id: str):
         from modules.supabase_db import SupabaseRepository, supabase_db_configured
 
+        product_id = _safe_file_stem(product_id)
+        if product_id in _session_deleted_product_ids():
+            return None, None
         if not supabase_db_configured():
             return None, None
         repo = SupabaseRepository()
+        existing = repo.find_product(workspace_db_id, product_id)
+        if existing and existing.get("status") == "deleted":
+            return repo, None
         row = repo.load_product(workspace_db_id, product_id)
         if not row:
             row = repo.upsert_product(workspace_db_id, product_id, self._load_product_file(product_id) or {})
@@ -387,6 +422,9 @@ class Storage:
             return None
 
     def load_product(self, product_id: str) -> Optional[dict]:
+        product_id = _safe_file_stem(product_id)
+        if product_id in _session_deleted_product_ids():
+            return None
         db_product = self._load_product_from_supabase(product_id)
         if db_product is not None or self._supabase_products_active():
             return db_product
@@ -737,6 +775,7 @@ class Storage:
         workspace_db_id = _workspace_db_id_from_session()
         if not workspace_db_id:
             return []
+        deleted_ids = _session_deleted_product_ids()
         try:
             from modules.supabase_db import SupabaseRepository, supabase_db_configured
 
@@ -755,6 +794,8 @@ class Storage:
         result = []
         for row in rows:
             local_id = _safe_file_stem(row.get("local_id") or row.get("id") or "")
+            if local_id in deleted_ids:
+                continue
             data = row.get("data") if isinstance(row.get("data"), dict) else {}
             local_path = self.data_dir / "projects" / f"{local_id}.json"
             result.append({

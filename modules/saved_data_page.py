@@ -1596,6 +1596,22 @@ def _mp_duplicate_project(product: dict, svc: dict, lang: str) -> dict:
     return {"id": new_id, **new_data}
 
 
+def _mp_deleted_product_ids() -> set[str]:
+    raw_ids = st.session_state.get("mp_deleted_product_ids") or []
+    if isinstance(raw_ids, str):
+        raw_ids = [raw_ids]
+    return {str(pid).strip() for pid in raw_ids if str(pid or "").strip()}
+
+
+def _mp_mark_product_deleted(product_id: str) -> None:
+    product_id = str(product_id or "").strip()
+    if not product_id:
+        return
+    deleted_ids = _mp_deleted_product_ids()
+    deleted_ids.add(product_id)
+    st.session_state["mp_deleted_product_ids"] = sorted(deleted_ids)
+
+
 def _mp_delete_project(product: dict, svc: dict, lang: str) -> dict:
     pid = str(product.get("id") or "")
     if not pid:
@@ -1614,13 +1630,29 @@ def _mp_delete_project(product: dict, svc: dict, lang: str) -> dict:
         )
     except Exception as exc:
         result = {"success": False, "message": str(exc)}
-    if result.get("success") and st.session_state.get("product_id") == pid:
-        for key in (
-            "product_id", "product_info", "core_text", "core_status", "core_strategy",
-            "core_safety", "core_focus", "core_tone", "generated",
-            "image_prompts", "video_scripts", "ads_sns_items",
-        ):
-            st.session_state.pop(key, None)
+    if result.get("success"):
+        try:
+            remaining = svc["storage"].load_product(pid)
+        except Exception:
+            remaining = None
+        if remaining:
+            return {
+                "success": False,
+                "message": _mp_text(
+                    "削除後も保存先に残っています。もう一度押しても消えない場合は、クラウドDBの権限設定を確認してください。",
+                    "Ainda resta no armazenamento. Se não desaparecer ao tentar novamente, verifique as permissões do banco na nuvem.",
+                    "The project still exists after deletion. If it does not disappear after retrying, check the cloud DB permissions.",
+                    lang,
+                ),
+            }
+        _mp_mark_product_deleted(pid)
+        if st.session_state.get("product_id") == pid:
+            for key in (
+                "product_id", "product_info", "core_text", "core_status", "core_strategy",
+                "core_safety", "core_focus", "core_tone", "generated",
+                "image_prompts", "video_scripts", "ads_sns_items",
+            ):
+                st.session_state.pop(key, None)
     return result
 
 
@@ -1725,9 +1757,10 @@ def page_saved_data(svc: dict) -> None:
     storage = svc["storage"]
     st.markdown(_MY_PROJECTS_CSS, unsafe_allow_html=True)
 
+    deleted_ids = _mp_deleted_product_ids()
     all_products = [
         p for p in storage.list_products()
-        if not is_empty_project_entry(p)
+        if not is_empty_project_entry(p) and str(p.get("id") or "") not in deleted_ids
     ]
     status_by_id = {p["id"]: _mp_project_status(storage, p) for p in all_products}
 
