@@ -305,6 +305,34 @@ class Storage:
                 detail={"message": str(exc)[:300]},
             )
 
+    def _delete_product_in_supabase(self, product_id: str) -> tuple[bool, str]:
+        """Authoritative cloud delete for logged-in workspaces."""
+        workspace_db_id = _workspace_db_id_from_session()
+        if not workspace_db_id:
+            return True, ""
+        try:
+            from modules.supabase_db import SupabaseRepository, supabase_db_configured
+
+            if not supabase_db_configured():
+                return True, ""
+            ok = SupabaseRepository().delete_product(workspace_db_id, product_id)
+            if ok:
+                self.audit.log("supabase", "delete_product", "ok", product_id=product_id)
+                return True, ""
+            message = "Supabaseからプロジェクトを削除できませんでした"
+            self.audit.log("supabase", "delete_product", "error", product_id=product_id, detail={"message": message})
+            return False, message
+        except Exception as exc:
+            message = str(exc)
+            self.audit.log(
+                "supabase",
+                "delete_product",
+                "error",
+                product_id=product_id,
+                detail={"message": message[:300]},
+            )
+            return False, message
+
     def _supabase_products_active(self) -> bool:
         workspace_db_id = _workspace_db_id_from_session()
         if not workspace_db_id:
@@ -1059,6 +1087,16 @@ class Storage:
                        use_trash: bool = True) -> dict:
         product_id = _safe_file_stem(product_id)
 
+        cloud_active = self._supabase_products_active()
+        if cloud_active:
+            cloud_ok, cloud_message = self._delete_product_in_supabase(product_id)
+            if not cloud_ok:
+                return {
+                    "success": False,
+                    "message": f"クラウドDBの削除に失敗しました: {cloud_message}",
+                    "deleted_paths": [],
+                }
+
         deleted = []
         project_file = None
         searched = []
@@ -1117,12 +1155,13 @@ class Storage:
                 self.save_delete_log(product_id, deleted_by, reason, [str(project_file)])
             except Exception:
                 pass
-            self._soft_delete_product_in_supabase(product_id)
+            if not cloud_active:
+                self._soft_delete_product_in_supabase(product_id)
             self.audit.log("storage", "delete_project", "ok", product_id=product_id, actor=deleted_by,
                            detail={"mode": "trash"})
             return {
                 "success": True,
-                "message": "ゴミ箱に移動しました",
+                "message": "削除しました" if cloud_active else "ゴミ箱に移動しました",
                 "deleted_paths": [str(project_file)],
                 "trash_path": str(trash_path),
             }
@@ -1149,7 +1188,8 @@ class Storage:
                 self.save_delete_log(product_id, deleted_by, reason, deleted)
             except Exception:
                 pass
-            self._soft_delete_product_in_supabase(product_id)
+            if not cloud_active:
+                self._soft_delete_product_in_supabase(product_id)
             self.audit.log("storage", "delete_project", "ok", product_id=product_id, actor=deleted_by,
                            detail={"mode": "cleanup", "deleted_count": len(deleted)})
             return {
@@ -1189,7 +1229,8 @@ class Storage:
             self.save_delete_log(product_id, deleted_by, reason, deleted)
         except Exception:
             pass
-        self._soft_delete_product_in_supabase(product_id)
+        if not cloud_active:
+            self._soft_delete_product_in_supabase(product_id)
         self.audit.log("storage", "delete_project", "ok", product_id=product_id, actor=deleted_by,
                        detail={"mode": "delete", "deleted_count": len(deleted)})
 

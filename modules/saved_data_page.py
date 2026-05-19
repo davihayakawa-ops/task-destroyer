@@ -1894,9 +1894,11 @@ def page_saved_data(svc: dict) -> None:
                             if st.button("▷ " + _mp_text("続き", "Continuar", "Continue", lang), key=f"mp_continue_{pid}", type="primary", use_container_width=True):
                                 _mp_open_project(pid, product, svc, next_page)
                         if st.button("🗑️ " + _mp_text("このプロジェクトを削除", "Excluir este projeto", "Delete this project", lang), key=f"mp_del_prepare_{pid}", use_container_width=True):
-                            st.session_state["mp_confirm_delete_id"] = pid
-                            st.rerun()
-                        _mp_render_delete_confirm(product, svc, lang, "mp_grid")
+                            result = _mp_delete_project(product, svc, lang)
+                            if result.get("success"):
+                                st.success(_mp_text("削除しました。", "Projeto excluído.", "Project deleted.", lang))
+                                st.rerun()
+                            st.error(result.get("message") or _mp_text("削除に失敗しました。", "Falha ao excluir.", "Delete failed.", lang))
         else:
             for product in products:
                 pid = product["id"]
@@ -1919,9 +1921,11 @@ def page_saved_data(svc: dict) -> None:
                                 _mp_open_project(pid, product, svc, _mp_next_page(status))
                         with a3:
                             if st.button(_mp_text("削除", "Excluir", "Delete", lang), key=f"mp_list_del_prepare_{pid}", use_container_width=True):
-                                st.session_state["mp_confirm_delete_id"] = pid
-                                st.rerun()
-                    _mp_render_delete_confirm(product, svc, lang, "mp_list")
+                                result = _mp_delete_project(product, svc, lang)
+                                if result.get("success"):
+                                    st.success(_mp_text("削除しました。", "Projeto excluído.", "Project deleted.", lang))
+                                    st.rerun()
+                                st.error(result.get("message") or _mp_text("削除に失敗しました。", "Falha ao excluir.", "Delete failed.", lang))
 
         st.caption(
             _mp_text("全", "Total", "Total", lang)

@@ -152,6 +152,17 @@ class SupabaseRepository:
         )
         return result.data[0] if result.data else None
 
+    def find_product(self, workspace_id: str, local_id: str) -> Optional[dict[str, Any]]:
+        result = (
+            self.client.table("products")
+            .select("id,status")
+            .eq("workspace_id", workspace_id)
+            .eq("local_id", local_id)
+            .limit(1)
+            .execute()
+        )
+        return result.data[0] if result.data else None
+
     def soft_delete_product(self, workspace_id: str, local_id: str) -> bool:
         result = (
             self.client.table("products")
@@ -161,6 +172,13 @@ class SupabaseRepository:
             .execute()
         )
         return bool(result.data)
+
+    def delete_product(self, workspace_id: str, local_id: str) -> bool:
+        before = self.find_product(workspace_id, local_id)
+        if not before:
+            return True
+        self.client.table("products").delete().eq("workspace_id", workspace_id).eq("local_id", local_id).execute()
+        return self.find_product(workspace_id, local_id) is None
 
     def load_workspace(self, workspace_id: str) -> Optional[dict[str, Any]]:
         result = (
