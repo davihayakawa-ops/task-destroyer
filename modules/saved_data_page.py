@@ -1261,9 +1261,12 @@ _MY_PROJECTS_CSS = """
     background: linear-gradient(145deg, rgba(16,24,35,.96), rgba(6,12,12,.98));
     border: 1px solid rgba(148,163,184,.20);
     border-radius: 8px;
+    box-sizing: border-box;
     box-shadow: 0 16px 42px rgba(0,0,0,.18);
+    display: flex;
+    flex-direction: column;
+    height: 342px;
     margin-bottom: 12px;
-    min-height: 286px;
     overflow: hidden;
     padding: 13px;
 }
@@ -1275,6 +1278,7 @@ _MY_PROJECTS_CSS = """
     display: grid;
     gap: 12px;
     grid-template-columns: 76px 1fr;
+    min-height: 142px;
 }
 .mp-thumb {
     align-items: center;
@@ -1305,10 +1309,15 @@ _MY_PROJECTS_CSS = """
 }
 .mp-name {
     color: #f8fafc;
+    display: -webkit-box;
     font-size: .96rem;
     font-weight: 900;
     line-height: 1.35;
     margin: 0;
+    min-height: 3.9em;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
 }
 .mp-status {
     border: 1px solid rgba(59,130,246,.48);
@@ -1329,16 +1338,20 @@ _MY_PROJECTS_CSS = """
 }
 .mp-desc {
     color: #9aa7b8;
+    display: -webkit-box;
     font-size: .73rem;
     line-height: 1.55;
     margin: 8px 0 0;
-    min-height: 34px;
+    min-height: 5.3em;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 4;
 }
 .mp-meta {
     border-top: 1px solid rgba(148,163,184,.15);
     color: #8a96a8;
     font-size: .7rem;
-    margin: 13px 0 10px;
+    margin: auto 0 10px;
     padding-top: 10px;
 }
 .mp-steps {
@@ -1346,6 +1359,7 @@ _MY_PROJECTS_CSS = """
     gap: 6px;
     grid-template-columns: repeat(6, minmax(0, 1fr));
     margin: 8px 0 12px;
+    min-height: 45px;
 }
 .mp-step {
     align-items: center;
@@ -1419,6 +1433,15 @@ _MY_PROJECTS_CSS = """
     }
     .mp-kpi-grid {
         grid-template-columns: 1fr;
+    }
+    .mp-card {
+        height: auto;
+    }
+    .mp-card-top,
+    .mp-name,
+    .mp-desc,
+    .mp-steps {
+        min-height: 0;
     }
 }
 </style>
