@@ -1260,6 +1260,8 @@ class Storage:
                 }
             try:
                 self._mark_product_deleted(product_id)
+                if cloud_local_id and cloud_local_id != product_id:
+                    self._mark_product_deleted(cloud_local_id)
             except Exception:
                 pass
 

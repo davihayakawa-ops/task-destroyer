@@ -227,18 +227,44 @@ class SupabaseRepository:
         product_row_id = str(product_row_id or "").strip()
         if not local_id and not product_row_id:
             return True
-        before_query = (
-            self.client.table("products")
-            .select("id,local_id,status")
-            .eq("workspace_id", workspace_id)
-        )
+
+        # A product can exist more than once when older local data has been
+        # imported repeatedly. Delete every row that represents the same local
+        # project so it does not reappear after the session cache is cleared.
+        before_rows_by_id: dict[str, dict[str, Any]] = {}
         if product_row_id:
-            before_query = before_query.eq("id", product_row_id)
-        else:
-            before_query = before_query.eq("local_id", local_id)
-        before_result = before_query.execute()
-        before_rows = before_result.data or []
+            row_result = (
+                self.client.table("products")
+                .select("id,local_id,status")
+                .eq("workspace_id", workspace_id)
+                .eq("id", product_row_id)
+                .execute()
+            )
+            for row in row_result.data or []:
+                row_id = str(row.get("id") or "")
+                if row_id:
+                    before_rows_by_id[row_id] = row
+                row_local_id = str(row.get("local_id") or "").strip()
+                if row_local_id and not local_id:
+                    local_id = row_local_id
+
+        if local_id:
+            local_result = (
+                self.client.table("products")
+                .select("id,local_id,status")
+                .eq("workspace_id", workspace_id)
+                .eq("local_id", local_id)
+                .execute()
+            )
+            for row in local_result.data or []:
+                row_id = str(row.get("id") or "")
+                if row_id:
+                    before_rows_by_id[row_id] = row
+
+        before_rows = list(before_rows_by_id.values())
         if not before_rows:
+            if product_row_id:
+                return False
             if local_id:
                 self._delete_related_product_rows(workspace_id, local_id)
             return True

@@ -1615,8 +1615,16 @@ def _mp_mark_product_deleted(product_id: str) -> None:
     st.session_state["mp_deleted_product_ids"] = sorted(deleted_ids)
 
 
-def _mp_queue_delete(product_id: str) -> None:
-    product_id = str(product_id or "").strip()
+def _mp_queue_delete(product) -> None:
+    if isinstance(product, dict):
+        product_id = str(product.get("id") or "").strip()
+        st.session_state["mp_delete_request_product"] = {
+            key: product.get(key, "")
+            for key in ("id", "name", "file_path", "_db_local_id", "_db_product_row_id")
+        }
+    else:
+        product_id = str(product or "").strip()
+        st.session_state.pop("mp_delete_request_product", None)
     if product_id:
         st.session_state["mp_delete_request_id"] = product_id
 
@@ -1647,6 +1655,9 @@ def _mp_delete_project(product: dict, svc: dict, lang: str) -> dict:
         result = {"success": False, "message": str(exc)}
     if result.get("success"):
         _mp_mark_product_deleted(pid)
+        cloud_local_id = str(product.get("_db_local_id") or "").strip()
+        if cloud_local_id and cloud_local_id != pid:
+            _mp_mark_product_deleted(cloud_local_id)
         try:
             remaining = svc["storage"].load_product(pid)
         except Exception:
@@ -1670,15 +1681,27 @@ def _mp_delete_project(product: dict, svc: dict, lang: str) -> dict:
 
 def _mp_process_queued_delete(svc: dict, lang: str) -> None:
     pid = str(st.session_state.pop("mp_delete_request_id", "") or "").strip()
+    queued_product = st.session_state.pop("mp_delete_request_product", None)
     if not pid:
         return
 
-    product = {"id": pid}
+    product = queued_product if isinstance(queued_product, dict) else {"id": pid}
+    product["id"] = pid
+    try:
+        for listed_product in svc["storage"].list_products():
+            if str(listed_product.get("id") or "") == pid:
+                product.update(listed_product)
+                product["id"] = pid
+                break
+    except Exception:
+        pass
     try:
         loaded = svc["storage"].load_product(pid)
         if isinstance(loaded, dict):
-            product.update(loaded)
-            product["id"] = pid
+            merged = dict(loaded)
+            merged.update(product)
+            merged["id"] = pid
+            product = merged
     except Exception:
         pass
 
@@ -1968,6 +1991,7 @@ def page_saved_data(svc: dict) -> None:
     if all_products:
         with st.expander(_mp_text("プロジェクト管理", "Gerenciar projetos", "Project Management", lang)):
             delete_options = {str(p.get("id") or ""): str(p.get("name") or p.get("id") or "") for p in all_products}
+            products_by_id = {str(p.get("id") or ""): p for p in all_products}
             d1, d2 = st.columns([3, 1])
             with d1:
                 delete_target = st.selectbox(
@@ -1983,7 +2007,7 @@ def page_saved_data(svc: dict) -> None:
                     key="mp_side_delete_run",
                     use_container_width=True,
                 ):
-                    _mp_queue_delete(delete_target)
+                    _mp_queue_delete(products_by_id.get(delete_target) or delete_target)
                     st.rerun()
 
     st.markdown("</div>", unsafe_allow_html=True)
