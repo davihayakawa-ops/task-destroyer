@@ -1877,7 +1877,7 @@ def page_saved_data(svc: dict) -> None:
                     status = status_by_id[pid]
                     with col:
                         st.markdown(_mp_card_html(product, status, lang), unsafe_allow_html=True)
-                        b1, b2, b3, b4 = st.columns([1, 1, 1, .9])
+                        b1, b2, b3 = st.columns(3)
                         with b1:
                             if st.button(_mp_text("開く", "Abrir", "Open", lang), key=f"mp_open_{pid}", use_container_width=True):
                                 _mp_open_project(pid, product, svc, "product_input")
@@ -1893,10 +1893,9 @@ def page_saved_data(svc: dict) -> None:
                             next_page = _mp_next_page(status)
                             if st.button("▷ " + _mp_text("続き", "Continuar", "Continue", lang), key=f"mp_continue_{pid}", type="primary", use_container_width=True):
                                 _mp_open_project(pid, product, svc, next_page)
-                        with b4:
-                            if st.button(_mp_text("削除", "Excluir", "Delete", lang), key=f"mp_del_prepare_{pid}", use_container_width=True):
-                                st.session_state["mp_confirm_delete_id"] = pid
-                                st.rerun()
+                        if st.button("🗑️ " + _mp_text("このプロジェクトを削除", "Excluir este projeto", "Delete this project", lang), key=f"mp_del_prepare_{pid}", use_container_width=True):
+                            st.session_state["mp_confirm_delete_id"] = pid
+                            st.rerun()
                         _mp_render_delete_confirm(product, svc, lang, "mp_grid")
         else:
             for product in products:
