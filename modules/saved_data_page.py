@@ -1612,6 +1612,12 @@ def _mp_mark_product_deleted(product_id: str) -> None:
     st.session_state["mp_deleted_product_ids"] = sorted(deleted_ids)
 
 
+def _mp_queue_delete(product_id: str) -> None:
+    product_id = str(product_id or "").strip()
+    if product_id:
+        st.session_state["mp_delete_request_id"] = product_id
+
+
 def _mp_delete_project(product: dict, svc: dict, lang: str) -> dict:
     pid = str(product.get("id") or "")
     if not pid:
@@ -1654,6 +1660,26 @@ def _mp_delete_project(product: dict, svc: dict, lang: str) -> dict:
             ):
                 st.session_state.pop(key, None)
     return result
+
+
+def _mp_process_queued_delete(svc: dict, lang: str) -> None:
+    pid = str(st.session_state.pop("mp_delete_request_id", "") or "").strip()
+    if not pid:
+        return
+
+    product = {"id": pid}
+    try:
+        loaded = svc["storage"].load_product(pid)
+        if isinstance(loaded, dict):
+            product.update(loaded)
+            product["id"] = pid
+    except Exception:
+        pass
+
+    result = _mp_delete_project(product, svc, lang)
+    st.session_state["mp_last_delete_result"] = result
+    if result.get("success"):
+        st.rerun()
 
 
 def _mp_product_thumb(product: dict) -> str:
@@ -1756,6 +1782,17 @@ def page_saved_data(svc: dict) -> None:
     lang = st.session_state.get("lang", "ja")
     storage = svc["storage"]
     st.markdown(_MY_PROJECTS_CSS, unsafe_allow_html=True)
+    _mp_process_queued_delete(svc, lang)
+
+    last_delete_result = st.session_state.pop("mp_last_delete_result", None)
+    if isinstance(last_delete_result, dict):
+        if last_delete_result.get("success"):
+            st.success(_mp_text("削除しました。", "Projeto excluído.", "Project deleted.", lang))
+        else:
+            st.error(
+                last_delete_result.get("message")
+                or _mp_text("削除に失敗しました。", "Falha ao excluir.", "Delete failed.", lang)
+            )
 
     deleted_ids = _mp_deleted_product_ids()
     all_products = [
@@ -1926,12 +1963,13 @@ def page_saved_data(svc: dict) -> None:
                             next_page = _mp_next_page(status)
                             if st.button("▷ " + _mp_text("続き", "Continuar", "Continue", lang), key=f"mp_continue_{pid}", type="primary", use_container_width=True):
                                 _mp_open_project(pid, product, svc, next_page)
-                        if st.button("🗑️ " + _mp_text("このプロジェクトを削除", "Excluir este projeto", "Delete this project", lang), key=f"mp_del_prepare_{pid}", use_container_width=True):
-                            result = _mp_delete_project(product, svc, lang)
-                            if result.get("success"):
-                                st.success(_mp_text("削除しました。", "Projeto excluído.", "Project deleted.", lang))
-                                st.rerun()
-                            st.error(result.get("message") or _mp_text("削除に失敗しました。", "Falha ao excluir.", "Delete failed.", lang))
+                        st.button(
+                            "🗑️ " + _mp_text("このプロジェクトを削除", "Excluir este projeto", "Delete this project", lang),
+                            key=f"mp_del_prepare_{pid}",
+                            use_container_width=True,
+                            on_click=_mp_queue_delete,
+                            args=(pid,),
+                        )
         else:
             for product in products:
                 pid = product["id"]
@@ -1953,12 +1991,13 @@ def page_saved_data(svc: dict) -> None:
                             if st.button(_mp_text("続きから", "Continuar", "Continue", lang), key=f"mp_list_continue_{pid}", type="primary", use_container_width=True):
                                 _mp_open_project(pid, product, svc, _mp_next_page(status))
                         with a3:
-                            if st.button(_mp_text("削除", "Excluir", "Delete", lang), key=f"mp_list_del_prepare_{pid}", use_container_width=True):
-                                result = _mp_delete_project(product, svc, lang)
-                                if result.get("success"):
-                                    st.success(_mp_text("削除しました。", "Projeto excluído.", "Project deleted.", lang))
-                                    st.rerun()
-                                st.error(result.get("message") or _mp_text("削除に失敗しました。", "Falha ao excluir.", "Delete failed.", lang))
+                            st.button(
+                                _mp_text("削除", "Excluir", "Delete", lang),
+                                key=f"mp_list_del_prepare_{pid}",
+                                use_container_width=True,
+                                on_click=_mp_queue_delete,
+                                args=(pid,),
+                            )
 
         st.caption(
             _mp_text("全", "Total", "Total", lang)
