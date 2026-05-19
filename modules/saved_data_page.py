@@ -1330,8 +1330,9 @@ _MY_PROJECTS_CSS = """
     -webkit-line-clamp: 3;
 }
 .mp-status {
-    background: transparent;
-    border: 0;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
     color: #60a5fa;
     font-size: .68rem;
     font-weight: 850;
@@ -1401,8 +1402,17 @@ div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .
     position: relative;
     z-index: 2;
 }
+div[data-testid="stVerticalBlock"]:has(.mp-card) .stButton {
+    margin-top: -46px !important;
+    margin-left: 16px !important;
+    max-width: 86px !important;
+    position: relative;
+    z-index: 5;
+}
+div[data-testid="stVerticalBlock"]:has(.mp-card) .stButton > button,
 div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .mp-card) button {
     background: transparent !important;
+    background-color: transparent !important;
     border: 1px solid rgba(148,163,184,.28) !important;
     border-radius: 7px !important;
     color: #dbeafe !important;
@@ -1410,7 +1420,9 @@ div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .
     height: 30px !important;
     min-height: 30px !important;
     padding: .18rem .46rem !important;
+    width: 86px !important;
 }
+div[data-testid="stVerticalBlock"]:has(.mp-card) .stButton > button:hover,
 div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .mp-card) button:hover {
     background: rgba(15,23,42,.35) !important;
     border-color: rgba(106,255,47,.45) !important;
@@ -1974,10 +1986,8 @@ def page_saved_data(svc: dict) -> None:
                     status = status_by_id[pid]
                     with col:
                         st.markdown(_mp_card_html(product, status, lang), unsafe_allow_html=True)
-                        btn_col, _ = st.columns([0.48, 1.0])
-                        with btn_col:
-                            if st.button(_mp_text("開く", "Abrir", "Open", lang), key=f"mp_open_{pid}", use_container_width=True):
-                                _mp_open_project(pid, product, svc, "product_input")
+                        if st.button(_mp_text("開く", "Abrir", "Open", lang), key=f"mp_open_{pid}"):
+                            _mp_open_project(pid, product, svc, "product_input")
         else:
             for product in products:
                 pid = product["id"]
