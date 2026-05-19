@@ -1254,7 +1254,7 @@ _MY_PROJECTS_CSS = """
     align-items: center;
     display: grid;
     gap: 10px;
-    grid-template-columns: minmax(220px, 1fr) 180px 170px 112px;
+    grid-template-columns: minmax(240px, 1fr) 166px 156px 92px;
     margin: 4px 0 16px;
 }
 .mp-card {
@@ -1267,10 +1267,10 @@ _MY_PROJECTS_CSS = """
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
-    margin-bottom: -58px;
+    margin-bottom: -48px;
     min-height: 334px;
     overflow: hidden;
-    padding: 16px 16px 76px;
+    padding: 16px 16px 64px;
     position: relative;
 }
 .mp-card:hover {
@@ -1280,9 +1280,9 @@ _MY_PROJECTS_CSS = """
 .mp-card-top {
     align-items: center;
     display: grid;
-    gap: 16px;
-    grid-template-columns: 82px 1fr;
-    min-height: 92px;
+    gap: 14px;
+    grid-template-columns: 72px 1fr;
+    min-height: 82px;
     padding-right: 58px;
 }
 .mp-thumb {
@@ -1291,10 +1291,10 @@ _MY_PROJECTS_CSS = """
     border: 1px solid rgba(148,163,184,.18);
     border-radius: 8px;
     display: flex;
-    height: 82px;
+    height: 72px;
     justify-content: center;
     overflow: hidden;
-    width: 82px;
+    width: 72px;
 }
 .mp-thumb img {
     height: 100%;
@@ -1310,7 +1310,7 @@ _MY_PROJECTS_CSS = """
     align-items: center;
     display: flex;
     gap: 8px;
-    min-height: 82px;
+    min-height: 72px;
 }
 .mp-name {
     color: #f8fafc;
@@ -1321,6 +1321,8 @@ _MY_PROJECTS_CSS = """
     margin: 0;
     min-height: 0;
     overflow: hidden;
+    overflow-wrap: normal;
+    word-break: keep-all;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 3;
 }
@@ -1394,12 +1396,15 @@ div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .
     gap: 0 !important;
 }
 div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .mp-card) > div[data-testid="stHorizontalBlock"] {
-    margin: 10px 12px 16px !important;
+    margin: 8px 18px 14px !important;
     position: relative;
     z-index: 2;
 }
 div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .mp-card) button {
-    min-height: 40px;
+    border-radius: 7px !important;
+    font-size: .68rem !important;
+    min-height: 30px;
+    padding: .20rem .28rem !important;
 }
 .mp-panel {
     background: rgba(17,24,39,.84);
@@ -1413,20 +1418,20 @@ div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .
     display: flex;
     flex-direction: column;
     justify-content: center;
-    min-height: 84px;
+    min-height: 72px;
     text-align: center;
 }
 .mp-panel-title {
     color: #f8fafc;
-    font-size: .84rem;
+    font-size: .76rem;
     font-weight: 900;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
 }
 .mp-activity {
     border-bottom: 1px solid rgba(148,163,184,.12);
     color: #aab7c7;
-    font-size: .72rem;
-    line-height: 1.5;
+    font-size: .64rem;
+    line-height: 1.45;
     padding: 8px 0;
 }
 .mp-side-panel .mp-activity {
@@ -1936,7 +1941,7 @@ def page_saved_data(svc: dict) -> None:
     else:
         products.sort(key=lambda p: _mp_parse_dt(p.get("updated_at")) or datetime.min, reverse=True)
 
-    main_col, side_col = st.columns([4.6, 1.15])
+    main_col, side_col = st.columns([5.15, 1.0], gap="large")
     with main_col:
         if not products:
             st.markdown(
@@ -2029,23 +2034,6 @@ def page_saved_data(svc: dict) -> None:
             + '</div>',
             unsafe_allow_html=True,
         )
-        st.markdown(
-            '<div class="mp-panel mp-side-panel">'
-            f'<div class="mp-panel-title">{_mp_text("クイックアクション", "Ações rápidas", "Quick Actions", lang)}</div>'
-            '</div>',
-            unsafe_allow_html=True,
-        )
-        if st.button("＋ " + _mp_text("新規プロジェクト", "Novo projeto", "New Project", lang), key="mp_side_new", use_container_width=True):
-            st.session_state["page"] = "product_input"
-            st.session_state["product_info"] = {}
-            st.session_state.pop("product_id", None)
-            st.rerun()
-        if st.button("↻ " + _mp_text("現在の作業へ", "Trabalho atual", "Current Work", lang), key="mp_side_current", use_container_width=True):
-            target = "product_input"
-            if st.session_state.get("core_text"):
-                target = "product_page"
-            st.session_state["page"] = target
-            st.rerun()
         if all_products:
             st.markdown(
                 '<div class="mp-panel mp-side-panel">'
@@ -2069,12 +2057,5 @@ def page_saved_data(svc: dict) -> None:
             ):
                 _mp_queue_delete(delete_target)
                 st.rerun()
-        st.markdown(
-            '<div class="mp-panel mp-side-panel">'
-            f'<div class="mp-panel-title">{_mp_text("現在の作業", "Trabalho atual", "Current Work", lang)}</div>'
-            f'<div class="mp-activity">{html.escape(_mp_current_product_label(lang))}</div>'
-            '</div>',
-            unsafe_allow_html=True,
-        )
 
     st.markdown("</div>", unsafe_allow_html=True)
