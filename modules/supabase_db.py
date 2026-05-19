@@ -146,6 +146,7 @@ class SupabaseRepository:
             .select("*")
             .eq("workspace_id", workspace_id)
             .eq("local_id", local_id)
+            .neq("status", "deleted")
             .limit(1)
             .execute()
         )

@@ -305,6 +305,17 @@ class Storage:
                 detail={"message": str(exc)[:300]},
             )
 
+    def _supabase_products_active(self) -> bool:
+        workspace_db_id = _workspace_db_id_from_session()
+        if not workspace_db_id:
+            return False
+        try:
+            from modules.supabase_db import supabase_db_configured
+
+            return bool(supabase_db_configured())
+        except Exception:
+            return False
+
     def _supabase_product_row(self, workspace_db_id: str, product_id: str):
         from modules.supabase_db import SupabaseRepository, supabase_db_configured
 
@@ -348,11 +359,14 @@ class Storage:
             return None
 
     def load_product(self, product_id: str) -> Optional[dict]:
-        return self._load_product_from_supabase(product_id) or self._load_product_file(product_id)
+        db_product = self._load_product_from_supabase(product_id)
+        if db_product is not None or self._supabase_products_active():
+            return db_product
+        return self._load_product_file(product_id)
 
     def list_products(self) -> List[dict]:
         db_products = self._list_products_from_supabase()
-        if db_products:
+        if db_products or self._supabase_products_active():
             return db_products
         result = []
         proj_dir = self.data_dir / "projects"
