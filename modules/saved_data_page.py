@@ -1,4 +1,5 @@
 import html
+import inspect
 from urllib.parse import quote
 
 import streamlit as st
@@ -1629,15 +1630,19 @@ def _mp_delete_project(product: dict, svc: dict, lang: str) -> dict:
         }
     reason = _mp_text("マイプロジェクト画面から削除", "Excluído em Meus projetos", "Deleted from My Projects", lang)
     try:
-        result = svc["storage"].delete_project(
-            pid,
-            get_current_user(),
-            reason,
-            file_path=product.get("file_path", ""),
-            cloud_local_id=product.get("_db_local_id", ""),
-            cloud_product_row_id=product.get("_db_product_row_id", ""),
-            use_trash=True,
-        )
+        delete_project = svc["storage"].delete_project
+        kwargs = {
+            "file_path": product.get("file_path", ""),
+            "cloud_local_id": product.get("_db_local_id", ""),
+            "cloud_product_row_id": product.get("_db_product_row_id", ""),
+            "use_trash": True,
+        }
+        try:
+            supported = set(inspect.signature(delete_project).parameters)
+            kwargs = {key: value for key, value in kwargs.items() if key in supported}
+        except Exception:
+            kwargs = {"file_path": product.get("file_path", "")}
+        result = delete_project(pid, get_current_user(), reason, **kwargs)
     except Exception as exc:
         result = {"success": False, "message": str(exc)}
     if result.get("success"):
