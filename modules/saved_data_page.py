@@ -1178,22 +1178,25 @@ _MY_PROJECTS_CSS = """
 .mp-shell {
     color: #f8fafc;
 }
+[data-testid="stMain"] .block-container {
+    padding-top: 1.65rem !important;
+}
 .mp-head {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
     gap: 18px;
-    margin: 2px 0 18px;
+    margin: 0;
 }
 .mp-kicker {
     color: #6ee72f;
     font-size: .78rem;
     font-weight: 850;
-    margin-bottom: 10px;
+    margin-bottom: 7px;
 }
 .mp-title {
     color: #f8fafc;
-    font-size: 2rem;
+    font-size: 1.9rem;
     font-weight: 900;
     letter-spacing: 0;
     line-height: 1.15;
@@ -1202,32 +1205,32 @@ _MY_PROJECTS_CSS = """
 .mp-sub {
     color: #aab7c7;
     font-size: .88rem;
-    line-height: 1.7;
-    margin-top: 10px;
+    line-height: 1.55;
+    margin-top: 7px;
 }
 .mp-kpi-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 14px;
-    margin: 18px 0 18px;
+    margin: 12px 0 14px;
 }
 .mp-kpi {
     background: linear-gradient(145deg, rgba(17,24,39,.96), rgba(5,12,11,.96));
     border: 1px solid rgba(92, 255, 45, .26);
     border-radius: 8px;
     box-shadow: 0 0 0 1px rgba(15,23,42,.42), 0 12px 40px rgba(0,0,0,.18);
-    min-height: 112px;
+    min-height: 98px;
     overflow: hidden;
-    padding: 18px 18px 16px;
+    padding: 15px 16px 14px;
     position: relative;
 }
 .mp-kpi:after {
     background: linear-gradient(90deg, transparent, rgba(106,255,47,.4));
-    bottom: 18px;
+    bottom: 16px;
     content: "";
     height: 2px;
     position: absolute;
-    right: 18px;
+    right: 16px;
     width: 84px;
 }
 .mp-kpi-top {
@@ -1240,22 +1243,22 @@ _MY_PROJECTS_CSS = """
 }
 .mp-kpi-value {
     color: #f8fafc;
-    font-size: 2rem;
+    font-size: 1.78rem;
     font-weight: 950;
     line-height: 1;
-    margin-top: 12px;
+    margin-top: 9px;
 }
 .mp-kpi-note {
     color: #8a96a8;
     font-size: .72rem;
-    margin-top: 10px;
+    margin-top: 8px;
 }
 .mp-controls {
     align-items: center;
     display: grid;
     gap: 10px;
     grid-template-columns: minmax(240px, 1fr) 166px 156px 92px;
-    margin: 4px 0 16px;
+    margin: 0 0 14px;
 }
 .mp-card {
     background:
@@ -1267,8 +1270,8 @@ _MY_PROJECTS_CSS = """
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
-    margin-bottom: 8px;
-    min-height: 304px;
+    margin-bottom: 6px;
+    min-height: 292px;
     overflow: hidden;
     padding: 16px;
     position: relative;
@@ -1327,22 +1330,20 @@ _MY_PROJECTS_CSS = """
     -webkit-line-clamp: 3;
 }
 .mp-status {
-    border: 1px solid rgba(59,130,246,.48);
-    border-radius: 6px;
+    background: transparent;
+    border: 0;
     color: #60a5fa;
     font-size: .68rem;
     font-weight: 850;
-    padding: 2px 7px;
+    padding: 0;
     position: absolute;
-    right: 0;
-    top: 0;
+    right: 2px;
+    top: 2px;
 }
 .mp-status.done {
-    border-color: rgba(106,255,47,.5);
     color: #78ff39;
 }
 .mp-status.draft {
-    border-color: rgba(148,163,184,.35);
     color: #aab7c7;
 }
 .mp-meta {
@@ -1396,15 +1397,24 @@ div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .
     gap: 8px !important;
 }
 div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .mp-card) > div[data-testid="stHorizontalBlock"] {
-    margin: 0 0 26px !important;
+    margin: 0 0 28px !important;
     position: relative;
     z-index: 2;
 }
 div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .mp-card) button {
+    background: transparent !important;
+    border: 1px solid rgba(148,163,184,.28) !important;
     border-radius: 7px !important;
-    font-size: .76rem !important;
-    min-height: 34px;
-    padding: .26rem .45rem !important;
+    color: #dbeafe !important;
+    font-size: .72rem !important;
+    height: 30px !important;
+    min-height: 30px !important;
+    padding: .18rem .46rem !important;
+}
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .mp-card) button:hover {
+    background: rgba(15,23,42,.35) !important;
+    border-color: rgba(106,255,47,.45) !important;
+    color: #f8fafc !important;
 }
 .mp-panel {
     background: rgba(17,24,39,.84);
@@ -1831,18 +1841,18 @@ def page_saved_data(svc: dict) -> None:
     completed = sum(1 for s in status_by_id.values() if s["state"] == "done")
 
     st.markdown('<div class="mp-shell">', unsafe_allow_html=True)
-    st.markdown(
-        '<div class="mp-head">'
-        '<div>'
-        f'<div class="mp-kicker">{_mp_text("ホーム / マイプロジェクト", "Início / Meus projetos", "Home / My Projects", lang)}</div>'
-        f'<h1 class="mp-title">{_mp_text("マイプロジェクト", "Meus projetos", "My Projects", lang)}</h1>'
-        f'<div class="mp-sub">{_mp_text("あなたのプロジェクトを管理・追跡・再利用できます", "Gerencie, acompanhe e reutilize seus projetos.", "Manage, track, and reuse your projects.", lang)}</div>'
-        '</div>'
-        '</div>',
-        unsafe_allow_html=True,
-    )
-
-    top_col, new_col = st.columns([4, 1.35])
+    head_col, new_col = st.columns([4, 1.35], vertical_alignment="center")
+    with head_col:
+        st.markdown(
+            '<div class="mp-head">'
+            '<div>'
+            f'<div class="mp-kicker">{_mp_text("ホーム / マイプロジェクト", "Início / Meus projetos", "Home / My Projects", lang)}</div>'
+            f'<h1 class="mp-title">{_mp_text("マイプロジェクト", "Meus projetos", "My Projects", lang)}</h1>'
+            f'<div class="mp-sub">{_mp_text("あなたのプロジェクトを管理・追跡・再利用できます", "Gerencie, acompanhe e reutilize seus projetos.", "Manage, track, and reuse your projects.", lang)}</div>'
+            '</div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
     with new_col:
         if st.button("＋ " + _mp_text("新規プロジェクト", "Novo projeto", "New Project", lang), type="primary", use_container_width=True):
             for key in (
@@ -1964,8 +1974,10 @@ def page_saved_data(svc: dict) -> None:
                     status = status_by_id[pid]
                     with col:
                         st.markdown(_mp_card_html(product, status, lang), unsafe_allow_html=True)
-                        if st.button(_mp_text("開く", "Abrir", "Open", lang), key=f"mp_open_{pid}", type="primary", use_container_width=True):
-                            _mp_open_project(pid, product, svc, "product_input")
+                        btn_col, _ = st.columns([0.48, 1.0])
+                        with btn_col:
+                            if st.button(_mp_text("開く", "Abrir", "Open", lang), key=f"mp_open_{pid}", use_container_width=True):
+                                _mp_open_project(pid, product, svc, "product_input")
         else:
             for product in products:
                 pid = product["id"]
@@ -1979,7 +1991,7 @@ def page_saved_data(svc: dict) -> None:
                         st.caption(_mp_text("状態", "Status", "Status", lang))
                         st.markdown(_mp_status_label(status["state"], lang))
                     with c3:
-                        if st.button(_mp_text("開く", "Abrir", "Open", lang), key=f"mp_list_open_{pid}", type="primary", use_container_width=True):
+                        if st.button(_mp_text("開く", "Abrir", "Open", lang), key=f"mp_list_open_{pid}", use_container_width=True):
                             _mp_open_project(pid, product, svc, "product_input")
 
         st.caption(
