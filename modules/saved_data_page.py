@@ -1257,28 +1257,56 @@ _MY_PROJECTS_CSS = """
     grid-template-columns: minmax(220px, 1fr) 180px 170px 112px;
     margin: 4px 0 16px;
 }
+div[data-testid="stVerticalBlockBorderWrapper"]:has(.mp-card) {
+    background:
+        radial-gradient(circle at 15% 10%, rgba(103,255,34,.07), transparent 34%),
+        linear-gradient(145deg, rgba(18,27,39,.98), rgba(4,11,12,.99)) !important;
+    border: 1px solid rgba(106,255,47,.26) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 16px 42px rgba(0,0,0,.18) !important;
+    min-height: 372px !important;
+    overflow: hidden !important;
+}
+div[data-testid="stVerticalBlockBorderWrapper"]:has(.mp-card):hover {
+    border-color: rgba(113,255,47,.44) !important;
+    box-shadow: 0 0 0 1px rgba(90,255,42,.08), 0 18px 52px rgba(0,0,0,.26) !important;
+}
+div[data-testid="stVerticalBlockBorderWrapper"]:has(.mp-card) > div[data-testid="stVerticalBlock"] {
+    gap: 0 !important;
+    padding: 16px !important;
+}
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .mp-card) {
+    background:
+        radial-gradient(circle at 15% 10%, rgba(103,255,34,.07), transparent 34%),
+        linear-gradient(145deg, rgba(18,27,39,.98), rgba(4,11,12,.99)) !important;
+    border: 1px solid rgba(106,255,47,.24) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 16px 42px rgba(0,0,0,.18) !important;
+    box-sizing: border-box !important;
+    min-height: 370px !important;
+    overflow: hidden !important;
+    padding: 16px !important;
+}
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .mp-card):hover {
+    border-color: rgba(113,255,47,.44) !important;
+    box-shadow: 0 0 0 1px rgba(90,255,42,.08), 0 18px 52px rgba(0,0,0,.26) !important;
+}
 .mp-card {
-    background: linear-gradient(145deg, rgba(16,24,35,.96), rgba(6,12,12,.98));
-    border: 1px solid rgba(148,163,184,.20);
-    border-radius: 8px 8px 0 0;
     box-sizing: border-box;
-    box-shadow: 0 16px 42px rgba(0,0,0,.18);
     display: flex;
     flex-direction: column;
-    height: 250px;
+    min-height: 254px;
     margin-bottom: 0;
     overflow: hidden;
-    padding: 14px;
-}
-.mp-card:hover {
-    border-color: rgba(113, 255, 47, .45);
-    box-shadow: 0 0 0 1px rgba(90, 255, 42, .08), 0 18px 52px rgba(0,0,0,.26);
+    position: relative;
 }
 .mp-card-top {
+    align-items: center;
     display: grid;
-    gap: 12px;
-    grid-template-columns: 76px 1fr;
-    min-height: 104px;
+    gap: 16px;
+    grid-template-columns: 82px 1fr;
+    min-height: 92px;
+    padding-right: 58px;
 }
 .mp-thumb {
     align-items: center;
@@ -1286,10 +1314,10 @@ _MY_PROJECTS_CSS = """
     border: 1px solid rgba(148,163,184,.18);
     border-radius: 8px;
     display: flex;
-    height: 76px;
+    height: 82px;
     justify-content: center;
     overflow: hidden;
-    width: 76px;
+    width: 82px;
 }
 .mp-thumb img {
     height: 100%;
@@ -1302,19 +1330,19 @@ _MY_PROJECTS_CSS = """
     font-weight: 900;
 }
 .mp-name-row {
-    align-items: start;
+    align-items: center;
     display: flex;
     gap: 8px;
-    justify-content: space-between;
+    min-height: 82px;
 }
 .mp-name {
     color: #f8fafc;
     display: -webkit-box;
-    font-size: .98rem;
+    font-size: 1.08rem;
     font-weight: 900;
-    line-height: 1.35;
+    line-height: 1.28;
     margin: 0;
-    min-height: 4.05em;
+    min-height: 0;
     overflow: hidden;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 3;
@@ -1323,10 +1351,12 @@ _MY_PROJECTS_CSS = """
     border: 1px solid rgba(59,130,246,.48);
     border-radius: 6px;
     color: #60a5fa;
-    flex: 0 0 auto;
     font-size: .68rem;
     font-weight: 850;
     padding: 2px 7px;
+    position: absolute;
+    right: 0;
+    top: 0;
 }
 .mp-status.done {
     border-color: rgba(106,255,47,.5);
@@ -1340,8 +1370,8 @@ _MY_PROJECTS_CSS = """
     border-top: 1px solid rgba(148,163,184,.15);
     color: #8a96a8;
     font-size: .7rem;
-    margin: auto 0 10px;
-    padding-top: 10px;
+    margin: 16px 0 12px;
+    padding-top: 12px;
 }
 .mp-step-title {
     color: #8a96a8;
@@ -1383,16 +1413,17 @@ _MY_PROJECTS_CSS = """
     border-color: rgba(167,255,131,.35);
     color: #fff;
 }
-div[data-testid="column"] > div[data-testid="stVerticalBlock"] > div:has(.mp-card) + div[data-testid="stHorizontalBlock"] {
-    background: linear-gradient(145deg, rgba(16,24,35,.96), rgba(6,12,12,.98));
-    border: 1px solid rgba(148,163,184,.20);
-    border-radius: 0 0 8px 8px;
-    border-top: 0;
-    margin: 0 0 14px;
-    padding: 0 12px 12px;
+div[data-testid="stVerticalBlockBorderWrapper"]:has(.mp-card) div[data-testid="stHorizontalBlock"] {
+    margin-top: 8px !important;
 }
-div[data-testid="column"] > div[data-testid="stVerticalBlock"] > div:has(.mp-card) + div[data-testid="stHorizontalBlock"] button {
-    min-height: 38px;
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .mp-card) > div[data-testid="stHorizontalBlock"] {
+    margin-top: 10px !important;
+}
+div[data-testid="stVerticalBlockBorderWrapper"]:has(.mp-card) button {
+    min-height: 40px;
+}
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .mp-card) button {
+    min-height: 40px;
 }
 .mp-panel {
     background: rgba(17,24,39,.84);
@@ -1462,7 +1493,13 @@ div[data-testid="column"] > div[data-testid="stVerticalBlock"] > div:has(.mp-car
         grid-template-columns: 1fr;
     }
     .mp-card {
-        height: auto;
+        min-height: 0;
+    }
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(.mp-card) {
+        min-height: 0 !important;
+    }
+    div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .mp-card) {
+        min-height: 0 !important;
     }
     .mp-card-top,
     .mp-name,
@@ -1940,29 +1977,31 @@ def page_saved_data(svc: dict) -> None:
                 unsafe_allow_html=True,
             )
         elif view_mode == "grid":
-            for start in range(0, len(products), 3):
-                cols = st.columns(3)
-                for col, product in zip(cols, products[start:start + 3]):
+            per_row = 2 if len(products) <= 2 else 3
+            for start in range(0, len(products), per_row):
+                cols = st.columns(per_row)
+                for col, product in zip(cols, products[start:start + per_row]):
                     pid = product["id"]
                     status = status_by_id[pid]
                     with col:
-                        st.markdown(_mp_card_html(product, status, lang), unsafe_allow_html=True)
-                        b1, b2, b3 = st.columns(3)
-                        with b1:
-                            if st.button(_mp_text("開く", "Abrir", "Open", lang), key=f"mp_open_{pid}", use_container_width=True):
-                                _mp_open_project(pid, product, svc, "product_input")
-                        with b2:
-                            if st.button(_mp_text("複製", "Duplicar", "Duplicate", lang), key=f"mp_dup_{pid}", use_container_width=True):
-                                duplicated = _mp_duplicate_project(product, svc, lang)
-                                st.success(
-                                    _mp_text("複製しました: ", "Duplicado: ", "Duplicated: ", lang)
-                                    + duplicated.get("name", "")
-                                )
-                                st.rerun()
-                        with b3:
-                            next_page = _mp_next_page(status)
-                            if st.button("▷ " + _mp_text("続き", "Continuar", "Continue", lang), key=f"mp_continue_{pid}", type="primary", use_container_width=True):
-                                _mp_open_project(pid, product, svc, next_page)
+                        with st.container(border=True):
+                            st.markdown(_mp_card_html(product, status, lang), unsafe_allow_html=True)
+                            b1, b2, b3 = st.columns(3)
+                            with b1:
+                                if st.button(_mp_text("開く", "Abrir", "Open", lang), key=f"mp_open_{pid}", use_container_width=True):
+                                    _mp_open_project(pid, product, svc, "product_input")
+                            with b2:
+                                if st.button(_mp_text("複製", "Duplicar", "Duplicate", lang), key=f"mp_dup_{pid}", use_container_width=True):
+                                    duplicated = _mp_duplicate_project(product, svc, lang)
+                                    st.success(
+                                        _mp_text("複製しました: ", "Duplicado: ", "Duplicated: ", lang)
+                                        + duplicated.get("name", "")
+                                    )
+                                    st.rerun()
+                            with b3:
+                                next_page = _mp_next_page(status)
+                                if st.button("▷ " + _mp_text("続き", "Continuar", "Continue", lang), key=f"mp_continue_{pid}", type="primary", use_container_width=True):
+                                    _mp_open_project(pid, product, svc, next_page)
         else:
             for product in products:
                 pid = product["id"]
