@@ -1260,15 +1260,15 @@ _MY_PROJECTS_CSS = """
 .mp-card {
     background: linear-gradient(145deg, rgba(16,24,35,.96), rgba(6,12,12,.98));
     border: 1px solid rgba(148,163,184,.20);
-    border-radius: 8px;
+    border-radius: 8px 8px 0 0;
     box-sizing: border-box;
     box-shadow: 0 16px 42px rgba(0,0,0,.18);
     display: flex;
     flex-direction: column;
-    height: 342px;
-    margin-bottom: 12px;
+    height: 250px;
+    margin-bottom: 0;
     overflow: hidden;
-    padding: 13px;
+    padding: 14px;
 }
 .mp-card:hover {
     border-color: rgba(113, 255, 47, .45);
@@ -1278,7 +1278,7 @@ _MY_PROJECTS_CSS = """
     display: grid;
     gap: 12px;
     grid-template-columns: 76px 1fr;
-    min-height: 142px;
+    min-height: 104px;
 }
 .mp-thumb {
     align-items: center;
@@ -1310,11 +1310,11 @@ _MY_PROJECTS_CSS = """
 .mp-name {
     color: #f8fafc;
     display: -webkit-box;
-    font-size: .96rem;
+    font-size: .98rem;
     font-weight: 900;
     line-height: 1.35;
     margin: 0;
-    min-height: 3.9em;
+    min-height: 4.05em;
     overflow: hidden;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 3;
@@ -1336,17 +1336,6 @@ _MY_PROJECTS_CSS = """
     border-color: rgba(148,163,184,.35);
     color: #aab7c7;
 }
-.mp-desc {
-    color: #9aa7b8;
-    display: -webkit-box;
-    font-size: .73rem;
-    line-height: 1.55;
-    margin: 8px 0 0;
-    min-height: 5.3em;
-    overflow: hidden;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 4;
-}
 .mp-meta {
     border-top: 1px solid rgba(148,163,184,.15);
     color: #8a96a8;
@@ -1354,12 +1343,18 @@ _MY_PROJECTS_CSS = """
     margin: auto 0 10px;
     padding-top: 10px;
 }
+.mp-step-title {
+    color: #8a96a8;
+    font-size: .68rem;
+    font-weight: 850;
+    margin-bottom: 2px;
+}
 .mp-steps {
     display: grid;
     gap: 6px;
     grid-template-columns: repeat(6, minmax(0, 1fr));
-    margin: 8px 0 12px;
-    min-height: 45px;
+    margin: 8px 0 0;
+    min-height: 43px;
 }
 .mp-step {
     align-items: center;
@@ -1387,6 +1382,17 @@ _MY_PROJECTS_CSS = """
     background: linear-gradient(135deg, #62df31, #2fa819);
     border-color: rgba(167,255,131,.35);
     color: #fff;
+}
+div[data-testid="column"] > div[data-testid="stVerticalBlock"] > div:has(.mp-card) + div[data-testid="stHorizontalBlock"] {
+    background: linear-gradient(145deg, rgba(16,24,35,.96), rgba(6,12,12,.98));
+    border: 1px solid rgba(148,163,184,.20);
+    border-radius: 0 0 8px 8px;
+    border-top: 0;
+    margin: 0 0 14px;
+    padding: 0 12px 12px;
+}
+div[data-testid="column"] > div[data-testid="stVerticalBlock"] > div:has(.mp-card) + div[data-testid="stHorizontalBlock"] button {
+    min-height: 38px;
 }
 .mp-panel {
     background: rgba(17,24,39,.84);
@@ -1460,7 +1466,6 @@ _MY_PROJECTS_CSS = """
     }
     .mp-card-top,
     .mp-name,
-    .mp-desc,
     .mp-steps {
         min-height: 0;
     }
@@ -1691,9 +1696,6 @@ def _mp_product_thumb(product: dict) -> str:
 
 def _mp_card_html(product: dict, status: dict, lang: str) -> str:
     name = html.escape(str(product.get("name") or _mp_text("無題の商品", "Produto sem nome", "Untitled product", lang)))
-    desc = html.escape(_mp_truncate(product.get("description") or product.get("features") or "", 78))
-    if not desc:
-        desc = html.escape(_mp_text("商品情報を追加してCore生成へ進めます。", "Adicione dados do produto e avance para o Core.", "Add product details and continue to Core.", lang))
     updated_label = _mp_text("更新日", "Atualizado", "Updated", lang)
     updated = html.escape(str(product.get("updated_at") or "-"))
     state = status["state"]
@@ -1723,11 +1725,10 @@ def _mp_card_html(product: dict, status: dict, lang: str) -> str:
         f'<h3 class="mp-name">{name}</h3>'
         f'<span class="mp-status {status_class}">{status_label}</span>'
         '</div>'
-        f'<p class="mp-desc">{desc}</p>'
         '</div>'
         '</div>'
         f'<div class="mp-meta">{updated_label}: {updated}</div>'
-        f'<div style="color:#8a96a8;font-size:.68rem;font-weight:800;">{_mp_text("生成物のステータス", "Status dos materiais", "Asset status", lang)}</div>'
+        f'<div class="mp-step-title">{_mp_text("生成状況", "Status", "Progress", lang)}</div>'
         f'<div class="mp-steps">{steps_html}</div>'
         '</div>'
     )
@@ -1962,13 +1963,6 @@ def page_saved_data(svc: dict) -> None:
                             next_page = _mp_next_page(status)
                             if st.button("▷ " + _mp_text("続き", "Continuar", "Continue", lang), key=f"mp_continue_{pid}", type="primary", use_container_width=True):
                                 _mp_open_project(pid, product, svc, next_page)
-                        if st.button(
-                            "🗑️ " + _mp_text("このプロジェクトを削除", "Excluir este projeto", "Delete this project", lang),
-                            key=f"mp_del_prepare_{pid}",
-                            use_container_width=True,
-                        ):
-                            _mp_queue_delete(pid)
-                            st.rerun()
         else:
             for product in products:
                 pid = product["id"]
@@ -1977,7 +1971,7 @@ def page_saved_data(svc: dict) -> None:
                     c1, c2, c3 = st.columns([2.5, 1, 1.8])
                     with c1:
                         st.markdown(f"**{product.get('name') or '—'}**")
-                        st.caption(_mp_truncate(product.get("description") or product.get("features") or "", 160))
+                        st.caption(f"{_mp_text('更新日', 'Atualizado', 'Updated', lang)}: {product.get('updated_at') or '—'}")
                     with c2:
                         st.caption(_mp_text("状態", "Status", "Status", lang))
                         st.markdown(_mp_status_label(status["state"], lang))
