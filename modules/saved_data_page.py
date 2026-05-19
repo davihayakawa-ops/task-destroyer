@@ -1637,21 +1637,18 @@ def _mp_delete_project(product: dict, svc: dict, lang: str) -> dict:
     except Exception as exc:
         result = {"success": False, "message": str(exc)}
     if result.get("success"):
+        _mp_mark_product_deleted(pid)
         try:
             remaining = svc["storage"].load_product(pid)
         except Exception:
             remaining = None
         if remaining:
-            return {
-                "success": False,
-                "message": _mp_text(
-                    "削除後も保存先に残っています。もう一度押しても消えない場合は、クラウドDBの権限設定を確認してください。",
-                    "Ainda resta no armazenamento. Se não desaparecer ao tentar novamente, verifique as permissões do banco na nuvem.",
-                    "The project still exists after deletion. If it does not disappear after retrying, check the cloud DB permissions.",
-                    lang,
-                ),
-            }
-        _mp_mark_product_deleted(pid)
+            result["warning"] = _mp_text(
+                "削除済みとして一覧から外しました。保存先に古い行が残っている可能性があるため、次回も見える場合はクラウドDBの状態を確認します。",
+                "Removido da lista como excluído. Pode haver uma linha antiga no banco; se aparecer novamente, verificaremos o banco na nuvem.",
+                "Removed from the list as deleted. An old cloud row may remain; if it appears again, check the cloud DB state.",
+                lang,
+            )
         if st.session_state.get("product_id") == pid:
             for key in (
                 "product_id", "product_info", "core_text", "core_status", "core_strategy",
@@ -1788,6 +1785,8 @@ def page_saved_data(svc: dict) -> None:
     if isinstance(last_delete_result, dict):
         if last_delete_result.get("success"):
             st.success(_mp_text("削除しました。", "Projeto excluído.", "Project deleted.", lang))
+            if last_delete_result.get("warning"):
+                st.warning(str(last_delete_result["warning"]))
         else:
             st.error(
                 last_delete_result.get("message")

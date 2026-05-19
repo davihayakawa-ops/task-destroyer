@@ -1191,6 +1191,10 @@ class Storage:
                     "message": f"クラウドDBの削除に失敗しました: {cloud_message}",
                     "deleted_paths": [],
                 }
+            try:
+                self._mark_product_deleted(product_id)
+            except Exception:
+                pass
 
         deleted = []
         project_file = None

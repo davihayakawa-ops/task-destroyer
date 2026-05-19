@@ -1011,7 +1011,7 @@ init_state()
 # Bump this string whenever new methods are added to any service class.
 # Changing it invalidates the @st.cache_resource cache on Streamlit Cloud,
 # forcing fresh service objects that reflect the latest code.
-_SERVICES_VER = "20260519-delete-persistence-v2"
+_SERVICES_VER = "20260519-delete-hide-v3"
 
 
 @st.cache_resource
