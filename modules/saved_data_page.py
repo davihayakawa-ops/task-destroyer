@@ -1395,6 +1395,14 @@ _MY_PROJECTS_CSS = """
     margin-bottom: 12px;
     padding: 14px;
 }
+.mp-side-panel {
+    align-items: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 84px;
+    text-align: center;
+}
 .mp-panel-title {
     color: #f8fafc;
     font-size: .84rem;
@@ -1408,8 +1416,21 @@ _MY_PROJECTS_CSS = """
     line-height: 1.5;
     padding: 8px 0;
 }
+.mp-side-panel .mp-activity {
+    width: 100%;
+}
 .mp-activity:last-child {
     border-bottom: 0;
+}
+.mp-delete-box {
+    background: rgba(127,29,29,.24);
+    border: 1px solid rgba(248,113,113,.35);
+    border-radius: 8px;
+    color: #fecaca;
+    font-size: .76rem;
+    line-height: 1.45;
+    margin: 8px 0 12px;
+    padding: 10px 12px;
 }
 .mp-empty {
     background: rgba(17,24,39,.84);
@@ -1575,6 +1596,34 @@ def _mp_duplicate_project(product: dict, svc: dict, lang: str) -> dict:
     return {"id": new_id, **new_data}
 
 
+def _mp_delete_project(product: dict, svc: dict, lang: str) -> dict:
+    pid = str(product.get("id") or "")
+    if not pid:
+        return {
+            "success": False,
+            "message": _mp_text("削除対象が見つかりません。", "Projeto não encontrado.", "Project not found.", lang),
+        }
+    reason = _mp_text("マイプロジェクト画面から削除", "Excluído em Meus projetos", "Deleted from My Projects", lang)
+    try:
+        result = svc["storage"].delete_project(
+            pid,
+            get_current_user(),
+            reason,
+            file_path=product.get("file_path", ""),
+            use_trash=True,
+        )
+    except Exception as exc:
+        result = {"success": False, "message": str(exc)}
+    if result.get("success") and st.session_state.get("product_id") == pid:
+        for key in (
+            "product_id", "product_info", "core_text", "core_status", "core_strategy",
+            "core_safety", "core_focus", "core_tone", "generated",
+            "image_prompts", "video_scripts", "ads_sns_items",
+        ):
+            st.session_state.pop(key, None)
+    return result
+
+
 def _mp_product_thumb(product: dict) -> str:
     image = product.get("product_image")
     if isinstance(image, dict) and image.get("data_url"):
@@ -1627,6 +1676,33 @@ def _mp_card_html(product: dict, status: dict, lang: str) -> str:
         f'<div class="mp-steps">{steps_html}</div>'
         '</div>'
     )
+
+
+def _mp_render_delete_confirm(product: dict, svc: dict, lang: str, key_prefix: str) -> None:
+    pid = str(product.get("id") or "")
+    if st.session_state.get("mp_confirm_delete_id") != pid:
+        return
+    name = html.escape(str(product.get("name") or _mp_text("このプロジェクト", "este projeto", "this project", lang)))
+    st.markdown(
+        '<div class="mp-delete-box">'
+        + _mp_text("削除しますか？", "Excluir este projeto?", "Delete this project?", lang)
+        + f"<br><strong>{name}</strong>"
+        + "</div>",
+        unsafe_allow_html=True,
+    )
+    d1, d2 = st.columns(2)
+    with d1:
+        if st.button(_mp_text("削除する", "Excluir", "Delete", lang), key=f"{key_prefix}_delete_yes_{pid}", use_container_width=True):
+            result = _mp_delete_project(product, svc, lang)
+            if result.get("success"):
+                st.session_state.pop("mp_confirm_delete_id", None)
+                st.success(_mp_text("削除しました。", "Projeto excluído.", "Project deleted.", lang))
+                st.rerun()
+            st.error(result.get("message") or _mp_text("削除に失敗しました。", "Falha ao excluir.", "Delete failed.", lang))
+    with d2:
+        if st.button(_mp_text("やめる", "Cancelar", "Cancel", lang), key=f"{key_prefix}_delete_no_{pid}", use_container_width=True):
+            st.session_state.pop("mp_confirm_delete_id", None)
+            st.rerun()
 
 
 def _mp_kpi(label: str, value: int, note: str, icon: str) -> str:
@@ -1801,9 +1877,9 @@ def page_saved_data(svc: dict) -> None:
                     status = status_by_id[pid]
                     with col:
                         st.markdown(_mp_card_html(product, status, lang), unsafe_allow_html=True)
-                        b1, b2, b3 = st.columns(3)
+                        b1, b2, b3, b4 = st.columns([1, 1, 1, .9])
                         with b1:
-                            if st.button("開く", key=f"mp_open_{pid}", use_container_width=True):
+                            if st.button(_mp_text("開く", "Abrir", "Open", lang), key=f"mp_open_{pid}", use_container_width=True):
                                 _mp_open_project(pid, product, svc, "product_input")
                         with b2:
                             if st.button(_mp_text("複製", "Duplicar", "Duplicate", lang), key=f"mp_dup_{pid}", use_container_width=True):
@@ -1817,12 +1893,17 @@ def page_saved_data(svc: dict) -> None:
                             next_page = _mp_next_page(status)
                             if st.button("▷ " + _mp_text("続き", "Continuar", "Continue", lang), key=f"mp_continue_{pid}", type="primary", use_container_width=True):
                                 _mp_open_project(pid, product, svc, next_page)
+                        with b4:
+                            if st.button(_mp_text("削除", "Excluir", "Delete", lang), key=f"mp_del_prepare_{pid}", use_container_width=True):
+                                st.session_state["mp_confirm_delete_id"] = pid
+                                st.rerun()
+                        _mp_render_delete_confirm(product, svc, lang, "mp_grid")
         else:
             for product in products:
                 pid = product["id"]
                 status = status_by_id[pid]
                 with st.container(border=True):
-                    c1, c2, c3 = st.columns([2.5, 1, 1.35])
+                    c1, c2, c3 = st.columns([2.5, 1, 1.8])
                     with c1:
                         st.markdown(f"**{product.get('name') or '—'}**")
                         st.caption(_mp_truncate(product.get("description") or product.get("features") or "", 160))
@@ -1830,13 +1911,18 @@ def page_saved_data(svc: dict) -> None:
                         st.caption(_mp_text("状態", "Status", "Status", lang))
                         st.markdown(_mp_status_label(status["state"], lang))
                     with c3:
-                        a1, a2 = st.columns(2)
+                        a1, a2, a3 = st.columns(3)
                         with a1:
                             if st.button(_mp_text("開く", "Abrir", "Open", lang), key=f"mp_list_open_{pid}", use_container_width=True):
                                 _mp_open_project(pid, product, svc, "product_input")
                         with a2:
                             if st.button(_mp_text("続きから", "Continuar", "Continue", lang), key=f"mp_list_continue_{pid}", type="primary", use_container_width=True):
                                 _mp_open_project(pid, product, svc, _mp_next_page(status))
+                        with a3:
+                            if st.button(_mp_text("削除", "Excluir", "Delete", lang), key=f"mp_list_del_prepare_{pid}", use_container_width=True):
+                                st.session_state["mp_confirm_delete_id"] = pid
+                                st.rerun()
+                    _mp_render_delete_confirm(product, svc, lang, "mp_list")
 
         st.caption(
             _mp_text("全", "Total", "Total", lang)
@@ -1848,7 +1934,7 @@ def page_saved_data(svc: dict) -> None:
 
     with side_col:
         st.markdown(
-            '<div class="mp-panel">'
+            '<div class="mp-panel mp-side-panel">'
             f'<div class="mp-panel-title">{_mp_text("最近のアクティビティ", "Atividade recente", "Recent Activity", lang)}</div>'
             + "".join(
                 '<div class="mp-activity">'
@@ -1864,7 +1950,7 @@ def page_saved_data(svc: dict) -> None:
             unsafe_allow_html=True,
         )
         st.markdown(
-            '<div class="mp-panel">'
+            '<div class="mp-panel mp-side-panel">'
             f'<div class="mp-panel-title">{_mp_text("クイックアクション", "Ações rápidas", "Quick Actions", lang)}</div>'
             '</div>',
             unsafe_allow_html=True,
@@ -1881,7 +1967,7 @@ def page_saved_data(svc: dict) -> None:
             st.session_state["page"] = target
             st.rerun()
         st.markdown(
-            '<div class="mp-panel">'
+            '<div class="mp-panel mp-side-panel">'
             f'<div class="mp-panel-title">{_mp_text("現在の作業", "Trabalho atual", "Current Work", lang)}</div>'
             f'<div class="mp-activity">{html.escape(_mp_current_product_label(lang))}</div>'
             '</div>',
