@@ -126,7 +126,17 @@ class SupabaseRepository:
         )
         return result.data or []
 
-    def upsert_product(self, workspace_id: str, local_id: str, data: dict[str, Any]) -> dict[str, Any]:
+    def upsert_product(
+        self,
+        workspace_id: str,
+        local_id: str,
+        data: dict[str, Any],
+        revive_deleted: bool = False,
+    ) -> dict[str, Any]:
+        existing = self.find_product(workspace_id, local_id)
+        if existing and existing.get("status") == "deleted" and not revive_deleted:
+            return existing
+
         row = {
             "workspace_id": workspace_id,
             "local_id": local_id,
@@ -164,21 +174,21 @@ class SupabaseRepository:
         return result.data[0] if result.data else None
 
     def soft_delete_product(self, workspace_id: str, local_id: str) -> bool:
-        result = (
+        before = self.find_product(workspace_id, local_id)
+        if not before:
+            return True
+        (
             self.client.table("products")
             .update({"status": "deleted"})
             .eq("workspace_id", workspace_id)
             .eq("local_id", local_id)
             .execute()
         )
-        return bool(result.data)
+        after = self.find_product(workspace_id, local_id)
+        return bool(after and after.get("status") == "deleted")
 
     def delete_product(self, workspace_id: str, local_id: str) -> bool:
-        before = self.find_product(workspace_id, local_id)
-        if not before:
-            return True
-        self.client.table("products").delete().eq("workspace_id", workspace_id).eq("local_id", local_id).execute()
-        return self.find_product(workspace_id, local_id) is None
+        return self.soft_delete_product(workspace_id, local_id)
 
     def load_workspace(self, workspace_id: str) -> Optional[dict[str, Any]]:
         result = (

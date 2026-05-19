@@ -275,11 +275,45 @@ class Storage:
         _ensure_dir(self.data_dir / "backups")
         _ensure_dir(self.data_dir / "trash")
 
+    def _deleted_registry_path(self) -> Path:
+        return self.data_dir / "delete_logs" / "deleted_products.json"
+
+    def _deleted_product_ids(self) -> set[str]:
+        ids = set(_session_deleted_product_ids())
+        path = self._deleted_registry_path()
+        if not path.exists():
+            return ids
+        try:
+            raw = json.loads(path.read_text())
+        except Exception:
+            return ids
+        if isinstance(raw, dict):
+            raw_ids = raw.get("ids") or []
+        elif isinstance(raw, list):
+            raw_ids = raw
+        else:
+            raw_ids = []
+        for item in raw_ids:
+            safe = _safe_file_stem(str(item or ""))
+            if safe:
+                ids.add(safe)
+        return ids
+
+    def _mark_product_deleted(self, product_id: str) -> None:
+        product_id = _safe_file_stem(product_id)
+        if not product_id:
+            return
+        _ensure_dir(self.data_dir / "delete_logs")
+        ids = self._deleted_product_ids()
+        ids.add(product_id)
+        payload = {"ids": sorted(ids), "updated_at": _now()}
+        self._deleted_registry_path().write_text(json.dumps(payload, ensure_ascii=False, indent=2))
+
     # ── Product Info ──────────────────────────────────────────────────────────
 
     def save_product(self, product_id: str, data: dict) -> str:
         product_id = _safe_file_stem(product_id)
-        if product_id in _session_deleted_product_ids():
+        if product_id in self._deleted_product_ids():
             self.audit.log("storage", "save_product_skipped_deleted", "ok", product_id=product_id)
             return product_id
         data["updated_at"] = _now()
@@ -292,7 +326,7 @@ class Storage:
     def _mirror_product_to_supabase(self, product_id: str, data: dict) -> None:
         """Best-effort product mirror for account-isolated public sales."""
         product_id = _safe_file_stem(product_id)
-        if product_id in _session_deleted_product_ids():
+        if product_id in self._deleted_product_ids():
             return
         workspace_db_id = _workspace_db_id_from_session()
         if not workspace_db_id:
@@ -302,7 +336,10 @@ class Storage:
 
             if not supabase_db_configured():
                 return
-            SupabaseRepository().upsert_product(workspace_db_id, product_id, data)
+            row = SupabaseRepository().upsert_product(workspace_db_id, product_id, data)
+            if row.get("status") == "deleted":
+                self.audit.log("supabase", "mirror_product_skipped_deleted", "ok", product_id=product_id)
+                return
             self.audit.log("supabase", "mirror_product", "ok", product_id=product_id)
         except Exception as exc:
             self.audit.log(
@@ -385,9 +422,13 @@ class Storage:
         existing = repo.find_product(workspace_db_id, product_id)
         if existing and existing.get("status") == "deleted":
             return repo, None
+        if product_id in self._deleted_product_ids():
+            return repo, None
         row = repo.load_product(workspace_db_id, product_id)
         if not row:
             row = repo.upsert_product(workspace_db_id, product_id, self._load_product_file(product_id) or {})
+        if row and row.get("status") == "deleted":
+            return repo, None
         return repo, row
 
     def _load_product_file(self, product_id: str) -> Optional[dict]:
@@ -423,7 +464,7 @@ class Storage:
 
     def load_product(self, product_id: str) -> Optional[dict]:
         product_id = _safe_file_stem(product_id)
-        if product_id in _session_deleted_product_ids():
+        if product_id in self._deleted_product_ids():
             return None
         db_product = self._load_product_from_supabase(product_id)
         if db_product is not None or self._supabase_products_active():
@@ -431,9 +472,10 @@ class Storage:
         return self._load_product_file(product_id)
 
     def list_products(self) -> List[dict]:
+        deleted_ids = self._deleted_product_ids()
         db_products = self._list_products_from_supabase()
         if db_products or self._supabase_products_active():
-            return db_products
+            return [p for p in db_products if str(p.get("id") or "") not in deleted_ids]
         result = []
         proj_dir = self.data_dir / "projects"
         for p in sorted(proj_dir.glob("*.json")):
@@ -441,6 +483,8 @@ class Storage:
             # (pattern: {pid}_{content_type}_{id}.json).
             # Real product files are plain {pid}.json with no underscore.
             if "_" in p.stem:
+                continue
+            if p.stem in deleted_ids:
                 continue
             try:
                 data = json.loads(p.read_text())
@@ -494,9 +538,12 @@ class Storage:
 
     def _list_local_product_files(self) -> list[Path]:
         proj_dir = self.data_dir / "projects"
+        deleted_ids = self._deleted_product_ids()
         files = []
         for p in sorted(proj_dir.glob("*.json")):
             if "_" in p.stem:
+                continue
+            if p.stem in deleted_ids:
                 continue
             try:
                 data = json.loads(p.read_text())
@@ -525,6 +572,8 @@ class Storage:
         for shop_id, product_file in self._collect_local_product_files_all_shops():
             source_storage = Storage(shop_id)
             product_id = _safe_file_stem(product_file.stem)
+            if product_id in source_storage._deleted_product_ids():
+                continue
             try:
                 product_data = json.loads(product_file.read_text())
             except Exception:
@@ -539,6 +588,8 @@ class Storage:
                 product_data.setdefault("source_local_id", product_id)
 
             product_row = repo.upsert_product(workspace_db_id, target_product_id, _fill_translation_defaults(product_data))
+            if product_row.get("status") == "deleted":
+                continue
             counts["products"] += 1
             touched_shops.add(source_tag)
 
@@ -611,6 +662,8 @@ class Storage:
         counts = {"products": 0, "cores": 0, "generated": 0, "skipped_cores": 0, "skipped_generated": 0}
         for product_file in self._list_local_product_files():
             product_id = _safe_file_stem(product_file.stem)
+            if product_id in self._deleted_product_ids():
+                continue
             try:
                 product_data = json.loads(product_file.read_text())
             except Exception:
@@ -619,6 +672,8 @@ class Storage:
                 continue
 
             product_row = repo.upsert_product(workspace_db_id, product_id, _fill_translation_defaults(product_data))
+            if product_row.get("status") == "deleted":
+                continue
             counts["products"] += 1
 
             existing_cores = repo.list_cores(workspace_db_id, product_id)
@@ -718,6 +773,8 @@ class Storage:
             if not isinstance(data, dict):
                 continue
             row = repo.upsert_product(workspace_db_id, product_id, _fill_translation_defaults(data))
+            if row.get("status") == "deleted":
+                continue
             product_rows[product_id] = row
             counts["products"] += 1
 
@@ -773,7 +830,7 @@ class Storage:
         workspace_db_id = _workspace_db_id_from_session()
         if not workspace_db_id:
             return []
-        deleted_ids = _session_deleted_product_ids()
+        deleted_ids = self._deleted_product_ids()
         try:
             from modules.supabase_db import SupabaseRepository, supabase_db_configured
 
@@ -1193,6 +1250,10 @@ class Storage:
                 self.save_delete_log(product_id, deleted_by, reason, [str(project_file)])
             except Exception:
                 pass
+            try:
+                self._mark_product_deleted(product_id)
+            except Exception:
+                pass
             if not cloud_active:
                 self._soft_delete_product_in_supabase(product_id)
             self.audit.log("storage", "delete_project", "ok", product_id=product_id, actor=deleted_by,
@@ -1224,6 +1285,10 @@ class Storage:
                 pass
             try:
                 self.save_delete_log(product_id, deleted_by, reason, deleted)
+            except Exception:
+                pass
+            try:
+                self._mark_product_deleted(product_id)
             except Exception:
                 pass
             if not cloud_active:
@@ -1265,6 +1330,10 @@ class Storage:
         # Write delete log — must never crash so it never reverts a successful delete
         try:
             self.save_delete_log(product_id, deleted_by, reason, deleted)
+        except Exception:
+            pass
+        try:
+            self._mark_product_deleted(product_id)
         except Exception:
             pass
         if not cloud_active:
