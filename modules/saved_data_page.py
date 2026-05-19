@@ -1165,3 +1165,704 @@ def page_saved_data(svc: dict) -> None:
                                          use_container_width=True):
                                 st.session_state.pop(f"confirm_purge_{item['filename']}", None)
                                 st.rerun()
+
+
+# ── Page: My Projects dashboard ──────────────────────────────────────────────
+# The definition below intentionally overrides the older saved-data screen above.
+# The old implementation is kept in the file for now because it still documents
+# the backup/trash tools, but the product-facing app should open this simpler
+# project dashboard.
+
+_MY_PROJECTS_CSS = """
+<style>
+.mp-shell {
+    color: #f8fafc;
+}
+.mp-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+    margin: 2px 0 18px;
+}
+.mp-kicker {
+    color: #6ee72f;
+    font-size: .78rem;
+    font-weight: 850;
+    margin-bottom: 10px;
+}
+.mp-title {
+    color: #f8fafc;
+    font-size: 2rem;
+    font-weight: 900;
+    letter-spacing: 0;
+    line-height: 1.15;
+    margin: 0;
+}
+.mp-sub {
+    color: #aab7c7;
+    font-size: .88rem;
+    line-height: 1.7;
+    margin-top: 10px;
+}
+.mp-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+    margin: 18px 0 18px;
+}
+.mp-kpi {
+    background: linear-gradient(145deg, rgba(17,24,39,.96), rgba(5,12,11,.96));
+    border: 1px solid rgba(92, 255, 45, .26);
+    border-radius: 8px;
+    box-shadow: 0 0 0 1px rgba(15,23,42,.42), 0 12px 40px rgba(0,0,0,.18);
+    min-height: 112px;
+    overflow: hidden;
+    padding: 18px 18px 16px;
+    position: relative;
+}
+.mp-kpi:after {
+    background: linear-gradient(90deg, transparent, rgba(106,255,47,.4));
+    bottom: 18px;
+    content: "";
+    height: 2px;
+    position: absolute;
+    right: 18px;
+    width: 84px;
+}
+.mp-kpi-top {
+    align-items: center;
+    color: #cbd5e1;
+    display: flex;
+    font-size: .78rem;
+    font-weight: 800;
+    gap: 8px;
+}
+.mp-kpi-value {
+    color: #f8fafc;
+    font-size: 2rem;
+    font-weight: 950;
+    line-height: 1;
+    margin-top: 12px;
+}
+.mp-kpi-note {
+    color: #8a96a8;
+    font-size: .72rem;
+    margin-top: 10px;
+}
+.mp-controls {
+    align-items: center;
+    display: grid;
+    gap: 10px;
+    grid-template-columns: minmax(220px, 1fr) 180px 170px 112px;
+    margin: 4px 0 16px;
+}
+.mp-card {
+    background: linear-gradient(145deg, rgba(16,24,35,.96), rgba(6,12,12,.98));
+    border: 1px solid rgba(148,163,184,.20);
+    border-radius: 8px;
+    box-shadow: 0 16px 42px rgba(0,0,0,.18);
+    margin-bottom: 12px;
+    min-height: 286px;
+    overflow: hidden;
+    padding: 13px;
+}
+.mp-card:hover {
+    border-color: rgba(113, 255, 47, .45);
+    box-shadow: 0 0 0 1px rgba(90, 255, 42, .08), 0 18px 52px rgba(0,0,0,.26);
+}
+.mp-card-top {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: 76px 1fr;
+}
+.mp-thumb {
+    align-items: center;
+    background: radial-gradient(circle at 40% 25%, rgba(103,255,34,.22), rgba(18,26,38,.95) 55%);
+    border: 1px solid rgba(148,163,184,.18);
+    border-radius: 8px;
+    display: flex;
+    height: 76px;
+    justify-content: center;
+    overflow: hidden;
+    width: 76px;
+}
+.mp-thumb img {
+    height: 100%;
+    object-fit: cover;
+    width: 100%;
+}
+.mp-thumb span {
+    color: #71ff2f;
+    font-size: 1.6rem;
+    font-weight: 900;
+}
+.mp-name-row {
+    align-items: start;
+    display: flex;
+    gap: 8px;
+    justify-content: space-between;
+}
+.mp-name {
+    color: #f8fafc;
+    font-size: .96rem;
+    font-weight: 900;
+    line-height: 1.35;
+    margin: 0;
+}
+.mp-status {
+    border: 1px solid rgba(59,130,246,.48);
+    border-radius: 6px;
+    color: #60a5fa;
+    flex: 0 0 auto;
+    font-size: .68rem;
+    font-weight: 850;
+    padding: 2px 7px;
+}
+.mp-status.done {
+    border-color: rgba(106,255,47,.5);
+    color: #78ff39;
+}
+.mp-status.draft {
+    border-color: rgba(148,163,184,.35);
+    color: #aab7c7;
+}
+.mp-desc {
+    color: #9aa7b8;
+    font-size: .73rem;
+    line-height: 1.55;
+    margin: 8px 0 0;
+    min-height: 34px;
+}
+.mp-meta {
+    border-top: 1px solid rgba(148,163,184,.15);
+    color: #8a96a8;
+    font-size: .7rem;
+    margin: 13px 0 10px;
+    padding-top: 10px;
+}
+.mp-steps {
+    display: grid;
+    gap: 6px;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    margin: 8px 0 12px;
+}
+.mp-step {
+    align-items: center;
+    color: #8f9bae;
+    display: flex;
+    flex-direction: column;
+    font-size: .58rem;
+    gap: 4px;
+    text-align: center;
+}
+.mp-dot {
+    align-items: center;
+    background: #2b313c;
+    border: 1px solid rgba(148,163,184,.22);
+    border-radius: 999px;
+    color: #9ca3af;
+    display: flex;
+    font-size: .62rem;
+    font-weight: 900;
+    height: 21px;
+    justify-content: center;
+    width: 21px;
+}
+.mp-dot.ok {
+    background: linear-gradient(135deg, #62df31, #2fa819);
+    border-color: rgba(167,255,131,.35);
+    color: #fff;
+}
+.mp-panel {
+    background: rgba(17,24,39,.84);
+    border: 1px solid rgba(148,163,184,.20);
+    border-radius: 8px;
+    margin-bottom: 12px;
+    padding: 14px;
+}
+.mp-panel-title {
+    color: #f8fafc;
+    font-size: .84rem;
+    font-weight: 900;
+    margin-bottom: 10px;
+}
+.mp-activity {
+    border-bottom: 1px solid rgba(148,163,184,.12);
+    color: #aab7c7;
+    font-size: .72rem;
+    line-height: 1.5;
+    padding: 8px 0;
+}
+.mp-activity:last-child {
+    border-bottom: 0;
+}
+.mp-empty {
+    background: rgba(17,24,39,.84);
+    border: 1px dashed rgba(106,255,47,.35);
+    border-radius: 8px;
+    color: #aab7c7;
+    padding: 28px;
+    text-align: center;
+}
+@media (max-width: 1100px) {
+    .mp-kpi-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .mp-controls {
+        grid-template-columns: 1fr;
+    }
+}
+@media (max-width: 760px) {
+    .mp-head {
+        display: block;
+    }
+    .mp-kpi-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+"""
+
+
+def _mp_text(ja: str, pt: str, en: str, lang: str) -> str:
+    return _lt(ja, pt, en, lang)
+
+
+def _mp_parse_dt(value: str):
+    from datetime import datetime
+
+    raw = str(value or "").strip()
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S.%f%z", "%Y-%m-%dT%H:%M:%S%z"):
+        try:
+            return datetime.strptime(raw, fmt)
+        except Exception:
+            pass
+    try:
+        return datetime.fromisoformat(raw.replace("Z", "+00:00")).replace(tzinfo=None)
+    except Exception:
+        return None
+
+
+def _mp_truncate(value: str, limit: int = 92) -> str:
+    text = " ".join(str(value or "").split())
+    if len(text) <= limit:
+        return text
+    return text[:limit - 1] + "…"
+
+
+def _mp_has_generated(storage, product_id: str, content_type: str) -> bool:
+    try:
+        entry = storage.load_generated(product_id, content_type)
+    except Exception:
+        entry = None
+    if not entry:
+        return False
+    content = entry.get("content")
+    if isinstance(content, dict):
+        if content.get("text"):
+            return True
+        items = content.get("items")
+        if isinstance(items, dict) and any(str(v).strip() for v in items.values()):
+            return True
+        return bool(content)
+    return bool(content)
+
+
+def _mp_project_status(storage, product: dict) -> dict:
+    product_id = product.get("id", "")
+    try:
+        has_core = bool(storage.list_cores(product_id))
+    except Exception:
+        has_core = False
+    steps = {
+        "core": has_core,
+        "shopify": _mp_has_generated(storage, product_id, "product_page"),
+        "image": _mp_has_generated(storage, product_id, "image_prompt"),
+        "video": _mp_has_generated(storage, product_id, "video_script"),
+        "sns": _mp_has_generated(storage, product_id, "ads_sns"),
+    }
+    steps["export"] = all(steps.values())
+    done = sum(1 for ok in steps.values() if ok)
+    if done >= len(steps):
+        state = "done"
+    elif done == 0:
+        state = "draft"
+    else:
+        state = "progress"
+    return {"steps": steps, "done": done, "total": len(steps), "state": state}
+
+
+def _mp_next_page(status: dict) -> str:
+    steps = status.get("steps", {})
+    if not steps.get("core"):
+        return "core_generation"
+    if not steps.get("shopify"):
+        return "product_page"
+    if not (steps.get("image") and steps.get("video") and steps.get("sns")):
+        return "related_assets"
+    return "export_center"
+
+
+def _mp_status_label(state: str, lang: str) -> str:
+    if state == "done":
+        return _mp_text("生成済み", "Gerado", "Generated", lang)
+    if state == "draft":
+        return _mp_text("下書き", "Rascunho", "Draft", lang)
+    return _mp_text("作成中", "Em andamento", "In Progress", lang)
+
+
+def _mp_open_project(pid: str, product: dict, svc: dict, target_page: str) -> None:
+    load_project_session(pid, product, svc)
+    st.session_state["page"] = target_page
+    st.rerun()
+
+
+def _mp_duplicate_project(product: dict, svc: dict, lang: str) -> dict:
+    import uuid
+
+    storage = svc["storage"]
+    source_id = product.get("id", "")
+    new_id = str(uuid.uuid4())[:8]
+    suffix = _mp_text(" コピー", " cópia", " copy", lang)
+    new_data = {
+        k: v for k, v in dict(product).items()
+        if k not in ("id", "file_path", "created_at", "updated_at")
+    }
+    base_name = str(product.get("name") or _mp_text("無題の商品", "Produto sem nome", "Untitled product", lang))
+    new_data["name"] = _mp_truncate(base_name + suffix, 80)
+    new_data["source_project_id"] = source_id
+    storage.save_product(new_id, new_data)
+
+    try:
+        latest_core = storage.load_latest_core(source_id)
+        if latest_core and isinstance(latest_core.get("core"), dict):
+            storage.save_core(new_id, dict(latest_core["core"]), latest_core.get("version_label", ""))
+    except Exception:
+        pass
+
+    for content_type in ("product_page", "image_prompt", "video_script", "ads_sns"):
+        try:
+            entry = storage.load_generated(source_id, content_type)
+            content = entry.get("content") if isinstance(entry, dict) else None
+            if isinstance(content, dict):
+                storage.save_generated(new_id, content_type, dict(content))
+        except Exception:
+            pass
+    return {"id": new_id, **new_data}
+
+
+def _mp_product_thumb(product: dict) -> str:
+    image = product.get("product_image")
+    if isinstance(image, dict) and image.get("data_url"):
+        src = html.escape(str(image["data_url"]))
+        return f'<div class="mp-thumb"><img src="{src}" alt=""></div>'
+    name = str(product.get("name") or "?").strip()
+    initial = html.escape(name[:1].upper() or "T")
+    return f'<div class="mp-thumb"><span>{initial}</span></div>'
+
+
+def _mp_card_html(product: dict, status: dict, lang: str) -> str:
+    name = html.escape(str(product.get("name") or _mp_text("無題の商品", "Produto sem nome", "Untitled product", lang)))
+    desc = html.escape(_mp_truncate(product.get("description") or product.get("features") or "", 78))
+    if not desc:
+        desc = html.escape(_mp_text("商品情報を追加してCore生成へ進めます。", "Adicione dados do produto e avance para o Core.", "Add product details and continue to Core.", lang))
+    updated_label = _mp_text("更新日", "Atualizado", "Updated", lang)
+    updated = html.escape(str(product.get("updated_at") or "-"))
+    state = status["state"]
+    status_label = html.escape(_mp_status_label(state, lang))
+    status_class = "done" if state == "done" else ("draft" if state == "draft" else "")
+    step_labels = [
+        ("core", "Core"),
+        ("shopify", "Shopify"),
+        ("image", _mp_text("画像", "Imagem", "Image", lang)),
+        ("video", _mp_text("動画", "Vídeo", "Video", lang)),
+        ("sns", "SNS"),
+        ("export", _mp_text("出力", "Export", "Export", lang)),
+    ]
+    steps_html = "".join(
+        '<div class="mp-step">'
+        f'<div class="mp-dot {"ok" if status["steps"].get(key) else ""}">{"✓" if status["steps"].get(key) else "−"}</div>'
+        f'<div>{html.escape(label)}</div>'
+        '</div>'
+        for key, label in step_labels
+    )
+    return (
+        '<div class="mp-card">'
+        '<div class="mp-card-top">'
+        f'{_mp_product_thumb(product)}'
+        '<div>'
+        '<div class="mp-name-row">'
+        f'<h3 class="mp-name">{name}</h3>'
+        f'<span class="mp-status {status_class}">{status_label}</span>'
+        '</div>'
+        f'<p class="mp-desc">{desc}</p>'
+        '</div>'
+        '</div>'
+        f'<div class="mp-meta">{updated_label}: {updated}</div>'
+        f'<div style="color:#8a96a8;font-size:.68rem;font-weight:800;">{_mp_text("生成物のステータス", "Status dos materiais", "Asset status", lang)}</div>'
+        f'<div class="mp-steps">{steps_html}</div>'
+        '</div>'
+    )
+
+
+def _mp_kpi(label: str, value: int, note: str, icon: str) -> str:
+    return (
+        '<div class="mp-kpi">'
+        f'<div class="mp-kpi-top"><span>{html.escape(icon)}</span><span>{html.escape(label)}</span></div>'
+        f'<div class="mp-kpi-value">{value}</div>'
+        f'<div class="mp-kpi-note">{html.escape(note)}</div>'
+        '</div>'
+    )
+
+
+def _mp_current_product_label(lang: str) -> str:
+    info = st.session_state.get("product_info") or {}
+    return str(info.get("name") or _mp_text("未選択", "Não selecionado", "Not selected", lang))
+
+
+def page_saved_data(svc: dict) -> None:
+    lang = st.session_state.get("lang", "ja")
+    storage = svc["storage"]
+    st.markdown(_MY_PROJECTS_CSS, unsafe_allow_html=True)
+
+    all_products = [
+        p for p in storage.list_products()
+        if not is_empty_project_entry(p)
+    ]
+    status_by_id = {p["id"]: _mp_project_status(storage, p) for p in all_products}
+
+    now = None
+    from datetime import datetime
+
+    now = datetime.now()
+    updated_this_week = 0
+    for product in all_products:
+        parsed = _mp_parse_dt(product.get("updated_at"))
+        if parsed and (now - parsed.replace(tzinfo=None)).days <= 7:
+            updated_this_week += 1
+
+    in_progress = sum(1 for s in status_by_id.values() if s["state"] == "progress")
+    completed = sum(1 for s in status_by_id.values() if s["state"] == "done")
+
+    st.markdown('<div class="mp-shell">', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="mp-head">'
+        '<div>'
+        f'<div class="mp-kicker">{_mp_text("ホーム / マイプロジェクト", "Início / Meus projetos", "Home / My Projects", lang)}</div>'
+        f'<h1 class="mp-title">{_mp_text("マイプロジェクト", "Meus projetos", "My Projects", lang)}</h1>'
+        f'<div class="mp-sub">{_mp_text("あなたのプロジェクトを管理・追跡・再利用できます", "Gerencie, acompanhe e reutilize seus projetos.", "Manage, track, and reuse your projects.", lang)}</div>'
+        '</div>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
+    top_col, new_col = st.columns([4, 1.35])
+    with new_col:
+        if st.button("＋ " + _mp_text("新規プロジェクト", "Novo projeto", "New Project", lang), type="primary", use_container_width=True):
+            for key in (
+                "product_id", "core_text", "core_status", "core_strategy",
+                "core_safety", "core_focus", "core_tone",
+            ):
+                st.session_state.pop(key, None)
+            st.session_state["product_info"] = {}
+            st.session_state["generated"] = {}
+            for key in ("image_prompts", "video_scripts", "ads_sns_items"):
+                st.session_state.pop(key, None)
+            st.session_state["page"] = "product_input"
+            st.rerun()
+
+    st.markdown(
+        '<div class="mp-kpi-grid">'
+        + _mp_kpi(
+            _mp_text("総プロジェクト", "Total de projetos", "Total Projects", lang),
+            len(all_products),
+            _mp_text("すべてのプロジェクト", "Todos os projetos", "All projects", lang),
+            "▣",
+        )
+        + _mp_kpi(
+            _mp_text("進行中", "Em andamento", "In Progress", lang),
+            in_progress,
+            _mp_text("作成中のプロジェクト", "Projetos em andamento", "Projects being created", lang),
+            "▷",
+        )
+        + _mp_kpi(
+            _mp_text("今週更新", "Atualizados na semana", "Updated This Week", lang),
+            updated_this_week,
+            _mp_text("7日以内に更新", "Atualizados em 7 dias", "Updated within 7 days", lang),
+            "□",
+        )
+        + _mp_kpi(
+            _mp_text("完了", "Concluídos", "Completed", lang),
+            completed,
+            _mp_text("主要生成物がそろったプロジェクト", "Projetos com materiais principais", "Projects with core assets", lang),
+            "✓",
+        )
+        + '</div>',
+        unsafe_allow_html=True,
+    )
+
+    search_col, status_col, sort_col, view_col = st.columns([3, 1.25, 1.25, .9])
+    with search_col:
+        query = st.text_input(
+            "🔍",
+            placeholder=_mp_text("プロジェクトを検索...", "Buscar projetos...", "Search projects...", lang),
+            label_visibility="collapsed",
+        )
+    with status_col:
+        status_filter = st.selectbox(
+            _mp_text("状態", "Status", "Status", lang),
+            ["all", "progress", "draft", "done"],
+            format_func=lambda v: {
+                "all": _mp_text("すべて", "Todos", "All", lang),
+                "progress": _mp_text("進行中", "Em andamento", "In Progress", lang),
+                "draft": _mp_text("下書き", "Rascunho", "Draft", lang),
+                "done": _mp_text("生成済み", "Gerado", "Generated", lang),
+            }[v],
+            label_visibility="collapsed",
+        )
+    with sort_col:
+        sort_key = st.selectbox(
+            _mp_text("並び順", "Ordenar", "Sort", lang),
+            ["updated_desc", "name_asc"],
+            format_func=lambda v: {
+                "updated_desc": _mp_text("更新日（新しい順）", "Atualização recente", "Newest Updated", lang),
+                "name_asc": _mp_text("名前順", "Nome", "Name", lang),
+            }[v],
+            label_visibility="collapsed",
+        )
+    with view_col:
+        view_mode = st.radio(
+            _mp_text("表示", "Visual", "View", lang),
+            ["grid", "list"],
+            horizontal=True,
+            format_func=lambda v: "▦" if v == "grid" else "☰",
+            label_visibility="collapsed",
+        )
+
+    products = list(all_products)
+    if query:
+        q = query.lower()
+        products = [
+            p for p in products
+            if q in str(p.get("name", "")).lower()
+            or q in str(p.get("category", "")).lower()
+            or q in str(p.get("description", "")).lower()
+        ]
+    if status_filter != "all":
+        products = [p for p in products if status_by_id.get(p["id"], {}).get("state") == status_filter]
+    if sort_key == "name_asc":
+        products.sort(key=lambda p: str(p.get("name") or "").lower())
+    else:
+        products.sort(key=lambda p: _mp_parse_dt(p.get("updated_at")) or datetime.min, reverse=True)
+
+    main_col, side_col = st.columns([4.6, 1.15])
+    with main_col:
+        if not products:
+            st.markdown(
+                '<div class="mp-empty">'
+                + _mp_text(
+                    "表示できるプロジェクトがありません。新規プロジェクトを作成するか、検索条件を変えてください。",
+                    "Nenhum projeto para mostrar. Crie um novo projeto ou altere os filtros.",
+                    "No projects to show. Create a new project or adjust the filters.",
+                    lang,
+                )
+                + '</div>',
+                unsafe_allow_html=True,
+            )
+        elif view_mode == "grid":
+            for start in range(0, len(products), 3):
+                cols = st.columns(3)
+                for col, product in zip(cols, products[start:start + 3]):
+                    pid = product["id"]
+                    status = status_by_id[pid]
+                    with col:
+                        st.markdown(_mp_card_html(product, status, lang), unsafe_allow_html=True)
+                        b1, b2, b3 = st.columns(3)
+                        with b1:
+                            if st.button("開く", key=f"mp_open_{pid}", use_container_width=True):
+                                _mp_open_project(pid, product, svc, "product_input")
+                        with b2:
+                            if st.button(_mp_text("複製", "Duplicar", "Duplicate", lang), key=f"mp_dup_{pid}", use_container_width=True):
+                                duplicated = _mp_duplicate_project(product, svc, lang)
+                                st.success(
+                                    _mp_text("複製しました: ", "Duplicado: ", "Duplicated: ", lang)
+                                    + duplicated.get("name", "")
+                                )
+                                st.rerun()
+                        with b3:
+                            next_page = _mp_next_page(status)
+                            if st.button("▷ " + _mp_text("続き", "Continuar", "Continue", lang), key=f"mp_continue_{pid}", type="primary", use_container_width=True):
+                                _mp_open_project(pid, product, svc, next_page)
+        else:
+            for product in products:
+                pid = product["id"]
+                status = status_by_id[pid]
+                with st.container(border=True):
+                    c1, c2, c3 = st.columns([2.5, 1, 1.35])
+                    with c1:
+                        st.markdown(f"**{product.get('name') or '—'}**")
+                        st.caption(_mp_truncate(product.get("description") or product.get("features") or "", 160))
+                    with c2:
+                        st.caption(_mp_text("状態", "Status", "Status", lang))
+                        st.markdown(_mp_status_label(status["state"], lang))
+                    with c3:
+                        a1, a2 = st.columns(2)
+                        with a1:
+                            if st.button(_mp_text("開く", "Abrir", "Open", lang), key=f"mp_list_open_{pid}", use_container_width=True):
+                                _mp_open_project(pid, product, svc, "product_input")
+                        with a2:
+                            if st.button(_mp_text("続きから", "Continuar", "Continue", lang), key=f"mp_list_continue_{pid}", type="primary", use_container_width=True):
+                                _mp_open_project(pid, product, svc, _mp_next_page(status))
+
+        st.caption(
+            _mp_text("全", "Total", "Total", lang)
+            + f" {len(all_products)} "
+            + _mp_text("件中", " | mostrando", "| showing", lang)
+            + f" {len(products)} "
+            + _mp_text("件を表示", "itens", "items", lang)
+        )
+
+    with side_col:
+        st.markdown(
+            '<div class="mp-panel">'
+            f'<div class="mp-panel-title">{_mp_text("最近のアクティビティ", "Atividade recente", "Recent Activity", lang)}</div>'
+            + "".join(
+                '<div class="mp-activity">'
+                f'<strong>{html.escape(_mp_truncate(p.get("name") or "—", 28))}</strong><br>'
+                f'{html.escape(str(p.get("updated_at") or "-"))}'
+                '</div>'
+                for p in sorted(all_products, key=lambda x: _mp_parse_dt(x.get("updated_at")) or datetime.min, reverse=True)[:5]
+            )
+            + (
+                '<div class="mp-activity">—</div>' if not all_products else ""
+            )
+            + '</div>',
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            '<div class="mp-panel">'
+            f'<div class="mp-panel-title">{_mp_text("クイックアクション", "Ações rápidas", "Quick Actions", lang)}</div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+        if st.button("＋ " + _mp_text("新規プロジェクト", "Novo projeto", "New Project", lang), key="mp_side_new", use_container_width=True):
+            st.session_state["page"] = "product_input"
+            st.session_state["product_info"] = {}
+            st.session_state.pop("product_id", None)
+            st.rerun()
+        if st.button("↻ " + _mp_text("現在の作業へ", "Trabalho atual", "Current Work", lang), key="mp_side_current", use_container_width=True):
+            target = "product_input"
+            if st.session_state.get("core_text"):
+                target = "product_page"
+            st.session_state["page"] = target
+            st.rerun()
+        st.markdown(
+            '<div class="mp-panel">'
+            f'<div class="mp-panel-title">{_mp_text("現在の作業", "Trabalho atual", "Current Work", lang)}</div>'
+            f'<div class="mp-activity">{html.escape(_mp_current_product_label(lang))}</div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+
+    st.markdown("</div>", unsafe_allow_html=True)

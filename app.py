@@ -1266,7 +1266,7 @@ def _render_market_controls(is_ja: bool):
 
 _NAV_GROUPS = [
     ("product", "📦 商品", "📦 Produto", "📦 Product", [
-        ("saved_data",      "保存済み商品",       "Produtos salvos",       "Saved Products", "sd"),
+        ("saved_data",      "マイプロジェクト",   "Meus projetos",         "My Projects", "sd"),
         ("product_input",   "① 商品情報を入れる", "① Dados do Produto",    "① Product Info", "pi"),
     ]),
     ("core", "✨ Core", "✨ Core", "✨ Core", [
@@ -1283,7 +1283,7 @@ _BREADCRUMB_MAP_JA = {
     "dashboard":        ("🏠 ホーム",      "ダッシュボード"),
     "mode_selection":   ("🏠 ホーム",      "モード選択"),
     "product_input":    ("📦 商品",        "商品入力"),
-    "saved_data":       ("📦 商品",        "保存済み商品"),
+    "saved_data":       ("📦 商品",        "マイプロジェクト"),
     "core_generation":  ("✨ Core",        "Core生成・編集"),
     "product_page":     ("⚡ 生成",        "商品ページ"),
     "related_assets":   ("⚡ 生成",        "関連生成物"),
@@ -1300,7 +1300,7 @@ _BREADCRUMB_MAP_PT = {
     "dashboard":        ("🏠 Início",       "Painel"),
     "mode_selection":   ("🏠 Início",       "Seleção de Modo"),
     "product_input":    ("📦 Produto",      "Entrada do Produto"),
-    "saved_data":       ("📦 Produto",      "Produtos Salvos"),
+    "saved_data":       ("📦 Produto",      "Meus Projetos"),
     "core_generation":  ("✨ Core",         "Gerar/Editar Core"),
     "product_page":     ("⚡ Gerar",        "Página do Produto"),
     "related_assets":   ("⚡ Gerar",        "Materiais Relacionados"),
@@ -1317,7 +1317,7 @@ _BREADCRUMB_MAP_EN = {
     "dashboard":        ("🏠 Home",                "Dashboard"),
     "mode_selection":   ("🏠 Home",                "Mode Selection"),
     "product_input":    ("📦 Product",             "Product Input"),
-    "saved_data":       ("📦 Product",             "Saved Products"),
+    "saved_data":       ("📦 Product",             "My Projects"),
     "core_generation":  ("✨ Core",                "Generate/Edit Core"),
     "product_page":     ("⚡ Generate",            "Product Page"),
     "related_assets":   ("⚡ Generate",            "Related Assets"),
@@ -1389,7 +1389,7 @@ def render_sidebar():
             unsafe_allow_html=True,
         )
         if st.button(
-            _lt("保存済み商品", "Produtos salvos", "Saved Products", lang),
+            _lt("マイプロジェクト", "Meus projetos", "My Projects", lang),
             key="simple_nav_saved_data",
             use_container_width=True,
             type="primary" if cur_page == "saved_data" else "secondary",
